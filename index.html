@@ -33,7 +33,7 @@
   .brand{ font-size:17px; font-weight:800; letter-spacing:.5px; text-transform:uppercase; }
   .brand small{ display:block; font-size:10px; font-weight:600; letter-spacing:1px; color:#aeb8de; margin-top:1px; }
   .seg{ display:flex; background:rgba(255,255,255,.14); border-radius:9px; padding:3px; }
-  .seg button{ font-size:13px; font-weight:700; padding:6px 12px; border-radius:7px; color:#cfd5ee; }
+  .seg button{ font-size:12.5px; font-weight:700; padding:6px 10px; border-radius:7px; color:#cfd5ee; }
   .seg button.active{ background:#fff; color:var(--navy); }
   .hdr-sub{ display:flex; align-items:center; justify-content:space-between; padding:0 14px 9px; gap:10px; }
   .meta-sum{ font-size:12.5px; color:#cfd5ee; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -160,6 +160,32 @@
   .sheet .row{ display:flex; gap:9px; margin-top:12px; }
   .sheet .row button{ flex:1; padding:12px; border-radius:10px; font-weight:700; border:1.5px solid var(--navy); color:var(--navy); }
   .sheet .row button.solid{ background:var(--navy); color:#fff; }
+  .su-meta{ font-size:13px; font-weight:700; color:var(--muted); margin-bottom:12px; }
+  .su-tiles{ display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+  .su-tile{ text-align:center; border-radius:12px; padding:14px 6px; border:1px solid var(--line-soft); }
+  .su-tile .n{ font-size:28px; font-weight:800; line-height:1; color:var(--navy); }
+  .su-tile .l{ font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); margin-top:5px; }
+  .su-tile.g{ background:var(--green-soft); border-color:var(--green-line); }
+  .su-tile.a{ background:var(--amber-bg); border-color:var(--amber-line); }
+  .su-tile.x{ background:#eef0f2; } .su-tile.u{ background:#f2f4f8; }
+  .su-zrow{ display:flex; align-items:center; justify-content:space-between; padding:9px 2px; border-top:1px solid var(--line); }
+  .su-zrow:first-child{ border-top:none; }
+  .su-zname{ font-weight:800; color:var(--navy); font-size:14px; min-width:60px; }
+  .su-zbar{ flex:1; height:8px; background:#eef0f4; border-radius:5px; margin:0 12px; overflow:hidden; }
+  .su-zfill{ height:100%; background:var(--amber); }
+  .su-zct{ font-size:13px; font-weight:800; color:var(--muted); min-width:56px; text-align:right; }
+  .su-zct.hot{ color:var(--amber); }
+  .su-item{ padding:9px 2px; border-top:1px solid var(--line); font-size:14px; }
+  .su-item:first-child{ border-top:none; }
+  .su-item b{ color:var(--navy); font-size:15px; }
+  .su-item .d{ color:var(--muted); font-size:13px; margin-top:2px; }
+  .su-hrow{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 2px; border-top:1px solid var(--line); cursor:pointer; }
+  .su-hrow:first-child{ border-top:none; }
+  .su-hd{ font-weight:800; color:var(--navy); font-size:14px; }
+  .su-hs{ font-size:12px; color:var(--muted); font-weight:600; display:block; margin-top:2px; }
+  .su-hcount{ font-size:12.5px; font-weight:800; color:var(--amber); background:var(--amber-bg); border:1px solid var(--amber-line); border-radius:20px; padding:3px 10px; flex:none; }
+  .su-empty{ color:var(--muted); font-size:13.5px; text-align:center; padding:12px; }
+
   [hidden]{ display:none !important; }
 </style>
 </head>
@@ -170,7 +196,8 @@
     <div class="brand">Cabinet Check<small>UGE · Concourse B/A</small></div>
     <div class="seg">
       <button data-view="check" class="active">Walk</button>
-      <button data-view="over">Overview</button>
+      <button data-view="over">Board</button>
+      <button data-view="super">Super</button>
     </div>
   </div>
   <div class="hdr-sub">
@@ -207,14 +234,30 @@
       <div id="zoneList"></div>
     </div>
     <div class="ov-card">
-      <h3>Export &amp; Backup</h3>
-      <div class="actions">
-        <button class="solid" id="btnCopy">Copy report</button>
-        <button id="btnBackup">Download backup</button>
-        <button id="btnRestore">Restore backup</button>
+      <h3>Shift</h3>
+      <div class="actions" style="grid-template-columns:1fr">
         <button class="danger" id="btnReset">New shift (clear)</button>
       </div>
-      <input type="file" id="fileIn" accept=".json,application/json" hidden>
+    </div>
+  </section>
+
+  <section id="superView" hidden>
+    <div class="ov-card">
+      <h3>Cabinet Status — Live</h3>
+      <div class="su-meta" id="suMeta"></div>
+      <div class="su-tiles">
+        <div class="su-tile g"><div class="n" id="suGood">0</div><div class="l">Good</div></div>
+        <div class="su-tile a"><div class="n" id="suFlag">0</div><div class="l">Restock</div></div>
+        <div class="su-tile x"><div class="n" id="suNone">0</div><div class="l">No cab</div></div>
+        <div class="su-tile u"><div class="n" id="suLeft">0</div><div class="l">Not checked</div></div>
+      </div>
+    </div>
+    <div class="ov-card"><h3>By Zone</h3><div id="suZones"></div></div>
+    <div class="ov-card"><h3>Needs Restock Now</h3><div id="suList"></div></div>
+    <div class="ov-card">
+      <h3>Shift Logs</h3>
+      <div class="actions" style="grid-template-columns:1fr"><button class="solid" id="btnSaveLog">Save this shift to the log</button></div>
+      <div id="suHistory" style="margin-top:12px"></div>
     </div>
   </section>
 </main>
@@ -290,7 +333,8 @@
   function tagCount(code){ return Object.keys(gRead(code).tags||{}).length; }
   function hasNote(code){ return !!(gRead(code).note); }
   function isFlagged(code){ return lowCount(code)>0||tagCount(code)>0||hasNote(code); }
-  function statusOf(code){ const g=gRead(code); if(g.status==="none")return "none"; if(isFlagged(code))return "att"; if(g.status==="good")return "good"; return "left"; }
+  function statOf(c){ if(!c)return "left"; const low=c.low?Object.keys(c.low).length:0, tags=c.tags?Object.keys(c.tags).length:0, note=!!c.note; if(c.status==="none")return "none"; if(low||tags||note)return "att"; if(c.status==="good")return "good"; return "left"; }
+  function statusOf(code){ return statOf(state.gates[code]); }
 
   let idx=Math.min(Math.max(parseInt(state.ui.idx)||0,0),TOTAL-1);
   let view="check", filter="all", reorderMode=false;
@@ -455,7 +499,7 @@
 
   /* ═══════════ views ═══════════ */
   function setView(v){ view=v; document.querySelectorAll(".seg button").forEach(b=>b.classList.toggle("active",b.dataset.view===v));
-    $("#checkView").hidden=v!=="check"; $("#overView").hidden=v!=="over"; $("#nav").hidden=v!=="check"; if(v==="over")renderOverview(); main.scrollTop=0; }
+    $("#checkView").hidden=v!=="check"; $("#overView").hidden=v!=="over"; $("#superView").hidden=v!=="super"; $("#nav").hidden=v!=="check"; if(v==="over")renderOverview(); if(v==="super")renderSuper(); main.scrollTop=0; }
   document.querySelectorAll(".seg button").forEach(b=>b.addEventListener("click",()=>setView(b.dataset.view)));
   $("#fseg").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{ filter=b.dataset.f; $("#fseg").querySelectorAll("button").forEach(x=>x.classList.toggle("active",x===b)); renderOverview(); }));
   function renderOverview(){ updateHeader(); let good=0,flag=0,none=0; for(const g of GATES){ const s=statusOf(g.code); if(s==="good")good++; else if(s==="att")flag++; else if(s==="none")none++; }
@@ -470,18 +514,55 @@
     }).join("")||'<p style="color:var(--muted);font-size:14px;text-align:center;padding:14px">Nothing here.</p>';
     wrap.querySelectorAll(".chip").forEach(c=>c.addEventListener("click",()=>{ go(INDEX[c.dataset.code]); setView("check"); })); }
 
+  /* ═══════════ supervisor view + shift logs ═══════════ */
+  function nowMs(){ try{ return Date.now(); }catch(e){ return 0; } }
+  function todayStr(){ try{ return new Date().toISOString().slice(0,10); }catch(e){ return "log"; } }
+  function fmtTime(ms){ if(!ms)return ""; try{ return new Date(ms).toLocaleString(undefined,{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}); }catch(e){ return ""; } }
+  function summaryNow(){ let good=0,flag=0,none=0,left=0; for(const g of GATES){ const s=statOf(state.gates[g.code]); if(s==="good")good++; else if(s==="att")flag++; else if(s==="none")none++; else left++; } return {good,flag,none,left}; }
+  function renderSuper(){
+    const s=summaryNow();
+    $("#suGood").textContent=s.good; $("#suFlag").textContent=s.flag; $("#suNone").textContent=s.none; $("#suLeft").textContent=s.left;
+    const m=state.meta; $("#suMeta").textContent=[m.date||"—",m.shift,m.by].filter(Boolean).join(" · ")+(fbReady?"  ·  live":"  ·  offline");
+    $("#suZones").innerHTML=ZONES.map(z=>{ const gs=GATES.filter(g=>g.zone===z.z), f=gs.filter(g=>statOf(state.gates[g.code])==="att").length, pct=gs.length?f/gs.length*100:0;
+      return '<div class="su-zrow"><span class="su-zname">'+z.z+'</span><span class="su-zbar"><span class="su-zfill" style="width:'+pct+'%"></span></span><span class="su-zct '+(f?"hot":"")+'">'+f+' flag</span></div>'; }).join("");
+    const flagged=GATES.filter(g=>statOf(state.gates[g.code])==="att");
+    $("#suList").innerHTML=flagged.length?flagged.map(g=>{ const c=state.gates[g.code]||{}, low=lowLabelsFrom(c), tags=c.tags?Object.keys(c.tags):[], bits=[]; if(low.length)bits.push(low.join(", ")); if(tags.length)bits.push(tags.join(", ")); if(c.note)bits.push(c.note);
+      return '<div class="su-item"><b>'+g.code+'</b> <span style="color:var(--muted);font-weight:600">'+g.zone+'</span><div class="d">'+(bits.join(" · ")||"flagged")+'</div></div>'; }).join(""):'<div class="su-empty">Nothing flagged right now.</div>';
+    loadHistory();
+  }
+  function saveLog(){ if(!fbReady){ alert("Connect to the internet to save a shift log."); return; }
+    const date=todayStr(), shift=state.meta.shift||"", id=(date+"_"+(shift||"shift")).replace(/[.#$\[\]\/\s]+/g,"-");
+    const entry={ date, shift, by:state.meta.by||"", savedAt:nowMs(), summary:summaryNow(), gates:clean(state.gates) };
+    try{ db.ref("history/"+id).set(entry).then(()=>{ flash($("#btnSaveLog"),"Saved ✓"); loadHistory(); }).catch(()=>alert("Couldn't save the log.")); }catch(e){ alert("Couldn't save the log."); }
+  }
+  function loadHistory(){ const box=$("#suHistory"); if(!box)return; if(!fbReady){ box.innerHTML='<div class="su-empty">Offline — logs load when connected.</div>'; return; }
+    db.ref("history").once("value").then(sn=>renderHistory(sn.val()||{})).catch(()=>{ box.innerHTML='<div class="su-empty">Couldn\'t load logs.</div>'; }); }
+  function renderHistory(obj){ const box=$("#suHistory"), ids=Object.keys(obj); if(!ids.length){ box.innerHTML='<div class="su-empty">No shift logs yet.</div>'; return; }
+    ids.sort((a,b)=>((obj[b].savedAt||0)-(obj[a].savedAt||0)));
+    box.innerHTML=ids.map(id=>{ const e=obj[id], fl=e.summary?e.summary.flag:0;
+      return '<div class="su-hrow" data-id="'+id+'"><span><span class="su-hd">'+(e.date||id)+(e.shift?" · "+e.shift:"")+'</span><span class="su-hs">'+(e.by?e.by+" · ":"")+fmtTime(e.savedAt)+'</span></span><span class="su-hcount">'+fl+' flagged</span></div>'; }).join("");
+    box.querySelectorAll(".su-hrow").forEach(r=>r.addEventListener("click",()=>showLogDetail(obj[r.dataset.id]))); }
+  function showLogDetail(e){ if(!e)return; const L=[], s=e.summary||{};
+    L.push((e.date||"")+(e.shift?"  "+e.shift:"")+(e.by?"  ·  "+e.by:"")); L.push("Good "+(s.good||0)+"  ·  Restock "+(s.flag||0)+"  ·  No cab "+(s.none||0)+"  ·  Not checked "+(s.left||0)); L.push(""); L.push("NEEDS RESTOCK:");
+    const g=e.gates||{}; let any=false;
+    GATES.forEach(gt=>{ const c=g[gt.code]; if(statOf(c)!=="att")return; any=true; const low=lowLabelsFrom(c), tags=c.tags?Object.keys(c.tags):[], bits=[]; if(low.length)bits.push("low: "+low.join(", ")); if(tags.length)bits.push(tags.join(", ")); if(c.note)bits.push("note: "+c.note); L.push("  "+gt.code+(bits.length?" — "+bits.join(" | "):"")); });
+    if(!any)L.push("  none");
+    showModal("Log — "+(e.date||"")+(e.shift?" "+e.shift:""), L.join("\n")); }
+  $("#btnSaveLog").addEventListener("click",saveLog);
+
   /* ═══════════ meta ═══════════ */
   [["mDate","date"],["mShift","shift"],["mBy","by"]].forEach(([id,k])=>{ const el=$("#"+id); el.value=state.meta[k]||"";
     el.addEventListener("input",()=>{ state.meta[k]=el.value; if(!el.value)delete state.meta[k]; saveSoon(); pushMeta(); updateHeader(); }); });
   function syncMeta(){ [["mDate","date"],["mShift","shift"],["mBy","by"]].forEach(([id,k])=>{ const el=$("#"+id); if(el)el.value=state.meta[k]||""; }); }
 
   /* ═══════════ export / backup ═══════════ */
-  function lowLabels(code){ const gd=gRead(code); return orderedItems().filter(it=>gd.low&&it.key in gd.low).map(it=>{ const d=gd.low[it.key]||{}; let s=it.label; const ex=[];
+  function lowLabelsFrom(c){ if(!c||!c.low)return []; return orderedItems().filter(it=>it.key in c.low).map(it=>{ const d=c.low[it.key]||{}; let s=it.label; const ex=[];
     if(it.sizes&&d.sizes){ const sz=GLOVE_SIZES.filter(x=>d.sizes[x]); if(sz.length)ex.push(sz.join("/")); }
     if(it.parts&&d.parts){ const ps=it.parts.filter(p=>d.parts[p.k]).map(p=>p.label); if(ps.length)ex.push(ps.join(", ")); }
     if(it.qty&&d.qty!=null&&d.qty!=="")ex.push("need "+d.qty+(it.par!=null?"/"+it.par:""));
     if(it.holder&&d.holder)ex.push("holder "+d.holder);
     if(ex.length)s+=" ("+ex.join("; ")+")"; return s; }); }
+  function lowLabels(code){ return lowLabelsFrom(gRead(code)); }
   function buildReport(){ const m=state.meta,L=[]; L.push("CABINET CHECK — "+(m.date||"(no date)")+(m.shift?"  "+m.shift:"")+(m.by?"  ·  "+m.by:""));
     let good=0,flag=0,none=0; for(const g of GATES){ const s=statusOf(g.code); if(s==="good")good++; else if(s==="att")flag++; else if(s==="none")none++; }
     L.push("Good: "+good+"   Needs restock: "+flag+"   No cabinet: "+none+"   (of "+TOTAL+")"); L.push(""); L.push("NEEDS RESTOCK:"); let any=false;
@@ -492,15 +573,8 @@
   $("#mClose").addEventListener("click",()=>$("#overlay").classList.remove("on"));
   $("#mSelect").addEventListener("click",()=>{ const t=$("#mText"); t.focus(); t.select(); try{document.execCommand("copy");}catch(e){} });
   $("#overlay").addEventListener("click",e=>{ if(e.target.id==="overlay")$("#overlay").classList.remove("on"); });
-  $("#btnCopy").addEventListener("click",async()=>{ const txt=buildReport(); try{ await navigator.clipboard.writeText(txt); flash($("#btnCopy"),"Copied ✓"); }catch(e){ showModal("Report — copy this",txt); } });
-  $("#btnBackup").addEventListener("click",()=>{ const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"}); const url=URL.createObjectURL(blob),a=document.createElement("a"); a.href=url; a.download="cabinet-check-backup.json"; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},500); });
-  $("#btnRestore").addEventListener("click",()=>$("#fileIn").click());
-  $("#fileIn").addEventListener("change",e=>{ const f=e.target.files[0]; if(!f)return; const r=new FileReader();
-    r.onload=()=>{ try{ const data=JSON.parse(r.result); if(!data||typeof data!=="object"||!data.gates)throw 0; if(!confirm("Replace what's on this phone with the backup file?"))return;
-      state=data; state.gates=state.gates||{}; state.meta=state.meta||{}; state.ui=state.ui||{}; idx=Math.min(Math.max(parseInt(state.ui.idx)||0,0),TOTAL-1);
-      saveLocal(); if(fbReady){ Object.keys(state.gates).forEach(pushGate); pushMeta(); } syncMeta(); renderCard(); updateNav(); updateHeader(); setView("over"); }catch(err){ alert("Couldn't read that backup file."); } };
-    r.readAsText(f); e.target.value=""; });
-  $("#btnReset").addEventListener("click",()=>{ if(!confirm("Start a new shift? This clears every cabinet"+(fbReady?" for EVERYONE on the live board":"")+". (Keeps date / shift / name.)"))return;
+  $("#btnReset").addEventListener("click",()=>{ if(!confirm("Start a new shift? This saves the current board to the log, then clears every cabinet"+(fbReady?" for EVERYONE on the live board":"")+". (Keeps date / shift / name.)"))return;
+    if(fbReady && Object.keys(state.gates).length) saveLog(); // archive before clearing
     state.gates={}; saveLocal(); if(fbReady){ try{ db.ref("gates").remove(); }catch(e){} } renderCard(); updateHeader(); renderOverview(); });
   function flash(btn,txt){ const o=btn.textContent; btn.textContent=txt; setTimeout(()=>btn.textContent=o,1200); }
 
