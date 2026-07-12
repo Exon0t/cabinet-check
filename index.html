@@ -9,7 +9,6 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Cabinet Check">
 <title>Cabinet Check</title>
-<!-- Firebase (loads only when online; app runs local-only if these fail) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <style>
@@ -31,30 +30,35 @@
 
   header{ background:var(--navy); color:#fff; flex:none; padding-top:env(safe-area-inset-top); box-shadow:0 2px 8px rgba(10,20,60,.25); z-index:10; }
   .hdr-top{ display:flex; align-items:center; justify-content:space-between; padding:10px 14px 8px; }
-  .brand{ font-size:17px; font-weight:800; letter-spacing:.5px; text-transform:uppercase; display:flex; align-items:center; gap:9px; }
-  .live{ font-size:10px; font-weight:800; letter-spacing:.5px; text-transform:uppercase; padding:3px 8px; border-radius:20px; background:rgba(255,255,255,.15); color:#cfd5ee; display:inline-flex; align-items:center; gap:5px; }
-  .live::before{ content:""; width:7px; height:7px; border-radius:50%; background:#9aa0b0; }
-  .live.on{ background:rgba(143,211,166,.22); color:#c9f0d4; }
-  .live.on::before{ background:#8fd3a6; }
+  .brand{ font-size:17px; font-weight:800; letter-spacing:.5px; text-transform:uppercase; }
   .brand small{ display:block; font-size:10px; font-weight:600; letter-spacing:1px; color:#aeb8de; margin-top:1px; }
   .seg{ display:flex; background:rgba(255,255,255,.14); border-radius:9px; padding:3px; }
   .seg button{ font-size:13px; font-weight:700; padding:6px 12px; border-radius:7px; color:#cfd5ee; }
   .seg button.active{ background:#fff; color:var(--navy); }
   .hdr-sub{ display:flex; align-items:center; justify-content:space-between; padding:0 14px 9px; gap:10px; }
   .meta-sum{ font-size:12.5px; color:#cfd5ee; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .overall{ font-size:13px; font-weight:800; color:#fff; flex:none; }
+  .live{ font-size:10px; font-weight:800; letter-spacing:.5px; text-transform:uppercase; padding:3px 8px; border-radius:20px; background:rgba(255,255,255,.15); color:#cfd5ee; display:inline-flex; align-items:center; gap:5px; }
+  .live::before{ content:""; width:7px; height:7px; border-radius:50%; background:#9aa0b0; }
+  .live.on{ background:rgba(143,211,166,.22); color:#c9f0d4; } .live.on::before{ background:#8fd3a6; }
+  .overall{ font-size:13px; font-weight:800; color:#f0e0c4; flex:none; }
   .pbar{ height:5px; background:rgba(255,255,255,.16); }
-  .pfill{ height:100%; width:0; background:linear-gradient(90deg,#8fd3a6,#2e7d32); transition:width .25s ease; }
+  .pfill{ height:100%; width:0; background:linear-gradient(90deg,#aeb8de,#fff); transition:width .25s ease; }
   .save-banner{ flex:none; background:#c0392b; color:#fff; font-size:13px; font-weight:700; text-align:center; padding:9px 14px; line-height:1.35; }
 
   main{ flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:12px 12px 18px; }
 
   .card{ background:var(--card); border-radius:14px; box-shadow:0 1px 6px rgba(20,30,70,.10); overflow:hidden; }
   .card-hd{ background:var(--navy); color:#fff; padding:14px 16px; display:flex; align-items:center; gap:12px; }
-  .card-hd.good{ background:var(--green); } .card-hd.att{ background:#8a5a12; }
+  .card-hd.att{ background:#8a5a12; }
+  .card-hd.good{ background:var(--green); } .card-hd.good .g-meta{ color:#d5f0dc; }
+  .card-hd.none{ background:#5b6472; } .card-hd.none .g-meta{ color:#d5d8de; }
+  .status-row{ display:flex; gap:9px; padding:12px 14px 0; }
+  .statbtn{ flex:1; padding:13px 8px; border-radius:11px; font-weight:800; font-size:14.5px; border:1.5px solid var(--line); background:#fff; color:var(--muted); }
+  .statbtn.sg.on{ background:var(--green); border-color:var(--green); color:#fff; }
+  .statbtn.sn.on{ background:#5b6472; border-color:#5b6472; color:#fff; }
   .g-code{ font-size:32px; font-weight:800; letter-spacing:.5px; line-height:1; }
   .g-meta{ flex:1; font-size:12.5px; color:#cfd5ee; line-height:1.35; font-weight:600; }
-  .card-hd.good .g-meta{ color:#d5f0dc; } .card-hd.att .g-meta{ color:#f0e0c4; }
+  .card-hd.att .g-meta{ color:#f0e0c4; }
   .g-chip{ flex:none; font-size:12px; font-weight:800; background:rgba(255,255,255,.18); padding:6px 11px; border-radius:20px; text-align:center; line-height:1.2; }
 
   .hint-line{ font-size:13px; color:var(--muted); font-weight:600; padding:11px 14px 4px; display:flex; align-items:center; justify-content:space-between; gap:10px; }
@@ -68,7 +72,6 @@
   .item.low{ border-color:var(--red-line); }
   .ihead{ display:flex; align-items:center; justify-content:space-between; gap:10px; min-height:54px; padding:8px 12px; user-select:none; }
   .item.low .ihead{ background:var(--red-bg); }
-  .item:not(.low) .ihead:active{ background:#f4f6fb; }
   .i-name{ font-size:16.5px; font-weight:600; }
   .i-name em{ font-style:normal; font-size:11.5px; font-weight:700; color:var(--dim); display:block; margin-top:1px; }
   .item.low .i-name{ color:var(--red); }
@@ -84,11 +87,14 @@
   .qtyinput{ width:74px; border:1.5px solid var(--line); border-radius:9px; padding:9px 10px; text-align:center; font-weight:700; }
   .qtyinput:focus{ outline:none; border-color:var(--blue); }
   .of{ font-size:13px; font-weight:700; color:var(--muted); }
-  .chips2{ display:flex; gap:7px; }
+  .chips2{ display:flex; gap:7px; flex-wrap:wrap; }
   .szc{ min-width:46px; padding:9px 4px; border:1.5px solid var(--line); border-radius:9px; font-weight:800; color:var(--muted); }
   .szc.on{ background:var(--red); border-color:var(--red); color:#fff; }
-  .ppesel{ border:1.5px solid var(--line); border-radius:9px; padding:9px 10px; font-weight:600; background:#fff; }
-  .ppesel:focus{ outline:none; border-color:var(--blue); }
+  .partc{ padding:9px 12px; border:1.5px solid var(--line); border-radius:9px; font-weight:700; font-size:13.5px; color:var(--muted); }
+  .partc.on{ background:var(--red); border-color:var(--red); color:#fff; }
+  .holderc{ padding:9px 15px; border:1.5px solid var(--line); border-radius:9px; font-weight:800; color:var(--muted); }
+  .holderc.on-ok{ background:var(--green); border-color:var(--green); color:#fff; }
+  .holderc.on-bad{ background:var(--red); border-color:var(--red); color:#fff; }
 
   .chips-wrap{ padding:10px 14px 4px; }
   .chips-l{ font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.7px; color:var(--muted); margin-bottom:7px; }
@@ -99,16 +105,14 @@
   .note-wrap input{ width:100%; border:1.5px solid var(--line); border-radius:11px; padding:11px 12px; }
   .note-wrap input:focus{ outline:none; border-color:var(--blue); background:#fffdf5; }
 
-  /* reorder */
   .ritem{ display:flex; align-items:center; gap:8px; min-height:54px; padding:8px 10px; margin:6px 0; border:1.5px solid var(--line); border-radius:11px; background:#fff; touch-action:none; }
   .ritem.drag{ background:#eef4ff; border-color:var(--blue); box-shadow:0 6px 16px rgba(20,40,90,.20); }
-  .rhandle{ font-size:19px; color:var(--dim); width:30px; text-align:center; cursor:grab; }
+  .rhandle{ font-size:19px; color:var(--dim); width:30px; text-align:center; }
   .rname{ flex:1; font-size:16px; font-weight:600; }
   .rmove{ display:flex; gap:5px; }
   .rmove button{ width:40px; height:40px; border:1.5px solid var(--line); border-radius:9px; font-size:14px; font-weight:800; color:var(--navy); }
   .rmove button:disabled{ opacity:.3; }
 
-  /* overview */
   .ov-card{ background:var(--card); border-radius:14px; box-shadow:0 1px 6px rgba(20,30,70,.08); padding:16px; margin-bottom:12px; }
   .ov-card h3{ font-size:12px; text-transform:uppercase; letter-spacing:1px; color:var(--navy); margin-bottom:12px; font-weight:800; }
   .field{ margin-bottom:12px; } .field:last-child{ margin-bottom:0; }
@@ -132,8 +136,9 @@
   .chip{ border:1.5px solid var(--line); border-radius:11px; padding:9px 4px; text-align:center; background:#fff; }
   .chip .c{ font-size:15px; font-weight:800; color:var(--ink); }
   .chip .f{ font-size:10.5px; font-weight:700; color:var(--dim); margin-top:2px; }
-  .chip.good{ background:var(--green-bg); border-color:var(--green-line); } .chip.good .c,.chip.good .f{ color:var(--green); }
   .chip.att{ background:var(--amber-bg); border-color:var(--amber-line); } .chip.att .c,.chip.att .f{ color:var(--amber); }
+  .chip.good{ background:var(--green-bg); border-color:var(--green-line); } .chip.good .c,.chip.good .f{ color:var(--green); }
+  .chip.none{ background:#eef0f2; border-color:#d3d7de; } .chip.none .c,.chip.none .f{ color:#5b6472; }
   .chip.here{ box-shadow:0 0 0 2.5px var(--blue); }
   .actions{ display:grid; grid-template-columns:1fr 1fr; gap:9px; }
   .actions button{ padding:12px 8px; border-radius:11px; font-weight:700; font-size:14px; border:1.5px solid var(--navy); color:var(--navy); background:#fff; }
@@ -170,7 +175,7 @@
   </div>
   <div class="hdr-sub">
     <span class="meta-sum" id="metaSum">Tap Overview to set date / shift</span>
-    <span style="display:flex;align-items:center;gap:8px;flex:none"><span class="live" id="live">Offline</span><span class="overall" id="overall">0 / 0</span></span>
+    <span style="display:flex;align-items:center;gap:8px;flex:none"><span class="live" id="live">Offline</span><span class="overall" id="overall">0 flagged</span></span>
   </div>
   <div class="pbar"><div class="pfill" id="pfill"></div></div>
 </header>
@@ -191,14 +196,13 @@
       <div class="stats">
         <div class="stat g"><div class="n" id="stGood">0</div><div class="l">Good</div></div>
         <div class="stat a"><div class="n" id="stFlag">0</div><div class="l">Needs restock</div></div>
-        <div class="stat n"><div class="n" id="stLeft">0</div><div class="l">Not checked</div></div>
+        <div class="stat n"><div class="n" id="stNone">0</div><div class="l">No cabinet</div></div>
       </div>
     </div>
     <div class="ov-card">
       <div class="fseg" id="fseg">
         <button data-f="all" class="active">All</button>
         <button data-f="flag">Needs restock</button>
-        <button data-f="left">Not checked</button>
       </div>
       <div id="zoneList"></div>
     </div>
@@ -231,20 +235,21 @@
 <script>
   /* ═══════════ items ═══════════ */
   const GLOVE_SIZES = ["S","M","L","XL"];
-  const PPE_KINDS = ["Masks","Gowns","Goggles","Face shields"]; // TODO: confirm real PPE types
   const ITEMS = [
     { key:"gloves", label:"Gloves", sub:"incl. glove holder", sizes:true },
-    { key:"prov",   label:"Provisions" },
-    { key:"basket", label:"Basket" },
-    { key:"bags",   label:"Bags", par:"2–6 rolls" },
-    { key:"trash",  label:"Trash Bags" },
-    { key:"wypall", label:"WypAlls", par:2 },
-    { key:"soap",   label:"Soap", par:6 },
-    { key:"facial", label:"Facial Towels", par:6 },
-    { key:"towels", label:"Towels", par:6 },
-    { key:"tp",     label:"Toilet Paper", par:6 },
-    { key:"ppe",    label:"PPE", sub:"incl. PPE holder", kinds:true, par:6 },
-    { key:"maxi",   label:"Maxi Pads", sub:"+ 2 holders", par:8 }
+    { key:"prov",   label:"Provisions", parts:[
+        {k:"headphones",label:"Headphones ×2"},{k:"flightdeck",label:"Flight Deck ×3"},
+        {k:"lavbag",label:"Lav Bag"},{k:"blankets",label:"Blankets"} ] },
+    { key:"basket", label:"Basket", sub:"coming soon" },
+    { key:"bags",   label:"Bags", par:"2–6 rolls", qty:true },
+    { key:"trash",  label:"Trash Bags", qty:true },
+    { key:"wypall", label:"WypAlls", par:2, qty:true },
+    { key:"soap",   label:"Soap", par:6, qty:true },
+    { key:"facial", label:"Facial Towels", par:6, qty:true },
+    { key:"towels", label:"Towels", par:6, qty:true },
+    { key:"tp",     label:"Toilet Paper", par:6, qty:true },
+    { key:"ppe",    label:"PPE", sub:"flight deck", par:6, qty:true, holder:true },
+    { key:"maxi",   label:"Maxi Pads", sub:"+ 2 holders", par:8, qty:true, holder:true }
   ];
   const ITEM_MAP = Object.fromEntries(ITEMS.map(i=>[i.key,i]));
   const CHIPS = ["Low stock","Broken","Locked","Dirty","Skipped"];
@@ -256,8 +261,6 @@
     { z:"Zone 4", subs:[{label:"4A",van:"V-22",gates:["B31","B35","B37"]},{label:"4B",van:"V-22",gates:["B32","B36"]},{label:"4C",van:"V-23",gates:["B38","B42","B44"]},{label:"4D",van:"V-23",gates:["B39","B41","B43"]}]},
     { z:"Zone 5", subs:[{label:"5A",van:"V-30",gates:["B45","B47","B49","B51"]},{label:"5B",van:"V-30",gates:["B46","B48","B50","B52"]}]},
     { z:"Zone 6", subs:[{label:"6A",van:"V-35",gates:["B53","B55","B57","B59","B61"]},{label:"6B",van:"V-35",gates:["B54","B56","B58","B60"]}]},
-    { z:"Zone 7", subs:[{label:"7A",van:"V-40",gates:["B62","B63","B64","B65","B66"]},{label:"7B",van:"V-40",gates:["B67","B68","B69","B70","B71"]}]},
-    { z:"Zone 8", subs:[{label:"8A",van:"V-44",gates:["B80","B82","B84","B86","B88"]},{label:"8B",van:"V-44",gates:["B90","B92","B94","B95"]}]},
     { z:"Zone 9", subs:[{label:"9A",van:"V-50",gates:["A14","A16","A18","A20","A22"]},{label:"9B",van:"V-50",gates:["A24","A26","A28","A30"]},{label:"9C",van:"V-51 · Intl",gates:["A32","A34","A36","A38","A40"]}]}
   ];
   const GATES=[];
@@ -280,16 +283,14 @@
   window.addEventListener("pagehide",()=>{ clearTimeout(saveTimer); saveLocal(); });
   (function(){ try{ const p=KEY+"-probe"; localStorage.setItem(p,"1"); localStorage.removeItem(p); }catch(e){ persistBroken("This browser isn't saving your work (private mode?). Use Download backup often."); } })();
 
-  const DEF={low:{},tags:{},note:"",visited:false};
+  const DEF={low:{},tags:{},note:""};
   function gRead(code){ return state.gates[code]||DEF; }
-  function gWrite(code){ let g=state.gates[code]; if(!g){ g={low:{},tags:{},note:"",visited:false}; state.gates[code]=g; } if(!g.low)g.low={}; if(!g.tags)g.tags={}; return g; }
+  function gWrite(code){ let g=state.gates[code]; if(!g){ g={low:{},tags:{},note:""}; state.gates[code]=g; } if(!g.low)g.low={}; if(!g.tags)g.tags={}; return g; }
   function lowCount(code){ return Object.keys(gRead(code).low||{}).length; }
   function tagCount(code){ return Object.keys(gRead(code).tags||{}).length; }
   function hasNote(code){ return !!(gRead(code).note); }
-  function needsAtt(code){ return lowCount(code)>0||tagCount(code)>0||hasNote(code); }
-  function isVisited(code){ return gRead(code).visited===true; }
-  function isGood(code){ return isVisited(code)&&!needsAtt(code); }
-  function statusOf(code){ return !isVisited(code)?"left":(needsAtt(code)?"att":"good"); }
+  function isFlagged(code){ return lowCount(code)>0||tagCount(code)>0||hasNote(code); }
+  function statusOf(code){ const g=gRead(code); if(g.status==="none")return "none"; if(isFlagged(code))return "att"; if(g.status==="good")return "good"; return "left"; }
 
   let idx=Math.min(Math.max(parseInt(state.ui.idx)||0,0),TOTAL-1);
   let view="check", filter="all", reorderMode=false;
@@ -304,7 +305,7 @@
   function orderedItems(){ return orderKeys().map(k=>ITEM_MAP[k]); }
   function moveKey(key,dir){ const a=orderKeys(),i=a.indexOf(key),j=i+dir; if(i<0||j<0||j>=a.length)return; a.splice(j,0,a.splice(i,1)[0]); saveLocal(); renderCard(); }
 
-  /* ═══════════ Firebase (optional, live multi-user) ═══════════ */
+  /* ═══════════ Firebase live sync ═══════════ */
   const FIREBASE_CONFIG={
     apiKey:"AIzaSyD1gtIw23ffOKA8ANz9w-obR3ElGi_ie3k",
     authDomain:"cabinet-checker-a23cd.firebaseapp.com",
@@ -317,21 +318,16 @@
   let db=null, fbReady=false, pushTimers={};
   function setLive(on){ const el=$("#live"); if(!el)return; el.classList.toggle("on",on); el.textContent=on?"Live":"Offline"; }
   function initFirebase(){
-    if(typeof firebase==="undefined"||!firebase.initializeApp) return; // offline / SDK didn't load
-    try{
-      firebase.initializeApp(FIREBASE_CONFIG);
-      db=firebase.database(); fbReady=true;
-      db.ref(".info/connected").on("value",s=>setLive(s.val()===true));
-      syncInitial();
+    if(typeof firebase==="undefined"||!firebase.initializeApp) return;
+    try{ firebase.initializeApp(FIREBASE_CONFIG); db=firebase.database(); fbReady=true;
+      db.ref(".info/connected").on("value",s=>setLive(s.val()===true)); syncInitial();
     }catch(e){ fbReady=false; }
   }
   function syncInitial(){
     db.ref("gates").once("value").then(snap=>{
       const remote=snap.val()||{};
-      // push up any local-only gates (offline work), then adopt remote for shared ones
       Object.keys(state.gates).forEach(code=>{ if(!(code in remote)){ try{ db.ref("gates/"+code).set(clean(state.gates[code])); }catch(_){} } });
-      state.gates=Object.assign({},state.gates,remote);
-      saveLocal(); renderCard(); updateHeader(); if(view==="over") renderOverview();
+      state.gates=Object.assign({},state.gates,remote); saveLocal(); renderCard(); updateHeader(); if(view==="over")renderOverview();
       const g=db.ref("gates");
       g.on("child_added",s=>applyRemote(s.key,s.val()));
       g.on("child_changed",s=>applyRemote(s.key,s.val()));
@@ -339,33 +335,38 @@
       db.ref("meta").on("value",s=>{ const m=s.val()||{}; if(JSON.stringify(m)!==JSON.stringify(state.meta)){ state.meta=m; saveLocal(); syncMeta(); updateHeader(); } });
     }).catch(()=>{});
   }
-  function applyRemote(code,val){ val=val||{}; if(JSON.stringify(state.gates[code]||{})===JSON.stringify(val)) return; state.gates[code]=val; saveLocal(); refreshFor(code); }
-  function refreshFor(code){ updateHeader(); if(view==="over") renderOverview(); if(view==="check"&&GATES[idx].code===code&&!reorderMode) renderCard(); }
-  function clean(o){ return JSON.parse(JSON.stringify(o)); } // strips undefined
+  function applyRemote(code,val){ val=val||{}; if(JSON.stringify(state.gates[code]||{})===JSON.stringify(val))return; state.gates[code]=val; saveLocal(); refreshFor(code); }
+  function refreshFor(code){ updateHeader(); if(view==="over")renderOverview(); if(view==="check"&&GATES[idx].code===code&&!reorderMode)renderCard(); }
+  function clean(o){ return JSON.parse(JSON.stringify(o)); }
   function pushGate(code){ if(!fbReady)return; try{ const g=state.gates[code]; db.ref("gates/"+code).set(g?clean(g):null); }catch(e){} }
   function pushGateSoon(code){ clearTimeout(pushTimers[code]); pushTimers[code]=setTimeout(()=>pushGate(code),450); }
   function pushMeta(){ if(!fbReady)return; try{ db.ref("meta").set(clean(state.meta)); }catch(e){} }
 
   /* ═══════════ render card ═══════════ */
+  function itemBody(it,d){
+    let h="";
+    if(it.sizes){
+      h+='<div class="subrow"><span class="subl">Sizes low:</span><span class="chips2">'
+        +GLOVE_SIZES.map(s=>'<button class="szc '+((d.sizes&&d.sizes[s])?"on":"")+'" data-size="'+s+'">'+s+'</button>').join("")+'</span></div>';
+    } else if(it.parts){
+      h+='<div class="subrow"><span class="subl">What\'s low:</span><span class="chips2">'
+        +it.parts.map(p=>'<button class="partc '+((d.parts&&d.parts[p.k])?"on":"")+'" data-part="'+p.k+'">'+p.label+'</button>').join("")+'</span></div>';
+    } else if(it.qty){
+      const ref = it.par!=null ? '<span class="of">of '+it.par+'</span>' : '';
+      h+='<div class="subrow"><label class="qtylab">How many needed<input class="qtyinput" type="number" inputmode="numeric" min="0" value="'+(d.qty!=null?d.qty:"")+'" placeholder="?">'+ref+'</label></div>';
+    }
+    if(it.holder){
+      h+='<div class="subrow"><span class="subl">Holder:</span><span class="chips2">'
+        +'<button class="holderc '+(d.holder==="there"?"on-ok":"")+'" data-holder="there">There</button>'
+        +'<button class="holderc '+(d.holder==="missing"?"on-bad":"")+'" data-holder="missing">Missing</button></span></div>';
+    }
+    return h;
+  }
   function itemRow(it,gd){
     const flagged = gd.low && (it.key in gd.low);
     const d = flagged ? (gd.low[it.key]||{}) : null;
     const parTxt = it.par!=null ? ("par "+it.par) : "";
-    let body="";
-    if(flagged){
-      const ofTxt = it.par!=null ? ("of "+it.par) : "";
-      body += '<div class="subrow"><label class="qtylab">How many now'
-        +'<input class="qtyinput" type="number" inputmode="numeric" min="0" value="'+(d.qty!=null?d.qty:"")+'" placeholder="?">'
-        +(ofTxt?'<span class="of">'+ofTxt+'</span>':'')+'</label></div>';
-      if(it.sizes){
-        body += '<div class="subrow"><span class="subl">Sizes low:</span><span class="chips2">'
-          +GLOVE_SIZES.map(s=>'<button class="szc '+((d.sizes&&d.sizes[s])?"on":"")+'" data-size="'+s+'">'+s+'</button>').join("")+'</span></div>';
-      }
-      if(it.kinds){
-        body += '<div class="subrow"><span class="subl">Which:</span><select class="ppesel"><option value="">—</option>'
-          +PPE_KINDS.map(k=>'<option '+(d.kind===k?"selected":"")+'>'+k+'</option>').join("")+'</select></div>';
-      }
-    }
+    const body = flagged ? itemBody(it,d) : "";
     return '<div class="item '+(flagged?"low":"")+'" data-key="'+it.key+'">'
       +'<div class="ihead"><span class="i-name">'+it.label+(it.sub?'<em>'+it.sub+'</em>':'')+'</span>'
       +(parTxt?'<span class="i-par">'+parTxt+'</span>':'')
@@ -381,7 +382,9 @@
     } else {
       const rows=oi.map(it=>itemRow(it,gd)).join("");
       const chips=CHIPS.map(c=>'<button class="qchip '+((gd.tags&&gd.tags[c])?"on":"")+'" data-chip="'+c+'">'+c+'</button>').join("");
-      bodyHtml='<div class="hint-line"><span>Tap anything <b>low or missing</b>.</span><button class="rbtn" id="reorderBtn">↕ Order</button></div>'
+      const st=gd.status;
+      const statusRow='<div class="status-row"><button class="statbtn sg '+(st==="good"?"on":"")+'" data-status="good">✓ Looks good</button><button class="statbtn sn '+(st==="none"?"on":"")+'" data-status="none">No cabinet</button></div>';
+      bodyHtml=statusRow+'<div class="hint-line"><span>Tap anything <b>low or missing</b>.</span><button class="rbtn" id="reorderBtn">↕ Order</button></div>'
         +'<div class="items" id="items">'+rows+'</div>'
         +'<div class="chips-wrap"><div class="chips-l">Cabinet issue (optional)</div><div class="qchips">'+chips+'</div></div>'
         +'<div class="note-wrap"><input id="note" type="text" placeholder="Optional note — only if you want"></div>';
@@ -391,10 +394,11 @@
     updateStatus(); main.scrollTop=0;
   }
   function updateStatus(){
-    const code=GATES[idx].code, st=statusOf(code), low=lowCount(code);
-    const hd=$("#cardHd"); hd.classList.toggle("good",st==="good"); hd.classList.toggle("att",st==="att");
-    $("#cardChip").textContent = st==="good"?"Good ✓":st==="att"?(low?low+" flagged":"Flagged"):"Not checked";
+    const code=GATES[idx].code, s=statusOf(code), n=lowCount(code), hd=$("#cardHd");
+    hd.classList.toggle("att",s==="att"); hd.classList.toggle("good",s==="good"); hd.classList.toggle("none",s==="none");
+    $("#cardChip").textContent = s==="att"?(n?n+" flagged":"Flagged"):s==="good"?"Good ✓":s==="none"?"No cabinet":"—";
     $("#primaryBtn").innerHTML = (idx===TOTAL-1)?"Finish ▶":"Next ▶";
+    $("#pfill").style.width = ((idx+1)/TOTAL*100)+"%";
   }
 
   /* ═══════════ card events ═══════════ */
@@ -402,20 +406,25 @@
     if(e.target.id==="reorderBtn"){ reorderMode=!reorderMode; renderCard(); return; }
     const mv=e.target.closest(".rmove button"); if(mv){ const ri=e.target.closest(".ritem"); if(ri) moveKey(ri.dataset.key,parseInt(mv.dataset.dir,10)); return; }
     const code=GATES[idx].code;
+    const stbtn=e.target.closest(".statbtn");
+    if(stbtn){ const g=gWrite(code), v=stbtn.dataset.status; if(g.status===v){ delete g.status; } else { g.status=v; g.low={}; g.tags={}; delete g.note; } saveLocal(); pushGate(code); renderCard(); updateHeader(); return; }
     const sz=e.target.closest(".szc");
-    if(sz){ const key=sz.closest(".item").dataset.key, g=gWrite(code); g.visited=true; const d=g.low[key]=g.low[key]||{f:1}; d.sizes=d.sizes||{}; const s=sz.dataset.size; if(d.sizes[s])delete d.sizes[s]; else d.sizes[s]=true; sz.classList.toggle("on",!!d.sizes[s]); saveLocal(); pushGateSoon(code); updateHeader(); return; }
+    if(sz){ const key=sz.closest(".item").dataset.key,g=gWrite(code),d=g.low[key]=g.low[key]||{f:1}; d.sizes=d.sizes||{}; const s=sz.dataset.size; if(d.sizes[s])delete d.sizes[s]; else d.sizes[s]=true; sz.classList.toggle("on",!!d.sizes[s]); saveLocal(); pushGateSoon(code); updateHeader(); return; }
+    const pc=e.target.closest(".partc");
+    if(pc){ const key=pc.closest(".item").dataset.key,g=gWrite(code),d=g.low[key]=g.low[key]||{f:1}; d.parts=d.parts||{}; const p=pc.dataset.part; if(d.parts[p])delete d.parts[p]; else d.parts[p]=true; pc.classList.toggle("on",!!d.parts[p]); saveLocal(); pushGateSoon(code); return; }
+    const hc=e.target.closest(".holderc");
+    if(hc){ const key=hc.closest(".item").dataset.key,g=gWrite(code),d=g.low[key]=g.low[key]||{f:1}; const v=hc.dataset.holder; d.holder=(d.holder===v)?undefined:v; if(!d.holder)delete d.holder;
+      hc.parentElement.querySelectorAll(".holderc").forEach(b=>{ b.classList.remove("on-ok","on-bad"); if(d.holder===b.dataset.holder) b.classList.add(b.dataset.holder==="there"?"on-ok":"on-bad"); });
+      saveLocal(); pushGateSoon(code); return; }
     const head=e.target.closest(".ihead");
-    if(head){ const key=head.closest(".item").dataset.key, g=gWrite(code); g.visited=true; if(g.low[key])delete g.low[key]; else g.low[key]={f:1}; saveLocal(); pushGate(code); renderCard(); updateHeader(); return; }
+    if(head){ const key=head.closest(".item").dataset.key,g=gWrite(code); if(g.low[key])delete g.low[key]; else { g.low[key]={f:1}; delete g.status; } saveLocal(); pushGate(code); renderCard(); updateHeader(); return; }
     const qc=e.target.closest(".qchip");
-    if(qc){ const c=qc.dataset.chip, g=gWrite(code); g.visited=true; if(g.tags[c])delete g.tags[c]; else g.tags[c]=true; qc.classList.toggle("on",!!g.tags[c]); saveLocal(); pushGate(code); updateStatus(); updateHeader(); return; }
+    if(qc){ const c=qc.dataset.chip,g=gWrite(code); if(g.tags[c])delete g.tags[c]; else { g.tags[c]=true; if(g.status){ delete g.status; document.querySelectorAll(".statbtn").forEach(b=>b.classList.remove("on")); } } qc.classList.toggle("on",!!g.tags[c]); saveLocal(); pushGate(code); updateStatus(); updateHeader(); return; }
   });
   card.addEventListener("input",e=>{
     const code=GATES[idx].code;
-    if(e.target.classList.contains("qtyinput")){ const key=e.target.closest(".item").dataset.key, g=gWrite(code); g.visited=true; const d=g.low[key]=g.low[key]||{f:1}; if(e.target.value==="")delete d.qty; else d.qty=e.target.value; saveSoon(); pushGateSoon(code); return; }
-    if(e.target.id==="note"){ const g=gWrite(code); g.visited=true; g.note=e.target.value; if(!g.note)delete g.note; saveSoon(); pushGateSoon(code); updateStatus(); updateHeader(); }
-  });
-  card.addEventListener("change",e=>{
-    if(e.target.classList.contains("ppesel")){ const code=GATES[idx].code, key=e.target.closest(".item").dataset.key, g=gWrite(code); g.visited=true; const d=g.low[key]=g.low[key]||{f:1}; if(e.target.value)d.kind=e.target.value; else delete d.kind; saveLocal(); pushGate(code); }
+    if(e.target.classList.contains("qtyinput")){ const key=e.target.closest(".item").dataset.key,g=gWrite(code),d=g.low[key]=g.low[key]||{f:1}; if(e.target.value==="")delete d.qty; else d.qty=e.target.value; saveSoon(); pushGateSoon(code); return; }
+    if(e.target.id==="note"){ const g=gWrite(code); g.note=e.target.value; if(!g.note)delete g.note; else if(g.status){ delete g.status; document.querySelectorAll(".statbtn").forEach(b=>b.classList.remove("on")); } saveSoon(); pushGateSoon(code); updateStatus(); updateHeader(); }
   });
   card.addEventListener("pointerdown",e=>{
     if(!reorderMode)return; const handle=e.target.closest("[data-role=handle]"); if(!handle)return; e.preventDefault();
@@ -428,10 +437,9 @@
     document.addEventListener("pointermove",onMove); document.addEventListener("pointerup",onUp);
   });
 
-  /* ═══════════ nav ═══════════ */
+  /* ═══════════ nav (Next just moves — never marks a cabinet) ═══════════ */
   function go(i){ idx=Math.min(Math.max(i,0),TOTAL-1); state.ui.idx=idx; saveLocal(); renderCard(); updateNav(); }
-  function primary(){ const code=GATES[idx].code; const g=gWrite(code); g.visited=true; saveLocal(); pushGate(code);
-    if(idx===TOTAL-1){ updateHeader(); setView("over"); return; } go(idx+1); updateHeader(); }
+  function primary(){ if(idx===TOTAL-1){ setView("over"); return; } go(idx+1); }
   $("#prevBtn").addEventListener("click",()=>go(idx-1));
   $("#primaryBtn").addEventListener("click",primary);
   function updateNav(){ $("#prevBtn").disabled=idx===0; }
@@ -440,24 +448,25 @@
   main.addEventListener("touchend",e=>{ if(view!=="check"||reorderMode)return; const dx=e.changedTouches[0].clientX-tx,dy=e.changedTouches[0].clientY-ty; if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*1.8){ if(dx<0)go(idx+1); else go(idx-1);} },{passive:true});
 
   /* ═══════════ header ═══════════ */
-  function updateHeader(){ let good=0,att=0; for(const g of GATES){ const s=statusOf(g.code); if(s==="good")good++; else if(s==="att")att++; }
-    const visited=good+att; $("#overall").textContent=visited+" / "+TOTAL; $("#pfill").style.width=(TOTAL?visited/TOTAL*100:0)+"%";
+  function updateHeader(){ let flagged=0; for(const g of GATES) if(isFlagged(g.code)) flagged++;
+    $("#overall").textContent=flagged+" flagged";
     const m=state.meta,p=[]; if(m.date)p.push(m.date); if(m.shift)p.push(m.shift); if(m.by)p.push(m.by);
-    $("#metaSum").textContent=p.length?p.join("  ·  "):"Tap Overview to set date / shift"; return {good,att,visited}; }
+    $("#metaSum").textContent=p.length?p.join("  ·  "):"Tap Overview to set date / shift"; return {flagged}; }
 
   /* ═══════════ views ═══════════ */
   function setView(v){ view=v; document.querySelectorAll(".seg button").forEach(b=>b.classList.toggle("active",b.dataset.view===v));
     $("#checkView").hidden=v!=="check"; $("#overView").hidden=v!=="over"; $("#nav").hidden=v!=="check"; if(v==="over")renderOverview(); main.scrollTop=0; }
   document.querySelectorAll(".seg button").forEach(b=>b.addEventListener("click",()=>setView(b.dataset.view)));
   $("#fseg").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{ filter=b.dataset.f; $("#fseg").querySelectorAll("button").forEach(x=>x.classList.toggle("active",x===b)); renderOverview(); }));
-  function renderOverview(){ const {good,att,visited}=updateHeader(); $("#stGood").textContent=good; $("#stFlag").textContent=att; $("#stLeft").textContent=TOTAL-visited;
+  function renderOverview(){ updateHeader(); let good=0,flag=0,none=0; for(const g of GATES){ const s=statusOf(g.code); if(s==="good")good++; else if(s==="att")flag++; else if(s==="none")none++; }
+    $("#stGood").textContent=good; $("#stFlag").textContent=flag; $("#stNone").textContent=none;
     const wrap=$("#zoneList");
-    const pass=code=>filter==="all"||(filter==="flag"&&statusOf(code)==="att")||(filter==="left"&&statusOf(code)==="left");
+    const pass=code=>filter==="all"||(filter==="flag"&&statusOf(code)==="att");
     wrap.innerHTML=ZONES.map(zone=>{ const gates=GATES.filter(g=>g.zone===zone.z), shown=gates.filter(g=>pass(g.code)); if(!shown.length)return "";
-      const gd=gates.filter(g=>isGood(g.code)).length, van=zone.subs.map(s=>s.van).filter((v,i,a)=>a.indexOf(v)===i).join(" / ");
-      const chips=shown.map(g=>{ const st=statusOf(g.code),low=lowCount(g.code),f=st==="good"?"good":st==="att"?(low?low+" flag":"flag"):"—";
-        return '<button class="chip '+(st==="good"?"good":st==="att"?"att":"")+' '+(INDEX[g.code]===idx?"here":"")+'" data-code="'+g.code+'"><div class="c">'+g.code+'</div><div class="f">'+f+'</div></button>'; }).join("");
-      return '<div class="zone-blk"><div class="zone-ttl"><span>'+zone.z+' &nbsp;<span style="color:var(--muted);font-weight:700">'+gd+'/'+gates.length+'</span></span><span class="van">Van '+van+'</span></div><div class="chips">'+chips+'</div></div>';
+      const fc=gates.filter(g=>statusOf(g.code)==="att").length, van=zone.subs.map(s=>s.van).filter((v,i,a)=>a.indexOf(v)===i).join(" / ");
+      const chips=shown.map(g=>{ const s=statusOf(g.code),low=lowCount(g.code),cls=s==="att"?"att":s==="good"?"good":s==="none"?"none":"",f=s==="att"?(low?low+" flag":"flag"):s==="good"?"good":s==="none"?"no cab":"—";
+        return '<button class="chip '+cls+' '+(INDEX[g.code]===idx?"here":"")+'" data-code="'+g.code+'"><div class="c">'+g.code+'</div><div class="f">'+f+'</div></button>'; }).join("");
+      return '<div class="zone-blk"><div class="zone-ttl"><span>'+zone.z+' &nbsp;<span style="color:var(--muted);font-weight:700">'+fc+' flagged</span></span><span class="van">Van '+van+'</span></div><div class="chips">'+chips+'</div></div>';
     }).join("")||'<p style="color:var(--muted);font-size:14px;text-align:center;padding:14px">Nothing here.</p>';
     wrap.querySelectorAll(".chip").forEach(c=>c.addEventListener("click",()=>{ go(INDEX[c.dataset.code]); setView("check"); })); }
 
@@ -469,15 +478,16 @@
   /* ═══════════ export / backup ═══════════ */
   function lowLabels(code){ const gd=gRead(code); return orderedItems().filter(it=>gd.low&&it.key in gd.low).map(it=>{ const d=gd.low[it.key]||{}; let s=it.label; const ex=[];
     if(it.sizes&&d.sizes){ const sz=GLOVE_SIZES.filter(x=>d.sizes[x]); if(sz.length)ex.push(sz.join("/")); }
-    if(it.kinds&&d.kind)ex.push(d.kind);
-    if(d.qty!=null&&d.qty!=="")ex.push(d.qty+(it.par!=null?"/"+it.par:""));
-    if(ex.length)s+=" ("+ex.join(", ")+")"; return s; }); }
+    if(it.parts&&d.parts){ const ps=it.parts.filter(p=>d.parts[p.k]).map(p=>p.label); if(ps.length)ex.push(ps.join(", ")); }
+    if(it.qty&&d.qty!=null&&d.qty!=="")ex.push("need "+d.qty+(it.par!=null?"/"+it.par:""));
+    if(it.holder&&d.holder)ex.push("holder "+d.holder);
+    if(ex.length)s+=" ("+ex.join("; ")+")"; return s; }); }
   function buildReport(){ const m=state.meta,L=[]; L.push("CABINET CHECK — "+(m.date||"(no date)")+(m.shift?"  "+m.shift:"")+(m.by?"  ·  "+m.by:""));
-    let good=0,att=0; for(const g of GATES){ const s=statusOf(g.code); if(s==="good")good++; else if(s==="att")att++; }
-    L.push("Good: "+good+"   Needs restock: "+att+"   Not checked: "+(TOTAL-good-att)+"   (of "+TOTAL+")"); L.push(""); L.push("NEEDS RESTOCK:"); let any=false;
-    for(const g of GATES){ if(statusOf(g.code)!=="att")continue; any=true; const gd=gRead(g.code); const low=lowLabels(g.code), tags=Object.keys(gd.tags||{}); let s="  "+g.code+" ("+g.zone+")"; const bits=[]; if(low.length)bits.push("low: "+low.join(", ")); if(tags.length)bits.push(tags.join(", ")); if(gd.note)bits.push("note: "+gd.note); if(bits.length)s+=" — "+bits.join(" | "); L.push(s); }
+    let good=0,flag=0,none=0; for(const g of GATES){ const s=statusOf(g.code); if(s==="good")good++; else if(s==="att")flag++; else if(s==="none")none++; }
+    L.push("Good: "+good+"   Needs restock: "+flag+"   No cabinet: "+none+"   (of "+TOTAL+")"); L.push(""); L.push("NEEDS RESTOCK:"); let any=false;
+    for(const g of GATES){ if(statusOf(g.code)!=="att")continue; any=true; const gd=gRead(g.code); const low=lowLabels(g.code),tags=Object.keys(gd.tags||{}); let s="  "+g.code+" ("+g.zone+")"; const bits=[]; if(low.length)bits.push("low: "+low.join(", ")); if(tags.length)bits.push(tags.join(", ")); if(gd.note)bits.push("note: "+gd.note); if(bits.length)s+=" — "+bits.join(" | "); L.push(s); }
     if(!any)L.push("  none");
-    const left=GATES.filter(g=>statusOf(g.code)==="left").map(g=>g.code); L.push(""); L.push("NOT CHECKED ("+left.length+"): "+(left.length?left.join(", "):"none")); return L.join("\n"); }
+    const nc=GATES.filter(g=>statusOf(g.code)==="none").map(g=>g.code); L.push(""); L.push("NO CABINET ("+nc.length+"): "+(nc.length?nc.join(", "):"none")); return L.join("\n"); }
   function showModal(h,t){ $("#mHead").textContent=h; $("#mText").value=t; $("#overlay").classList.add("on"); }
   $("#mClose").addEventListener("click",()=>$("#overlay").classList.remove("on"));
   $("#mSelect").addEventListener("click",()=>{ const t=$("#mText"); t.focus(); t.select(); try{document.execCommand("copy");}catch(e){} });
