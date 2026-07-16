@@ -87,10 +87,23 @@
   .qtyinput{ width:74px; border:1.5px solid var(--line); border-radius:9px; padding:9px 10px; text-align:center; font-weight:700; }
   .qtyinput:focus{ outline:none; border-color:var(--blue); }
   .stepper{ display:inline-flex; align-items:stretch; border:1.5px solid var(--line); border-radius:9px; overflow:hidden; }
-  .stepper .qtyinput{ width:54px; border:none; border-left:1.5px solid var(--line); border-right:1.5px solid var(--line); border-radius:0; }
-  .qbtn{ width:44px; min-height:42px; font-size:23px; font-weight:800; color:var(--navy); background:#eef0f7; line-height:1; display:flex; align-items:center; justify-content:center; user-select:none; }
-  .qbtn:active{ background:#dfe3ef; }
+  .stepper .qtyinput,.stepper .pqtyinput{ width:54px; border:none; border-left:1.5px solid var(--line); border-right:1.5px solid var(--line); border-radius:0; text-align:center; font-weight:700; padding:9px 4px; }
+  .qbtn,.pqbtn{ width:44px; min-height:42px; font-size:23px; font-weight:800; color:var(--navy); background:#eef0f7; line-height:1; display:flex; align-items:center; justify-content:center; user-select:none; }
+  .qbtn:active,.pqbtn:active{ background:#dfe3ef; }
   .of{ font-size:13px; font-weight:700; color:var(--muted); }
+  /* sub-checklist (parts) */
+  .plist{ display:flex; flex-direction:column; gap:7px; margin-top:8px; }
+  .part{ border:1.5px solid var(--line); border-radius:10px; overflow:hidden; background:#fff; }
+  .part.on{ border-color:var(--red-line); }
+  .part-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:46px; padding:9px 12px; user-select:none; }
+  .part.on .part-head{ background:var(--red-bg); }
+  .part-name{ font-size:15px; font-weight:600; }
+  .part.on .part-name{ color:var(--red); }
+  .ppar{ font-size:10.5px; font-weight:700; color:var(--blue); margin-left:5px; }
+  .part-box{ flex:none; width:24px; height:24px; border:2px solid #c4c8d6; border-radius:7px; display:grid; place-items:center; font-size:15px; font-weight:800; color:transparent; }
+  .part.on .part-box{ background:var(--red); border-color:var(--red); color:#fff; }
+  .part-body{ display:flex; align-items:center; gap:9px; flex-wrap:wrap; padding:2px 12px 11px; }
+  .subl2{ font-size:12.5px; font-weight:700; color:var(--muted); }
   .chips2{ display:flex; gap:7px; flex-wrap:wrap; }
   .szc{ min-width:46px; padding:9px 4px; border:1.5px solid var(--line); border-radius:9px; font-weight:800; color:var(--muted); }
   .szc.on{ background:var(--red); border-color:var(--red); color:#fff; }
@@ -285,10 +298,13 @@
   const ITEMS = [
     { key:"gloves", label:"Gloves", sizes:true },
     { key:"prov",   label:"Provisions", parts:[
-        {k:"headphones",label:"Headphones ×2"},{k:"flightdeck",label:"Flight Deck ×3"},
+        {k:"headphones",label:"Headphones",par:2},{k:"flightdeck",label:"Flight Deck",par:3},
         {k:"lavbag",label:"Lav Bag"},{k:"blankets",label:"Blankets"} ] },
     { key:"holders", label:"Holders", parts:[
-        {k:"basket",label:"Basket"},{k:"gloveholder",label:"Glove Holders"},{k:"dividers",label:"Dividers"} ] },
+        {k:"basket",label:"Basket"},{k:"gloveholder",label:"Glove Holders"},{k:"dividers",label:"Dividers"},
+        {k:"maxiholder",label:"Maxi Pad Holders",par:2},{k:"ppeholder",label:"PPE Holders"} ] },
+    { key:"labels", label:"Labels", parts:[
+        {k:"labels",label:"Labels"},{k:"viewingsheet",label:"Viewing Sheet"} ] },
     { key:"bags",   label:"Bags", par:"2–6 rolls", qty:true },
     { key:"trash",  label:"Trash Bags", qty:true },
     { key:"wypall", label:"WypAlls", par:2, qty:true },
@@ -296,8 +312,8 @@
     { key:"facial", label:"Facial Towels", par:6, qty:true },
     { key:"towels", label:"Towels", par:6, qty:true },
     { key:"tp",     label:"Toilet Paper", par:6, qty:true },
-    { key:"ppe",    label:"PPE", sub:"flight deck", par:6, qty:true, holder:true },
-    { key:"maxi",   label:"Maxi Pads", sub:"+ 2 holders", par:8, qty:true, holder:true }
+    { key:"ppe",    label:"PPE", sub:"flight deck", par:6, qty:true },
+    { key:"maxi",   label:"Maxi Pads", par:8, qty:true }
   ];
   const ITEM_MAP = Object.fromEntries(ITEMS.map(i=>[i.key,i]));
   const CHIPS = ["Low stock","Broken","Locked","Dirty","Skipped"];
@@ -333,7 +349,12 @@
 
   const DEF={low:{},tags:{},note:""};
   // migrate legacy standalone 'basket' flag into the grouped 'holders' item
-  function normalizeGate(g){ if(g&&g.low&&g.low.basket){ const h=g.low.holders=g.low.holders||{f:1}; h.parts=h.parts||{}; h.parts.basket=true; delete g.low.basket; return true; } return false; }
+  function normalizeGate(g){ if(!g||!g.low)return false; let ch=false;
+    function hp(pk){ const h=g.low.holders=g.low.holders||{f:1}; h.parts=h.parts||{}; if(!h.parts[pk])h.parts[pk]={f:1}; }
+    if(g.low.basket){ hp("basket"); delete g.low.basket; ch=true; }                                  // legacy standalone basket
+    if(g.low.ppe&&g.low.ppe.holder){ if(g.low.ppe.holder==="missing")hp("ppeholder"); delete g.low.ppe.holder; ch=true; }   // ppe holder toggle -> Holders
+    if(g.low.maxi&&g.low.maxi.holder){ if(g.low.maxi.holder==="missing")hp("maxiholder"); delete g.low.maxi.holder; ch=true; } // maxi holder toggle -> Holders
+    return ch; }
   function normalizeAll(){ const ch=[]; for(const code in state.gates){ if(normalizeGate(state.gates[code])) ch.push(code); } return ch; }
   function gRead(code){ return state.gates[code]||DEF; }
   function gWrite(code){ let g=state.gates[code]; if(!g){ g={low:{},tags:{},note:""}; state.gates[code]=g; } if(!g.low)g.low={}; if(!g.tags)g.tags={}; return g; }
@@ -390,7 +411,7 @@
   }
   function applyRemote(code,val){ val=val||{}; normalizeGate(val);
     // don't clobber a note/qty field the user is actively typing in on this gate
-    if(view==="check"&&GATES[idx].code===code){ const ae=document.activeElement; if(ae&&card.contains(ae)&&(ae.id==="note"||ae.classList.contains("qtyinput"))) return; }
+    if(view==="check"&&GATES[idx].code===code){ const ae=document.activeElement; if(ae&&card.contains(ae)&&(ae.id==="note"||ae.classList.contains("qtyinput")||ae.classList.contains("pqtyinput"))) return; }
     if(JSON.stringify(state.gates[code]||{})===JSON.stringify(val))return; state.gates[code]=val; saveLocal(); refreshFor(code); }
   function refreshFor(code){ updateHeader(); if(view==="over")renderOverview(); if(view==="super")renderSuper(); if(view==="check"&&GATES[idx].code===code&&!reorderMode)renderCard(true); }
   function clean(o){ return JSON.parse(JSON.stringify(o)); }
@@ -406,19 +427,23 @@
       h+='<div class="subrow"><span class="subl">Sizes low:</span><span class="chips2">'
         +GLOVE_SIZES.map(s=>'<button class="szc '+((d.sizes&&d.sizes[s])?"on":"")+'" data-size="'+s+'">'+s+'</button>').join("")+'</span></div>';
     } else if(it.parts){
-      h+='<div class="subrow"><span class="subl">What\'s low:</span><span class="chips2">'
-        +it.parts.map(p=>'<button class="partc '+((d.parts&&d.parts[p.k])?"on":"")+'" data-part="'+p.k+'">'+p.label+'</button>').join("")+'</span></div>';
+      h+='<div class="subrow"><span class="subl">What\'s missing (tap each):</span></div><div class="plist">'
+        +it.parts.map(p=>{
+          const pd=d.parts&&d.parts[p.k], on=!!pd, q=(pd&&typeof pd==="object")?pd.qty:undefined;
+          let r='<div class="part '+(on?"on":"")+'" data-part="'+p.k+'"><div class="part-head"><span class="part-name">'+p.label+(p.par!=null?' <span class="ppar">par '+p.par+'</span>':'')+'</span><span class="part-box">!</span></div>';
+          if(on){ r+='<div class="part-body"><span class="subl2">How many missing</span>'
+            +'<span class="stepper"><button class="pqbtn" type="button" data-step="-1">&minus;</button>'
+            +'<input class="pqtyinput" type="number" inputmode="numeric" min="0" value="'+(q!=null?q:"")+'" placeholder="?">'
+            +'<button class="pqbtn" type="button" data-step="1">+</button></span>'
+            +(p.par!=null?'<span class="of">of '+p.par+'</span>':'')+'</div>'; }
+          return r+'</div>';
+        }).join("")+'</div>';
     } else if(it.qty){
       const ref = it.par!=null ? '<span class="of">of '+it.par+'</span>' : '';
       h+='<div class="subrow"><span class="subl">How many needed</span>'
         +'<span class="stepper"><button class="qbtn" type="button" data-step="-1">&minus;</button>'
         +'<input class="qtyinput" type="number" inputmode="numeric" min="0" value="'+(d.qty!=null?d.qty:"")+'" placeholder="?">'
         +'<button class="qbtn" type="button" data-step="1">+</button></span>'+ref+'</div>';
-    }
-    if(it.holder){
-      h+='<div class="subrow"><span class="subl">Holder:</span><span class="chips2">'
-        +'<button class="holderc '+(d.holder==="there"?"on-ok":"")+'" data-holder="there">There</button>'
-        +'<button class="holderc '+(d.holder==="missing"?"on-bad":"")+'" data-holder="missing">Missing</button></span></div>';
     }
     return h;
   }
@@ -472,11 +497,12 @@
     if(stbtn){ const g=gWrite(code), v=stbtn.dataset.status; if(g.status===v){ delete g.status; } else { g.status=v; g.low={}; g.tags={}; delete g.note; } saveLocal(); pushGate(code); renderCard(true); updateHeader(); return; }
     const sz=e.target.closest(".szc");
     if(sz){ const key=sz.closest(".item").dataset.key,g=gWrite(code),d=g.low[key]=g.low[key]||{f:1}; d.sizes=d.sizes||{}; const s=sz.dataset.size; if(d.sizes[s])delete d.sizes[s]; else d.sizes[s]=true; sz.classList.toggle("on",!!d.sizes[s]); saveLocal(); pushGateSoon(code); updateHeader(); return; }
-    const pc=e.target.closest(".partc");
-    if(pc){ const key=pc.closest(".item").dataset.key,g=gWrite(code),d=g.low[key]=g.low[key]||{f:1}; d.parts=d.parts||{}; const p=pc.dataset.part; if(d.parts[p])delete d.parts[p]; else d.parts[p]=true; pc.classList.toggle("on",!!d.parts[p]); saveLocal(); pushGateSoon(code); return; }
-    const hc=e.target.closest(".holderc");
-    if(hc){ const key=hc.closest(".item").dataset.key,g=gWrite(code),d=g.low[key]=g.low[key]||{f:1}; const v=hc.dataset.holder; d.holder=(d.holder===v)?undefined:v; if(!d.holder)delete d.holder;
-      hc.parentElement.querySelectorAll(".holderc").forEach(b=>{ b.classList.remove("on-ok","on-bad"); if(d.holder===b.dataset.holder) b.classList.add(b.dataset.holder==="there"?"on-ok":"on-bad"); });
+    const pc=e.target.closest(".part-head");
+    if(pc){ const item=pc.closest(".item"),ikey=item.dataset.key,pkey=pc.closest(".part").dataset.part,g=gWrite(code),d=g.low[ikey]=g.low[ikey]||{f:1}; d.parts=d.parts||{}; if(d.parts[pkey])delete d.parts[pkey]; else d.parts[pkey]={f:1}; saveLocal(); pushGateSoon(code); renderCard(true); return; }
+    const pqb=e.target.closest(".pqbtn");
+    if(pqb){ const ikey=pqb.closest(".item").dataset.key,pkey=pqb.closest(".part").dataset.part,g=gWrite(code),d=g.low[ikey]=g.low[ikey]||{f:1}; d.parts=d.parts||{}; let pd=d.parts[pkey]; if(!pd||pd===true)pd=d.parts[pkey]={f:1};
+      let v=(parseInt(pd.qty,10)||0)+parseInt(pqb.dataset.step,10); if(v<0)v=0; const inp=pqb.closest(".part-body").querySelector(".pqtyinput");
+      if(v===0){ delete pd.qty; if(inp)inp.value=""; } else { pd.qty=String(v); if(inp)inp.value=v; }
       saveLocal(); pushGateSoon(code); return; }
     const qb=e.target.closest(".qbtn");
     if(qb){ const item=qb.closest(".item"),key=item.dataset.key,g=gWrite(code),d=g.low[key]=g.low[key]||{f:1};
@@ -490,6 +516,7 @@
   });
   card.addEventListener("input",e=>{
     const code=GATES[idx].code;
+    if(e.target.classList.contains("pqtyinput")){ const ikey=e.target.closest(".item").dataset.key,pkey=e.target.closest(".part").dataset.part,g=gWrite(code),d=g.low[ikey]=g.low[ikey]||{f:1}; d.parts=d.parts||{}; let pd=d.parts[pkey]; if(!pd||pd===true)pd=d.parts[pkey]={f:1}; if(e.target.value==="")delete pd.qty; else pd.qty=e.target.value; saveSoon(); pushGateSoon(code); return; }
     if(e.target.classList.contains("qtyinput")){ const key=e.target.closest(".item").dataset.key,g=gWrite(code),d=g.low[key]=g.low[key]||{f:1}; if(e.target.value==="")delete d.qty; else d.qty=e.target.value; saveSoon(); pushGateSoon(code); return; }
     if(e.target.id==="note"){ const g=gWrite(code); g.note=e.target.value; if(!g.note)delete g.note; else if(g.status){ delete g.status; document.querySelectorAll(".statbtn").forEach(b=>b.classList.remove("on")); } saveSoon(); pushGateSoon(code); updateStatus(); updateHeader(); }
   });
@@ -581,9 +608,8 @@
   /* ═══════════ export / backup ═══════════ */
   function lowLabelsFrom(c){ if(!c||!c.low)return []; return orderedItems().filter(it=>it.key in c.low).map(it=>{ const d=c.low[it.key]||{}; let s=it.label; const ex=[];
     if(it.sizes&&d.sizes){ const sz=GLOVE_SIZES.filter(x=>d.sizes[x]); if(sz.length)ex.push(sz.join("/")); }
-    if(it.parts&&d.parts){ const ps=it.parts.filter(p=>d.parts[p.k]).map(p=>p.label); if(ps.length)ex.push(ps.join(", ")); }
+    if(it.parts&&d.parts){ const ps=it.parts.filter(p=>d.parts[p.k]).map(p=>{ const pd=d.parts[p.k], q=(pd&&typeof pd==="object")?pd.qty:undefined; return p.label+(q!=null&&q!==""?" ×"+q:""); }); if(ps.length)ex.push(ps.join(", ")); }
     if(it.qty&&d.qty!=null&&d.qty!=="")ex.push("need "+d.qty+(it.par!=null?"/"+it.par:""));
-    if(it.holder&&d.holder)ex.push("holder "+d.holder);
     if(ex.length)s+=" ("+ex.join("; ")+")"; return s; }); }
   function lowLabels(code){ return lowLabelsFrom(gRead(code)); }
   function showModal(h,t){ $("#mHead").textContent=h; $("#mText").value=t; $("#overlay").classList.add("on"); }
