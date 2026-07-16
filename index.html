@@ -107,11 +107,6 @@
   .chips2{ display:flex; gap:7px; flex-wrap:wrap; }
   .szc{ min-width:46px; padding:9px 4px; border:1.5px solid var(--line); border-radius:9px; font-weight:800; color:var(--muted); }
   .szc.on{ background:var(--red); border-color:var(--red); color:#fff; }
-  .partc{ padding:9px 12px; border:1.5px solid var(--line); border-radius:9px; font-weight:700; font-size:13.5px; color:var(--muted); }
-  .partc.on{ background:var(--red); border-color:var(--red); color:#fff; }
-  .holderc{ padding:9px 15px; border:1.5px solid var(--line); border-radius:9px; font-weight:800; color:var(--muted); }
-  .holderc.on-ok{ background:var(--green); border-color:var(--green); color:#fff; }
-  .holderc.on-bad{ background:var(--red); border-color:var(--red); color:#fff; }
 
   .chips-wrap{ padding:10px 14px 4px; }
   .chips-l{ font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.7px; color:var(--muted); margin-bottom:7px; }
@@ -352,8 +347,8 @@
   function normalizeGate(g){ if(!g||!g.low)return false; let ch=false;
     function hp(pk){ const h=g.low.holders=g.low.holders||{f:1}; h.parts=h.parts||{}; if(!h.parts[pk])h.parts[pk]={f:1}; }
     if(g.low.basket){ hp("basket"); delete g.low.basket; ch=true; }                                  // legacy standalone basket
-    if(g.low.ppe&&g.low.ppe.holder){ if(g.low.ppe.holder==="missing")hp("ppeholder"); delete g.low.ppe.holder; ch=true; }   // ppe holder toggle -> Holders
-    if(g.low.maxi&&g.low.maxi.holder){ if(g.low.maxi.holder==="missing")hp("maxiholder"); delete g.low.maxi.holder; ch=true; } // maxi holder toggle -> Holders
+    if(g.low.ppe&&g.low.ppe.holder){ if(g.low.ppe.holder==="missing")hp("ppeholder"); delete g.low.ppe.holder; if(!Object.keys(g.low.ppe).length)delete g.low.ppe; ch=true; }   // ppe holder toggle -> Holders
+    if(g.low.maxi&&g.low.maxi.holder){ if(g.low.maxi.holder==="missing")hp("maxiholder"); delete g.low.maxi.holder; if(!Object.keys(g.low.maxi).length)delete g.low.maxi; ch=true; } // maxi holder toggle -> Holders
     return ch; }
   function normalizeAll(){ const ch=[]; for(const code in state.gates){ if(normalizeGate(state.gates[code])) ch.push(code); } return ch; }
   function gRead(code){ return state.gates[code]||DEF; }
@@ -498,7 +493,7 @@
     const sz=e.target.closest(".szc");
     if(sz){ const key=sz.closest(".item").dataset.key,g=gWrite(code),d=g.low[key]=g.low[key]||{f:1}; d.sizes=d.sizes||{}; const s=sz.dataset.size; if(d.sizes[s])delete d.sizes[s]; else d.sizes[s]=true; sz.classList.toggle("on",!!d.sizes[s]); saveLocal(); pushGateSoon(code); updateHeader(); return; }
     const pc=e.target.closest(".part-head");
-    if(pc){ const item=pc.closest(".item"),ikey=item.dataset.key,pkey=pc.closest(".part").dataset.part,g=gWrite(code),d=g.low[ikey]=g.low[ikey]||{f:1}; d.parts=d.parts||{}; if(d.parts[pkey])delete d.parts[pkey]; else d.parts[pkey]={f:1}; saveLocal(); pushGateSoon(code); renderCard(true); return; }
+    if(pc){ const item=pc.closest(".item"),ikey=item.dataset.key,pkey=pc.closest(".part").dataset.part,g=gWrite(code),d=g.low[ikey]=g.low[ikey]||{f:1}; d.parts=d.parts||{}; if(d.parts[pkey])delete d.parts[pkey]; else d.parts[pkey]={f:1}; if(!Object.keys(d.parts).length)delete d.parts; saveLocal(); pushGateSoon(code); renderCard(true); return; }
     const pqb=e.target.closest(".pqbtn");
     if(pqb){ const ikey=pqb.closest(".item").dataset.key,pkey=pqb.closest(".part").dataset.part,g=gWrite(code),d=g.low[ikey]=g.low[ikey]||{f:1}; d.parts=d.parts||{}; let pd=d.parts[pkey]; if(!pd||pd===true)pd=d.parts[pkey]={f:1};
       let v=(parseInt(pd.qty,10)||0)+parseInt(pqb.dataset.step,10); if(v<0)v=0; const inp=pqb.closest(".part-body").querySelector(".pqtyinput");
@@ -611,7 +606,6 @@
     if(it.parts&&d.parts){ const ps=it.parts.filter(p=>d.parts[p.k]).map(p=>{ const pd=d.parts[p.k], q=(pd&&typeof pd==="object")?pd.qty:undefined; return p.label+(q!=null&&q!==""?" ×"+q:""); }); if(ps.length)ex.push(ps.join(", ")); }
     if(it.qty&&d.qty!=null&&d.qty!=="")ex.push("need "+d.qty+(it.par!=null?"/"+it.par:""));
     if(ex.length)s+=" ("+ex.join("; ")+")"; return s; }); }
-  function lowLabels(code){ return lowLabelsFrom(gRead(code)); }
   function showModal(h,t){ $("#mHead").textContent=h; $("#mText").value=t; $("#overlay").classList.add("on"); }
   $("#mClose").addEventListener("click",()=>$("#overlay").classList.remove("on"));
   $("#mSelect").addEventListener("click",()=>{ const t=$("#mText"); t.focus(); t.select(); try{document.execCommand("copy");}catch(e){} });
