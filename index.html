@@ -292,6 +292,12 @@
   const GLOVE_SIZES = ["S","M","L","XL"];
   const ITEMS = [
     { key:"gloves", label:"Gloves", sizes:true },
+    { key:"supplies", label:"Supplies", parts:[
+        {k:"bags",label:"Bags",par:"2–6 rolls"},{k:"trash",label:"Trash Bags"},
+        {k:"wypall",label:"WypAlls",par:2},{k:"soap",label:"Soap",par:6},
+        {k:"facial",label:"Facial Towels",par:6},{k:"towels",label:"Towels",par:6},
+        {k:"tp",label:"Toilet Paper",par:6},{k:"ppe",label:"PPE",par:6},
+        {k:"maxi",label:"Maxi Pads",par:8} ] },
     { key:"prov",   label:"Provisions", parts:[
         {k:"headphones",label:"Headphones",par:2},{k:"flightdeck",label:"Flight Deck",par:3},
         {k:"lavbag",label:"Lav Bag"},{k:"blankets",label:"Blankets"} ] },
@@ -299,16 +305,7 @@
         {k:"basket",label:"Basket"},{k:"gloveholder",label:"Glove Holders"},{k:"dividers",label:"Dividers"},
         {k:"maxiholder",label:"Maxi Pad Holders",par:2},{k:"ppeholder",label:"PPE Holders"} ] },
     { key:"labels", label:"Labels", parts:[
-        {k:"labels",label:"Labels"},{k:"viewingsheet",label:"Viewing Sheet"} ] },
-    { key:"bags",   label:"Bags", par:"2–6 rolls", qty:true },
-    { key:"trash",  label:"Trash Bags", qty:true },
-    { key:"wypall", label:"WypAlls", par:2, qty:true },
-    { key:"soap",   label:"Soap", par:6, qty:true },
-    { key:"facial", label:"Facial Towels", par:6, qty:true },
-    { key:"towels", label:"Towels", par:6, qty:true },
-    { key:"tp",     label:"Toilet Paper", par:6, qty:true },
-    { key:"ppe",    label:"PPE", sub:"flight deck", par:6, qty:true },
-    { key:"maxi",   label:"Maxi Pads", par:8, qty:true }
+        {k:"labels",label:"Labels"},{k:"viewingsheet",label:"Viewing Sheet"} ] }
   ];
   const ITEM_MAP = Object.fromEntries(ITEMS.map(i=>[i.key,i]));
   const CHIPS = ["Low stock","Broken","Locked","Dirty","Skipped"];
@@ -349,6 +346,8 @@
     if(g.low.basket){ hp("basket"); delete g.low.basket; ch=true; }                                  // legacy standalone basket
     if(g.low.ppe&&g.low.ppe.holder){ if(g.low.ppe.holder==="missing")hp("ppeholder"); delete g.low.ppe.holder; if(!Object.keys(g.low.ppe).length)delete g.low.ppe; ch=true; }   // ppe holder toggle -> Holders
     if(g.low.maxi&&g.low.maxi.holder){ if(g.low.maxi.holder==="missing")hp("maxiholder"); delete g.low.maxi.holder; if(!Object.keys(g.low.maxi).length)delete g.low.maxi; ch=true; } // maxi holder toggle -> Holders
+    // legacy top-level consumables -> Supplies group
+    ["bags","trash","wypall","soap","facial","towels","tp","ppe","maxi"].forEach(k=>{ if(g.low[k]){ const s=g.low.supplies=g.low.supplies||{f:1}; s.parts=s.parts||{}; if(!s.parts[k])s.parts[k]=g.low[k]; delete g.low[k]; ch=true; } });
     return ch; }
   function normalizeAll(){ const ch=[]; for(const code in state.gates){ if(normalizeGate(state.gates[code])) ch.push(code); } return ch; }
   function gRead(code){ return state.gates[code]||DEF; }
