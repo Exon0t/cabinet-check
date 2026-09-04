@@ -127,6 +127,28 @@ main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 10px 9
   align-items:center;justify-content:center;flex-direction:column}
 .big img{max-width:100%;max-height:82%;object-fit:contain}
 .big div{color:#fff;padding:14px;font-size:14px}
+
+.camtop b{font-size:31px;letter-spacing:-.4px;line-height:1}
+.saved{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  background:rgba(27,127,58,.85);color:#fff;font-size:32px;font-weight:800;z-index:5;
+  letter-spacing:.5px;pointer-events:none}
+.camwarn{position:absolute;left:12px;right:12px;top:calc(env(safe-area-inset-top) + 68px);
+  background:rgba(224,120,0,.94);color:#fff;font-size:13px;font-weight:700;
+  padding:8px 12px;border-radius:9px;z-index:3;text-align:center;line-height:1.35}
+.g.brk{border-color:#e0a0a0;background:#fdf4f4}
+.p-brk{background:#fdecec;color:var(--red)}
+.g .kw{font-size:11px;color:var(--amber);font-weight:700;margin-top:2px}
+.g .bw{font-size:11.5px;color:var(--red);font-weight:700;margin-top:2px}
+.kn{background:#fff8e6;border:1px solid #e8c86a;border-radius:8px;padding:8px 10px;
+  font-size:12.5px;color:#6d4c00;margin-bottom:11px}
+.rsn{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.rsn button{font:inherit;font-size:14.5px;font-weight:700;padding:15px 8px;
+  border:1.5px solid var(--line);background:#fff;border-radius:10px;color:var(--ink);cursor:pointer}
+.rsn button:active{background:#fdecec;border-color:var(--red)}
+.hdr{font-size:10.5px;font-weight:800;color:var(--mut);text-transform:uppercase;
+  letter-spacing:1px;margin:15px 3px 7px}
+.scanbar button.alt{flex:none;width:30%;background:#fff;color:var(--navy);
+  border:2px solid var(--navy);font-size:13.5px;padding:16px 4px}
 </style></head><body>
 
 <header>
@@ -149,9 +171,8 @@ main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 10px 9
 </main>
 
 <div class="scanbar" id="scanbar">
-  <button id="btnScan">Scan</button>
-  <button class="alt" id="btnManual">Can't scan</button>
-  <button class="alt brk" id="btnBroken">Broken</button>
+  <button id="btnGo">Start walk</button>
+  <button class="alt" id="btnPick">Pick</button>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -161,17 +182,16 @@ main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 10px 9
 "use strict";
 
 /* ---------------------------------------------------------------------------
-   One job: prove each cabinet got filled. Scan the label, photograph the
+   One job: prove each cabinet got filled. Pick the cabinet, photograph the
    inside, move on. Nothing about condition or counts -- the photo is the
    record, and every extra field is a reason to stop halfway.
 
-   The barcodes were printed before this existed and nobody wrote down what they
-   encode, so the scanner does not care. It takes whatever the label reads and
-   asks which cabinet it is on the first time. After one walk the mapping is
-   done, and it survives a re-label.
+   There is deliberately no barcode step. A printed label is static, so scanning
+   one proves a label was in front of a camera, not that anyone was at a
+   jetbridge. The photo is the control that holds up: it changes daily, shows
+   real stock, and faking fifty of them is harder than doing the walk.
 --------------------------------------------------------------------------- */
 
-// Same project as cabinet-check-mobile, separate path so the two never collide.
 const FB = {
   apiKey:"AIzaSyD1gtIw23ffOKA8ANz9w-obR3ElGi_ie3k",
   authDomain:"cabinet-checker-a23cd.firebaseapp.com",
@@ -197,9 +217,8 @@ const GATES = (() => {
   return out;
 })();
 
-// What the go-back walk already found. It saves the walker discovering a dead
-// battery at the cabinet, and it means a "broken" flag on one of these is a
-// confirmation rather than news.
+// What the last go-back walk found. Shown before the walker gets there, so a
+// dead battery is not a surprise and a broken flag is a confirmation.
 const KNOWN = {"B36":{"blocked":"needs a key \u00b7 dead battery","note":"maxi pad holder"},"B37":{"blocked":"won't open \u00b7 needs a key \u00b7 dead battery","note":null},"B38":{"blocked":"knob turns","note":null},"B39":{"blocked":"needs a key \u00b7 locked","note":"dividers"},"B42":{"blocked":"won't open","note":"dividers \u00b7 glove holder"},"B25":{"blocked":null,"note":"dividers"},"B27":{"blocked":null,"note":"dividers"},"B29":{"blocked":null,"note":"dividers \u00b7 dirty"},"B24":{"blocked":null,"note":"dividers"},"B26":{"blocked":null,"note":"dividers \u00b7 maxi pad holder"},"B28":{"blocked":null,"note":"dividers"},"B32":{"blocked":null,"note":"dividers \u00b7 maxi pad holder"},"B44":{"blocked":null,"note":"dividers"},"B41":{"blocked":null,"note":"dividers \u00b7 dirty"},"B43":{"blocked":null,"note":"dividers"},"B45":{"blocked":null,"note":"dividers \u00b7 glove holder"},"B47":{"blocked":null,"note":"dividers \u00b7 glove holder"},"B49":{"blocked":null,"note":"dividers"},"B46":{"blocked":null,"note":"dividers"},"B48":{"blocked":null,"note":"dividers"},"B50":{"blocked":null,"note":"dividers"},"B52":{"blocked":null,"note":"dividers"},"B53":{"blocked":null,"note":"dividers \u00b7 glove holder"},"B55":{"blocked":null,"note":"dividers \u00b7 glove holder \u00b7 dirty"},"B59":{"blocked":null,"note":"dividers \u00b7 dirty"},"B54":{"blocked":null,"note":"dividers \u00b7 dirty"},"B56":{"blocked":null,"note":"dividers"},"B58":{"blocked":null,"note":"dividers"}};
 
 const todayKey = () => { const d = new Date();
@@ -208,10 +227,9 @@ const hhmm = t => new Date(t).toTimeString().slice(0,5);
 
 let DAY = todayKey();
 let who = localStorage.getItem('cc_who') || '';
-let done = {}, codes = {};
+let done = {};
 let db = null, storage = null, online = false;
-let stream = null, detector = null, scanning = false, phase = 'scan';
-let target = null, lastCode = '', camOverride = false, camReason = '';
+let stream = null, target = null;
 
 /* ---- firebase -------------------------------------------------------------- */
 function initFB(){
@@ -232,37 +250,27 @@ function initFB(){
       done = Object.assign({}, v, keep);
       render();
     });
-    db.ref('fillCodes').on('value', s => { codes = s.val() || {}; });
   } catch(e){ paintSync(); }
 }
 function paintSync(){
   const el = document.getElementById('sync');
   const q = queueLen();
-  el.textContent = online ? (q ? q + ' uploading' : 'saved') : (q ? 'offline · ' + q : 'offline');
+  el.textContent = online ? (q ? q + ' uploading' : 'saved') : (q ? 'offline \u00b7 ' + q : 'offline');
   el.className = 'sync' + (online ? '' : ' off');
 }
 
-/* Photos go to Storage when it will take them, and fall back to the database as
-   a smaller inline copy when it will not. Either way the walk is never blocked
-   by a rule we cannot see from here. */
-// A blocked Storage rule does not reject -- it just never answers. Without a
-// timeout the whole queue stalls behind one photo and the walk silently stops
-// saving, which is the worst way for a compliance tool to fail.
-function withTimeout(promise, ms, label){
-  return Promise.race([promise,
-    new Promise((_,rej)=>setTimeout(()=>rej(new Error(label+' timed out')), ms))]);
+// A blocked Storage rule does not reject, it just never answers. Finding that
+// out during the first real photo would leave someone standing at a cabinet for
+// twelve seconds, so it is probed quietly at startup instead.
+function withTimeout(p, ms, label){
+  return Promise.race([p, new Promise((_,rej)=>setTimeout(()=>rej(new Error(label+' timed out')), ms))]);
 }
-let storageOK = null;              // null = untried, false = give up for this session
-// Find out early and quietly whether Storage will take an upload. A blocked
-// bucket does not reject, it just never answers -- so discovering that during
-// the first real photo would cost the walker 12 seconds standing at a cabinet.
+let storageOK = null;
 async function probeStorage(){
   if (!storage) { storageOK = false; return; }
-  try {
-    const ref = storage.ref('fill/_probe.txt');
-    await withTimeout(ref.putString('probe'), 6000, 'probe');
-    storageOK = true;
-  } catch(_) { storageOK = false; }
+  try { await withTimeout(storage.ref('fill/_probe.txt').putString('probe'), 6000, 'probe');
+        storageOK = true; }
+  catch(_) { storageOK = false; }
 }
 async function putPhoto(gate, dataUrl, t){
   const name = DAY + '/' + gate + '-' + new Date(t).toTimeString().slice(0,8).replace(/:/g,'') + '.jpg';
@@ -273,11 +281,9 @@ async function putPhoto(gate, dataUrl, t){
       const url = await withTimeout(ref.getDownloadURL(), 8000, 'url');
       storageOK = true;
       return { url, where: 'storage' };
-    } catch(e) {
-      if (storageOK === null) storageOK = false;   // first failure: stop trying
-    }
+    } catch(e) { if (storageOK === null) storageOK = false; }
   }
-  return { url: await shrink(dataUrl, 760, 0.55), where: 'inline' };
+  return { url: await shrink(dataUrl, 900, 0.6), where: 'inline' };
 }
 function shrink(dataUrl, max, q){
   return new Promise(res => {
@@ -309,51 +315,138 @@ async function flush(){
     try {
       let photo = null, where = '';
       if (rec.photo) { const r = await putPhoto(rec.gate, rec.photo, rec.t); photo = r.url; where = r.where; }
-      // An inline photo is ~80KB. Fifty of them on the walk record would mean
-      // every list refresh pulls 4MB, so they go on their own path and are only
+      // An inline photo is around 80KB. Fifty on the walk record would mean every
+      // list refresh drags down 4MB, so they live on their own path and are only
       // read when someone opens Review.
-      if (photo && where === 'inline'){
+      if (photo && where === 'inline')
         await withTimeout(db.ref('fillPhotos/' + rec.day + '/' + rec.gate).set(photo), 20000, 'photo');
-      }
       await withTimeout(db.ref('fill/' + rec.day + '/' + rec.gate).set({
         gate: rec.gate, t: rec.t, by: rec.by || '', where,
         photo: where === 'storage' ? photo : null,
         hasPhoto: !!photo,
-        code: rec.code || '', override: !!rec.override,
-        broken: rec.broken || null,
-        reason: rec.override ? (rec.reason || 'no scan') : ''
+        broken: rec.broken || null
       }), 15000, 'save');
-      if (rec.code && !rec.override) db.ref('fillCodes/' + encodeKey(rec.code)).set(rec.gate);
     } catch(_) { left.push(rec); }
   }
   try{ localStorage.setItem('cc_q', JSON.stringify(left)); }catch(_){}
-  photosFor = '';                    // a new photo landed, so re-read on next look
+  photosFor = '';
   paintSync();
 }
-// firebase keys cannot contain . # $ [ ] /
-const encodeKey = s => String(s).replace(/[.#$\[\]\/]/g, '_');
-
-function save(gate, photo, code, override, reason, broken){
+function save(gate, photo, broken){
   const t = Date.now();
-  done[gate] = { gate, t, by: who, photo: null, code, override, reason,
-                 broken: broken || null, pending: 1 };
+  done[gate] = { gate, t, by: who, photo: null, broken: broken || null, pending: 1 };
   render();
-  queue({ day: DAY, gate, t, by: who, photo, code, override, reason, broken: broken || null });
+  queue({ day: DAY, gate, t, by: who, photo, broken: broken || null });
   flush();
 }
 
-// A cabinet that could not be filled is not the same as one nobody visited, and
-// the difference is the whole point of a compliance walk. Flagging it records
-// WHY, so "not done" never has to be guessed at afterwards.
+/* ---- the walk ---------------------------------------------------------------
+   One camera session for the whole walk. The gate name above the viewfinder is
+   what changes; the stream never stops. Opening and closing it per cabinet costs
+   about a second each time, which across 52 cabinets is most of a minute spent
+   watching a black screen. */
+function remaining(){ return GATES.filter(g => !done[g]); }
+function nextGate(after){
+  const left = remaining();
+  if (!left.length) return null;
+  if (!after) return left[0];
+  const i = GATES.indexOf(after);
+  return left.find(g => GATES.indexOf(g) > i) || left[0];
+}
+
+async function startWalk(gate){
+  target = gate || nextGate();
+  if (!target){ alert('Every cabinet is already recorded today.'); return; }
+  drawCam();
+  if (!stream) {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video:{ facingMode:{ideal:'environment'}, width:{ideal:1920}, height:{ideal:1080} },
+        audio:false });
+    } catch(e){
+      closeCam();
+      alert('Camera would not open.' + '\n\n' + (e && e.message || e) +
+            '\n\nThe page has to be on https for the camera to work.');
+      return;
+    }
+  }
+  const v = document.getElementById('vid');
+  if (!v){ closeCam(); return; }
+  v.srcObject = stream; await v.play().catch(()=>{});
+}
+
+function snap(){
+  const v = document.getElementById('vid');
+  if (!v || !v.videoWidth) return;
+  // 1600px rather than 1280: this photo is the only record of what was in the
+  // cabinet, and anything reading it later wants to make out the labels
+  const max = 1600, sc = Math.min(1, max / Math.max(v.videoWidth, v.videoHeight));
+  const c = document.createElement('canvas');
+  c.width = Math.round(v.videoWidth*sc); c.height = Math.round(v.videoHeight*sc);
+  c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+  const g = target;
+  save(g, c.toDataURL('image/jpeg', 0.75), null);
+  if (navigator.vibrate) navigator.vibrate(30);
+  flashSaved(g);
+  const nxt = nextGate(g);
+  if (nxt){ target = nxt; drawCam(); }
+  else { closeCam(); alert('That is every cabinet. Nice one.'); }
+}
+function flashSaved(g){
+  const el = document.getElementById('cam'); if (!el) return;
+  const f = document.createElement('div');
+  f.className = 'saved'; f.textContent = g + '  saved';
+  el.appendChild(f);
+  setTimeout(()=>f.remove(), 600);
+}
+function closeCam(){
+  if (stream){ stream.getTracks().forEach(t=>t.stop()); stream = null; }
+  const c = document.getElementById('cam'); if (c) c.remove();
+  target = null;
+}
+function drawCam(){
+  let el = document.getElementById('cam');
+  if (!el){ el = document.createElement('div'); el.className='cam'; el.id='cam'; document.body.appendChild(el); }
+  const left = remaining().length;
+  const k = KNOWN[target] || {};
+  const warn = k.blocked ? '<div class="camwarn">may not open &mdash; ' + k.blocked + '</div>'
+             : k.note    ? '<div class="camwarn" style="background:rgba(91,99,119,.92)">needs ' + k.note + '</div>'
+             : '';
+  const old = document.getElementById('vid');
+  const live = old && old.srcObject;         // keep the running stream, never restart it
+  el.innerHTML =
+    '<div class="camtop"><div><div class="step">' + left + ' left</div>' +
+      '<b>' + (target||'') + '</b></div><span class="x" id="camX">Done</span></div>' +
+    '<video id="vid" playsinline muted></video>' + warn +
+    '<div class="hint">Door open, photograph the inside.</div>' +
+    '<div class="cambot">' +
+      '<div class="side"><button class="txt" id="flagBtn">Flag</button></div>' +
+      '<div class="shutter" id="shut"></div>' +
+      '<div class="side r"><button class="txt" id="skipBtn">Skip</button></div>' +
+    '</div>';
+  if (live){ const nv = document.getElementById('vid'); nv.srcObject = live; nv.play().catch(()=>{}); }
+  document.getElementById('camX').onclick = closeCam;
+  document.getElementById('shut').onclick = snap;
+  document.getElementById('flagBtn').onclick = () => flagBroken(target);
+  document.getElementById('skipBtn').onclick = () => {
+    const nxt = nextGate(target);
+    if (nxt){ target = nxt; drawCam(); } else closeCam();
+  };
+}
+
+/* ---- flagging ---------------------------------------------------------------
+   A cabinet that could not be filled is not the same as one nobody visited, and
+   that difference is the whole point of a compliance walk. Flagging records WHY,
+   so "not done" never has to be guessed at afterwards. */
 const BROKEN_REASONS = ["Won't open", 'Needs a key', 'Locked', 'Dead battery',
                         'Knob turns', 'Missing parts', 'Not there', 'Other'];
 function flagBroken(gate){
   const k = KNOWN[gate] || {};
   const wrap = document.createElement('div');
   wrap.className = 'sheet';
+  wrap.style.zIndex = 90;
   wrap.innerHTML = '<div class="sh"><h3>' + gate + ' &mdash; what is wrong?</h3>' +
-    '<p>This marks the cabinet as not fillable and flags it for a go-back. ' +
-    'It does not count as done.</p>' +
+    '<p>This flags the cabinet for a go-back. It does not count as filled.</p>' +
     (k.blocked ? '<div class="kn">Last walk found: <b>' + k.blocked + '</b></div>' : '') +
     '<div class="rsn">' +
     BROKEN_REASONS.map(r => '<button data-r="' + r + '">' + r + '</button>').join('') +
@@ -364,188 +457,33 @@ function flagBroken(gate){
     b.onclick = () => {
       wrap.remove();
       let r = b.dataset.r;
-      if (r === 'Other') { const t = prompt('What is wrong with ' + gate + '?'); if (!t) return; r = t.trim(); }
-      // a photo of the fault is worth more than the words, but never required
-      if (confirm('Take a photo of the problem?\n\nCancel to flag it without one.')) {
-        pendingBroken = r; openCam(gate);
-      } else {
-        save(gate, null, '', false, '', r);
+      if (r === 'Other'){ const t = prompt('What is wrong with ' + gate + '?'); if (!t) return; r = t.trim(); }
+      save(gate, null, r);
+      if (document.getElementById('cam')){
+        const nxt = nextGate(gate);
+        if (nxt){ target = nxt; drawCam(); } else closeCam();
       }
     };
   });
 }
-let pendingBroken = null;
 
-/* ---- camera ---------------------------------------------------------------- */
-async function openCam(manualGate){
-  phase = manualGate ? 'photo' : 'scan';
-  target = manualGate || null; lastCode = '';
-  drawCam(!!manualGate);
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      video:{ facingMode:{ideal:'environment'}, width:{ideal:1920}, height:{ideal:1080} }, audio:false });
-  } catch(e){
-    closeCam();
-    alert('Camera would not open.\n\n' + (e && e.message || e) +
-          '\n\nThe page has to be on https for the camera to work.');
-    return;
-  }
-  const v = document.getElementById('vid');
-  if (!v) { closeCam(); return; }
-  v.srcObject = stream; await v.play().catch(()=>{});
-  if (phase === 'scan') startScan(v);
-}
-function startScan(v){
-  if (!('BarcodeDetector' in window)) {
-    const h = document.getElementById('hint');
-    if (h) h.textContent = 'This phone cannot scan in the browser. Use "Pick cabinet instead".';
-    return;
-  }
-  try { detector = new BarcodeDetector(); } catch(_) { return; }
-  scanning = true;
-  const tick = async () => {
-    if (!scanning || phase !== 'scan') return;
-    try {
-      const f = await detector.detect(v);
-      if (f && f.length){
-        const raw = (f[0].rawValue || '').trim();
-        if (raw && raw !== lastCode){ lastCode = raw; onCode(raw); return; }
-      }
-    } catch(_) {}
-    requestAnimationFrame(tick);
-  };
-  requestAnimationFrame(tick);
-}
-function onCode(raw){
-  scanning = false;
-  if (navigator.vibrate) navigator.vibrate(40);
-  const el = document.querySelector('.reticle'); if (el) el.classList.add('found');
-  const known = codes[encodeKey(raw)];
-  if (known){ target = known; toPhoto(); } else { pickGate(raw); }
-}
-function toPhoto(){
-  phase = 'photo'; drawCam(true);
-  const v = document.getElementById('vid');
-  if (v && stream){ v.srcObject = stream; v.play().catch(()=>{}); }
-}
-function snap(){
-  const v = document.getElementById('vid');
-  if (!v || !v.videoWidth) return;
-  const max = 1280, s = Math.min(1, max / Math.max(v.videoWidth, v.videoHeight));
-  const c = document.createElement('canvas');
-  c.width = Math.round(v.videoWidth*s); c.height = Math.round(v.videoHeight*s);
-  c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
-  const jpg = c.toDataURL('image/jpeg', 0.72);
-  const g = target, code = lastCode, ov = camOverride, rs = camReason, bk = pendingBroken;
-  closeCam(); save(g, jpg, code, ov, rs, bk);
-}
-function closeCam(){
-  scanning = false;
-  if (stream){ stream.getTracks().forEach(t=>t.stop()); stream = null; }
-  const c = document.getElementById('cam'); if (c) c.remove();
-  camOverride = false; camReason = ''; pendingBroken = null;
-}
-function drawCam(photo){
-  let el = document.getElementById('cam');
-  if (!el){ el = document.createElement('div'); el.className='cam'; el.id='cam'; document.body.appendChild(el); }
-  el.innerHTML =
-    `<div class="camtop">${photo
-        ? `<div class="step">Step 2 of 2</div><b>${target||''}</b>`
-        : `<div class="step">Step 1 of 2</div><b>Scan the label</b>`}
-      <span class="x" id="camX">Close</span></div>` +
-    `<video id="vid" playsinline muted></video>` +
-    (photo ? '' : '<div class="reticle"></div>') +
-    `<div class="hint" id="hint">${photo
-        ? 'Photograph the inside with the door open.'
-        : 'Hold the barcode inside the box.'}</div>` +
-    `<div class="cambot">` +
-      (photo
-        ? `<div class="side"></div><div class="shutter" id="shut"></div>
-           <div class="side r"><button class="txt" id="skipPhoto">No photo</button></div>`
-        : `<div class="side"></div><button class="txt" id="pickBtn">Pick cabinet instead</button>
-           <div class="side r"></div>`) +
-    `</div>`;
-  document.getElementById('camX').onclick = closeCam;
-  const sh = document.getElementById('shut'); if (sh) sh.onclick = snap;
-  const sp = document.getElementById('skipPhoto');
-  if (sp) sp.onclick = () => { const g=target,c=lastCode; closeCam(); save(g,null,c,true,'no photo taken'); };
-  const pb = document.getElementById('pickBtn'); if (pb) pb.onclick = () => pickGate(lastCode, true);
-}
-
-/* ---- pick by hand ---------------------------------------------------------- */
-function pickGate(code, isOverride, mode){
+/* ---- pick a cabinet --------------------------------------------------------- */
+function pickGate(){
   const wrap = document.createElement('div');
-  wrap.className='sheet';
-  const fresh = code && !isOverride;
-  const brokenMode = mode === 'broken';
-  wrap.innerHTML = `<div class="sh"><h3>${brokenMode ? 'Which cabinet is broken?'
-                                        : fresh ? 'New label' : 'Which cabinet?'}</h3>` +
-    `<p>${brokenMode ? 'Flagging records why a cabinet could not be filled. It does not count as done.'
-        : fresh ? 'This barcode has not been seen before. Tap the cabinet it is on and it will be remembered.'
-                : 'Picking by hand marks the entry as an override so it stands out on review.'}</p>` +
-    `<div class="pick">` +
-    GATES.map(g=>`<button data-g="${g}" class="${done[g]?'d':''}">${g.slice(1)}</button>`).join('') +
-    `</div></div>`;
+  wrap.className = 'sheet';
+  wrap.innerHTML = '<div class="sh"><h3>Which cabinet?</h3>' +
+    '<p>Jump straight to one. The walk carries on from there.</p><div class="pick">' +
+    GATES.map(g => '<button data-g="' + g + '" class="' + (done[g]?'d':'') + '">' +
+                   g.slice(1) + '</button>').join('') +
+    '</div></div>';
   document.body.appendChild(wrap);
   wrap.onclick = e => { if (e.target === wrap) wrap.remove(); };
   wrap.querySelectorAll('.pick button').forEach(b => {
-    b.onclick = () => {
-      target = b.dataset.g; wrap.remove();
-      if (brokenMode){ flagBroken(target); return; }
-      if (isOverride){ camOverride = true; camReason = 'picked by hand'; }
-      else { codes[encodeKey(code)] = target; }
-      if (!stream) openCam(target); else toPhoto();
-    };
+    b.onclick = () => { wrap.remove(); startWalk(b.dataset.g); };
   });
 }
 
-/* ---- render ---------------------------------------------------------------- */
-function render(){
-  if (todayKey() !== DAY){ DAY = todayKey(); done = {}; }
-  document.getElementById('who').textContent = who || 'set name';
-  const n  = GATES.filter(g=>done[g] && !done[g].broken).length;
-  const bk = GATES.filter(g=>done[g] && done[g].broken).length;
-  document.getElementById('pi').style.width = Math.round((n+bk)/GATES.length*100)+'%';
-  document.getElementById('ps').textContent =
-    n + ' of ' + GATES.length + ' filled' + (bk ? '  ·  ' + bk + ' broken' : '');
-  paintSync(); renderWalk(); renderReview();
-}
-function row(g){
-  const d = done[g], k = KNOWN[g] || {};
-  const cls = d ? (d.broken ? 'g brk' : d.override ? 'g over' : 'g done') : 'g';
-  const pill = d
-    ? (d.broken   ? '<div class="pill p-brk">broken</div>'
-     : d.override ? '<div class="pill p-over">override</div>'
-                  : '<div class="pill p-done">done</div>')
-    : '<div class="pill p-todo">not done</div>';
-  const thumb = photoOf(g) ? `<img src="${photoOf(g)}" alt="">` : '';
-  const sub = d ? (hhmm(d.t) + (d.by?' · '+d.by:'') + (d.pending?' · uploading':'') +
-                   (d.override && d.reason ? ' · '+d.reason : ''))
-                : 'not filled yet';
-  // the warning earns its place only before someone walks there, so it drops
-  // off the moment the cabinet is recorded
-  const warn = d
-    ? (d.broken ? `<div class="bw">${d.broken}</div>` : '')
-    : (k.blocked ? `<div class="kw">may not open — ${k.blocked}</div>`
-     : k.note    ? `<div class="kw" style="color:#5b6377">needs ${k.note}</div>` : '');
-  return `<div class="${cls}" data-g="${g}"><div class="code">${g}</div>` +
-         `<div class="mid"><div class="t">${sub}</div>${warn}</div>${thumb}${pill}</div>`;
-}
-
-function renderWalk(){
-  const todo   = GATES.filter(g=>!done[g]);
-  const broken = GATES.filter(g=>done[g] && done[g].broken);
-  const fin    = GATES.filter(g=>done[g] && !done[g].broken);
-  let h = '';
-  if (!todo.length && !broken.length)
-    h += '<div class="empty"><b>All cabinets done.</b><br>Nice one.</div>';
-  if (todo.length)   h += todo.map(row).join('');
-  if (broken.length) h += '<div class="hdr">Flagged broken — ' + broken.length +
-                          '</div>' + broken.map(row).join('');
-  if (fin.length)    h += '<div class="hdr">Done — ' + fin.length +
-                          '</div>' + fin.map(row).join('');
-  document.getElementById('tab-walk').innerHTML = h;
-}
+/* ---- render ----------------------------------------------------------------- */
 let photos = {}, photosFor = '';
 async function loadPhotos(){
   if (!db || photosFor === DAY) return;
@@ -556,6 +494,50 @@ async function loadPhotos(){
 }
 const photoOf = g => (done[g] && done[g].photo) || photos[g] || null;
 
+function render(){
+  if (todayKey() !== DAY){ DAY = todayKey(); done = {}; }
+  document.getElementById('who').textContent = who || 'set name';
+  const n  = GATES.filter(g=>done[g] && !done[g].broken).length;
+  const bk = GATES.filter(g=>done[g] && done[g].broken).length;
+  document.getElementById('pi').style.width = Math.round((n+bk)/GATES.length*100)+'%';
+  document.getElementById('ps').textContent =
+    n + ' of ' + GATES.length + ' filled' + (bk ? '  \u00b7  ' + bk + ' flagged' : '');
+  const nx = nextGate(), go = document.getElementById('btnGo');
+  if (go) go.textContent = nx ? ('Start at ' + nx) : 'All done';
+  paintSync(); renderWalk(); renderReview();
+}
+
+function row(g){
+  const d = done[g], k = KNOWN[g] || {};
+  const cls = d ? (d.broken ? 'g brk' : 'g done') : 'g';
+  const pill = d ? (d.broken ? '<div class="pill p-brk">flagged</div>'
+                             : '<div class="pill p-done">done</div>')
+                 : '<div class="pill p-todo">not done</div>';
+  const thumb = photoOf(g) ? '<img src="' + photoOf(g) + '" alt="">' : '';
+  const sub = d ? (hhmm(d.t) + (d.by?' \u00b7 '+d.by:'') + (d.pending?' \u00b7 uploading':''))
+                : 'not filled yet';
+  // the warning earns its place only before someone walks there
+  const warn = d
+    ? (d.broken ? '<div class="bw">' + d.broken + '</div>' : '')
+    : (k.blocked ? '<div class="kw">may not open &mdash; ' + k.blocked + '</div>'
+     : k.note    ? '<div class="kw" style="color:#5b6377">needs ' + k.note + '</div>' : '');
+  return '<div class="' + cls + '" data-g="' + g + '"><div class="code">' + g + '</div>' +
+         '<div class="mid"><div class="t">' + sub + '</div>' + warn + '</div>' + thumb + pill + '</div>';
+}
+
+function renderWalk(){
+  const todo   = GATES.filter(g=>!done[g]);
+  const broken = GATES.filter(g=>done[g] && done[g].broken);
+  const fin    = GATES.filter(g=>done[g] && !done[g].broken);
+  let h = '';
+  if (!todo.length && !broken.length)
+    h += '<div class="empty"><b>All cabinets done.</b><br>Nice one.</div>';
+  if (todo.length)   h += todo.map(row).join('');
+  if (broken.length) h += '<div class="hdr">Flagged &mdash; ' + broken.length + '</div>' + broken.map(row).join('');
+  if (fin.length)    h += '<div class="hdr">Done &mdash; ' + fin.length + '</div>' + fin.map(row).join('');
+  document.getElementById('tab-walk').innerHTML = h;
+}
+
 function renderReview(){
   const fin = GATES.filter(g=>done[g]).sort((a,b)=>done[b].t-done[a].t);
   if (!fin.length){
@@ -563,22 +545,23 @@ function renderReview(){
       '<div class="empty">Nothing photographed yet today.<br>Photos show up here as they are taken.</div>';
     return;
   }
-  const ov = fin.filter(g=>done[g].override).length;
-  let h = '<div class="note"><b>'+fin.length+' cabinets</b> photographed today' +
-          (ov?' &middot; <b style="color:#e07800">'+ov+' override'+(ov>1?'s':'')+'</b>':'') +
+  const bk = fin.filter(g=>done[g].broken).length;
+  let h = '<div class="note"><b>' + fin.length + ' cabinets</b> recorded today' +
+          (bk ? ' &middot; <b style="color:#b71c1c">' + bk + ' flagged</b>' : '') +
           '. Tap a photo to see it full size.</div><div class="rv">';
   for (const g of fin){
     const d = done[g];
-    h += `<figure class="${d.override?'over':''}" data-g="${g}">` +
-         (photoOf(g) ? `<img src="${photoOf(g)}" alt="">` : `<img alt="" style="background:#f2f2f2">`) +
-         `<figcaption><b>${g}</b><span>${hhmm(d.t)}${d.by?' · '+d.by:''}</span></figcaption>` +
-         (d.override ? `<span class="flag">OVERRIDE — ${d.reason||'no scan'}</span>` : '') +
-         `</figure>`;
+    h += '<figure class="' + (d.broken?'over':'') + '" data-g="' + g + '">' +
+         (photoOf(g) ? '<img src="' + photoOf(g) + '" alt="">'
+                     : '<img alt="" style="background:#f2f2f2">') +
+         '<figcaption><b>' + g + '</b><span>' + hhmm(d.t) + (d.by?' \u00b7 '+d.by:'') + '</span></figcaption>' +
+         (d.broken ? '<span class="flag">' + d.broken + '</span>' : '') +
+         '</figure>';
   }
   document.getElementById('tab-review').innerHTML = h + '</div>';
 }
 
-/* ---- wiring ---------------------------------------------------------------- */
+/* ---- wiring ----------------------------------------------------------------- */
 document.querySelector('nav').onclick = e => {
   const b = e.target.closest('button'); if (!b) return;
   document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on', x===b));
@@ -588,30 +571,23 @@ document.querySelector('nav').onclick = e => {
   document.getElementById('scanbar').classList.toggle('hide', !walk);
   if (!walk) loadPhotos();
 };
-document.getElementById('btnScan').onclick   = () => { if (!who) askWho(); if (who) openCam(null); };
-document.getElementById('btnManual').onclick = () => { if (!who) askWho(); if (who) pickGate('', true); };
-document.getElementById('btnBroken').onclick = () => {
-  if (!who) askWho();
-  if (who) pickGate('', true, 'broken');
-};
+document.getElementById('btnGo').onclick = () => { if (!who) askWho(); if (who) startWalk(null); };
+document.getElementById('btnPick').onclick = () => { if (!who) askWho(); if (who) pickGate(); };
 document.getElementById('who').onclick = askWho;
 document.getElementById('tab-walk').onclick = e => {
-  const row = e.target.closest('.g'); if (!row) return;
-  const g = row.dataset.g;
+  const r = e.target.closest('.g'); if (!r) return;
+  const g = r.dataset.g;
   if (done[g] && !confirm(g + ' is already recorded. Do it again?')) return;
   if (!who){ askWho(); if (!who) return; }
-  if (confirm(g + ' — fill it?\n\nOK to take the photo, Cancel to flag it broken.')) {
-    camOverride = !!done[g]; camReason = done[g] ? 'redone' : '';
-    openCam(g);
-  } else {
-    flagBroken(g);
-  }
+  startWalk(g);
 };
 document.getElementById('tab-review').onclick = e => {
   const f = e.target.closest('figure'); if (!f) return;
-  const d = done[f.dataset.g]; const src = photoOf(f.dataset.g); if (!d || !src) return;
+  const src = photoOf(f.dataset.g), d = done[f.dataset.g];
+  if (!src || !d) return;
   const b = document.createElement('div'); b.className='big';
-  b.innerHTML = `<img src="${src}"><div>${f.dataset.g} &middot; ${hhmm(d.t)}${d.by?' &middot; '+d.by:''}</div>`;
+  b.innerHTML = '<img src="' + src + '"><div>' + f.dataset.g + ' &middot; ' + hhmm(d.t) +
+                (d.by?' &middot; '+d.by:'') + '</div>';
   b.onclick = () => b.remove();
   document.body.appendChild(b);
 };
