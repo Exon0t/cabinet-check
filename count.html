@@ -81,18 +81,22 @@ main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 10px 2
 
 .it{background:var(--card);border:1px solid var(--line);border-radius:11px;
   padding:9px 10px 10px;margin-bottom:8px}
-.it.un{border-color:#e8c86a;background:#fffdf6}
 .it-h{display:flex;align-items:baseline;gap:8px;margin-bottom:7px}
 .it-h b{font-size:14.5px;font-weight:800}
 .it-h .par{font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.4px}
 .it-h .val{margin-left:auto;font-size:12px;font-weight:800;color:var(--green)}
 .it-h .val.u{color:#c9ccd6}
-.chips{display:flex;flex-wrap:wrap;gap:5px}
-.chips button{font:inherit;font-size:15px;font-weight:700;min-width:42px;height:42px;
-  border-radius:9px;border:1.5px solid var(--line);background:#fff;color:var(--ink);cursor:pointer}
-.chips button.par{border-color:#b9c0d8;background:#f4f6fc}
-.chips button.on{background:var(--navy);border-color:var(--navy);color:#fff}
-.chips button.on.zero{background:var(--red);border-color:var(--red)}
+.stp{display:flex;align-items:center;gap:10px}
+.stp button{font:inherit;font-size:31px;font-weight:700;line-height:1;width:64px;height:58px;
+  border-radius:11px;border:1.5px solid var(--line);background:#f7f8fc;color:var(--navy);
+  cursor:pointer;flex:none;display:flex;align-items:center;justify-content:center;
+  user-select:none;touch-action:manipulation}
+.stp button:active{background:var(--navy);border-color:var(--navy);color:#fff}
+.stp button[disabled]{color:#c9ccd6;background:#fafbfd}
+.stp .n{flex:1;text-align:center;font-size:35px;font-weight:800;line-height:1;
+  font-variant-numeric:tabular-nums}
+.stp .n.zero{color:var(--red)}
+.stp .n.full{color:var(--green)}
 .shl{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;
   color:var(--mut);margin:4px 2px 7px}
 .kn{background:#fff8e6;border:1px solid #e8c86a;border-radius:9px;padding:8px 10px;
@@ -186,7 +190,7 @@ const gnum = g => parseInt(g.slice(1), 10);
 const isHigh = g => gnum(g) >= 38;
 
 // Top two shelves only. par is what a full cabinet holds; max is how far the
-// chips run, one over par so an overfilled shelf can still be recorded.
+// stepper opens at. It can be pushed past par for an overfilled shelf.
 const ITEMS = [
   {k:'pt',  n:'Paper Towels', shelf:1, low:12, high:12},
   {k:'tp',  n:'Toilet Paper', shelf:1, low:18, high:18},
@@ -277,7 +281,10 @@ function openGate(g){
   if (!who) { askWho(); if (!who) return; }
   target = g;
   const prev = done[g] && !done[g].broken ? done[g] : null;
+  // open at par and count down. A stepper has to show a number either way, and
+  // starting full means most cabinets are a few taps rather than a full count up.
   draft = {};
+  for (const it of ITEMS) draft[it.k] = parOf(it, g);
   if (prev) for (const it of ITEMS) if (typeof prev[it.k] === 'number') draft[it.k] = prev[it.k];
   paintSheet();
 }
@@ -295,22 +302,22 @@ function paintSheet(){
   let shelf = 0;
   for (const it of ITEMS) {
     if (it.shelf !== shelf) { shelf = it.shelf; body += '<div class="shl">Shelf ' + shelf + '</div>'; }
-    const par = parOf(it, g), max = par + 1;
+    const par = parOf(it, g);
     const cur = draft[it.k];
-    const set = typeof cur === 'number';
-    let chips = '';
-    for (let n = 0; n <= max; n++) {
-      const cls = (set && cur === n ? 'on' + (n === 0 ? ' zero' : '') : (n === par ? 'par' : ''));
-      chips += '<button class="' + cls + '" data-k="' + it.k + '" data-n="' + n + '">' + n + '</button>';
-    }
-    body += '<div class="it' + (set ? '' : ' un') + '">'
+    const used = par - cur;
+    body += '<div class="it">'
          +  '<div class="it-h"><b>' + it.n + '</b>'
          +  '<span class="par">par ' + par + (it.sub ? ' · ' + it.sub : '') + '</span>'
-         +  '<span class="val' + (set ? '' : ' u') + '">' + (set ? cur + ' left' : 'not counted') + '</span></div>'
-         +  '<div class="chips">' + chips + '</div></div>';
+         +  '<span class="val' + (used > 0 ? '' : ' u') + '">'
+         +  (used > 0 ? used + ' used' : used < 0 ? 'over par' : 'full') + '</span></div>'
+         +  '<div class="stp">'
+         +  '<button data-k="' + it.k + '" data-d="-1"' + (cur <= 0 ? ' disabled' : '') + '>&minus;</button>'
+         +  '<span class="n' + (cur === 0 ? ' zero' : cur >= par ? ' full' : '') + '">' + cur + '</span>'
+         +  '<button data-k="' + it.k + '" data-d="1">+</button>'
+         +  '</div></div>';
   }
 
-  const n = ITEMS.filter(it => typeof draft[it.k] === 'number').length;
+  const nUsed = ITEMS.reduce((s, it) => s + Math.max(0, parOf(it, g) - draft[it.k]), 0);
   document.getElementById('sheet').innerHTML =
     '<div class="sh-top"><button class="x" id="sx">&times;</button>'
     + '<span class="gt">' + g + '</span>'
@@ -318,7 +325,7 @@ function paintSheet(){
     + '<span class="nx">' + (nx ? 'next ' + nx : 'last one') + '</span></div>'
     + '<div class="sh-body">' + body + '</div>'
     + '<div class="sh-foot"><button class="brk" id="sb">Can’t open</button>'
-    + '<button class="save" id="ss">Save' + (n < ITEMS.length ? '  ·  ' + n + '/' + ITEMS.length : '') + '</button></div>';
+    + '<button class="save" id="ss">Save' + (nUsed ? '  ·  ' + nUsed + ' used' : '  ·  full') + '</button></div>';
   document.getElementById('sheet').classList.remove('hide');
 
   document.getElementById('sx').onclick = closeSheet;
@@ -328,12 +335,11 @@ function paintSheet(){
     for (const it of ITEMS) draft[it.k] = parOf(it, target); paintSheet(); };
   document.getElementById('qz').onclick = () => {
     for (const it of ITEMS) draft[it.k] = 0; paintSheet(); };
-  for (const b of document.querySelectorAll('.chips button')) {
+  for (const b of document.querySelectorAll('.stp button')) {
     b.onclick = () => {
-      const key = b.dataset.k, val = +b.dataset.n;
-      // tapping the same number again clears it, so a mis-tap does not force a
-      // wrong count to be saved
-      if (draft[key] === val) delete draft[key]; else draft[key] = val;
+      draft[b.dataset.k] = Math.max(0, (draft[b.dataset.k] || 0) + (+b.dataset.d));
+      // repaint in place: holding the scroll position keeps the row being
+      // counted under your thumb instead of jumping to the top of the sheet
       const sc = document.querySelector('.sh-body').scrollTop;
       paintSheet();
       document.querySelector('.sh-body').scrollTop = sc;
@@ -343,10 +349,8 @@ function paintSheet(){
 function closeSheet(){ target = null; draft = {}; document.getElementById('sheet').classList.add('hide'); }
 
 function saveSheet(){
-  const missing = ITEMS.filter(it => typeof draft[it.k] !== 'number');
-  if (missing.length && !confirm('Not counted: ' + missing.map(m=>m.n).join(', ') + '.\n\nSave anyway?')) return;
   const rec = { who, t: Date.now(), high: isHigh(target) };
-  for (const it of ITEMS) if (typeof draft[it.k] === 'number') rec[it.k] = draft[it.k];
+  for (const it of ITEMS) rec[it.k] = draft[it.k] || 0;
   const g = target, nx = nextAfter(g);
   save(g, rec);
   if (nx) { openGate(nx); } else { closeSheet(); alert('That is every cabinet. Nice.'); }
