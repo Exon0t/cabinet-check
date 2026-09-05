@@ -1,166 +1,180 @@
 <!DOCTYPE html>
-<html lang="en"><head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1a237e">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Cabinet Count">
 <title>Cabinet Count</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <style>
-:root{--navy:#1a237e;--navy2:#283593;--ink:#1f2330;--mut:#5b6377;--line:#d7dbe8;
-  --bg:#eef0f5;--card:#fff;--red:#b71c1c;--amber:#e07800;--green:#1b7f3a}
-*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{height:100%}
-body{font-family:'Segoe UI',system-ui,-apple-system,Arial,sans-serif;font-size:15px;
-  color:var(--ink);background:var(--bg);display:flex;flex-direction:column;
-  height:100vh;height:100dvh;overflow:hidden;-webkit-font-smoothing:antialiased}
+  :root{
+    --navy:#1a237e; --navy-d:#11164f; --blue:#1565c0;
+    --green:#2e7d32; --green-bg:#e8f5e9; --green-soft:#f1f8f2; --green-line:#a6d7ad;
+    --amber:#b8791a; --amber-bg:#fff5e6; --amber-line:#f0cd8f;
+    --red:#c0392b; --red-bg:#fdecea; --red-line:#f0b7b0;
+    --page:#eef0f4; --card:#fff; --line:#d3d7e2; --line-soft:#e6e9f2;
+    --ink:#1a1a1a; --muted:#6b6f80; --dim:#9aa0b0;
+    --sys:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;overscroll-behavior:none}
+  body{ font-family:var(--sys); font-size:16px; color:var(--ink); background:var(--page);
+    display:flex; flex-direction:column; height:100vh; height:100dvh; overflow:hidden; -webkit-font-smoothing:antialiased; }
+  button{font-family:inherit;font-size:inherit;color:inherit;background:none;border:0;cursor:pointer}
+  input{font-family:inherit;font-size:16px;color:inherit}
 
-header{background:var(--navy);color:#fff;padding:calc(env(safe-area-inset-top) + 9px) 13px 9px;flex:none}
-.hrow{display:flex;align-items:center;gap:8px}
-header h1{font-size:15px;font-weight:700;letter-spacing:.4px}
-.sync{font-size:10px;padding:3px 7px;border-radius:20px;background:rgba(255,255,255,.16)}
-.sync.off{background:#8c2f2f}
-.who{margin-left:auto;font-size:11.5px;color:#c5cbe8;text-decoration:underline;
-  text-underline-offset:2px;cursor:pointer}
-.prog{margin-top:8px;background:rgba(255,255,255,.15);border-radius:6px;height:22px;
-  position:relative;overflow:hidden}
-.prog i{position:absolute;inset:0;width:0;background:#4caf50;transition:width .3s}
-.prog span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-  font-size:11.5px;font-weight:700;letter-spacing:.5px}
+  header{ background:var(--navy); color:#fff; flex:none; padding-top:env(safe-area-inset-top); box-shadow:0 2px 8px rgba(10,20,60,.25); z-index:10; }
+  .hdr-top{ display:flex; align-items:center; justify-content:space-between; padding:10px 14px 8px; }
+  .brand{ font-size:17px; font-weight:800; letter-spacing:.5px; text-transform:uppercase; }
+  .brand small{ display:block; font-size:10px; font-weight:600; letter-spacing:1px; color:#aeb8de; margin-top:1px; }
+  .seg{ display:flex; background:rgba(255,255,255,.14); border-radius:9px; padding:3px; }
+  .seg button{ font-size:12.5px; font-weight:700; padding:6px 10px; border-radius:7px; color:#cfd5ee; }
+  .seg button.active{ background:#fff; color:var(--navy); }
+  .hdr-sub{ display:flex; align-items:center; justify-content:space-between; padding:0 14px 9px; gap:10px; }
+  .meta-sum{ font-size:12.5px; color:#cfd5ee; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:pointer; text-decoration:underline; text-underline-offset:2px; }
+  .live{ font-size:10px; font-weight:800; letter-spacing:.5px; text-transform:uppercase; padding:3px 8px; border-radius:20px; background:rgba(255,255,255,.15); color:#cfd5ee; display:inline-flex; align-items:center; gap:5px; flex:none; }
+  .live::before{ content:""; width:7px; height:7px; border-radius:50%; background:#9aa0b0; }
+  .live.on{ background:rgba(143,211,166,.22); color:#c9f0d4; } .live.on::before{ background:#8fd3a6; }
+  .pbar{ height:5px; background:rgba(255,255,255,.16); }
+  .pfill{ height:100%; width:0; background:linear-gradient(90deg,#aeb8de,#fff); transition:width .25s ease; }
+  .save-banner{ flex:none; background:#c0392b; color:#fff; font-size:13px; font-weight:700; text-align:center; padding:9px 14px; line-height:1.35; }
 
-nav{display:flex;background:var(--navy2);flex:none}
-nav button{flex:1;font:inherit;font-size:12px;font-weight:700;letter-spacing:.7px;
-  text-transform:uppercase;padding:9px 0;background:none;border:0;color:#b6bde0;cursor:pointer}
-nav button.on{color:#fff;box-shadow:inset 0 -3px 0 #fff}
+  main{ flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:12px 12px 18px; }
 
-main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 10px 20px}
-.hide{display:none!important}
+  .card{ background:var(--card); border-radius:14px; box-shadow:0 1px 6px rgba(20,30,70,.10); overflow:hidden; }
+  .card-hd{ background:var(--navy); color:#fff; padding:14px 16px; display:flex; align-items:center; gap:12px; }
+  .card-hd.good{ background:var(--green); } .card-hd.good .g-meta{ color:#d5f0dc; }
+  .card-hd.att{ background:#8a5a12; } .card-hd.att .g-meta{ color:#f0e0c4; }
+  .card-hd.brk{ background:#8f2f24; } .card-hd.brk .g-meta{ color:#f5d5d0; }
+  .g-code{ font-size:32px; font-weight:800; letter-spacing:.5px; line-height:1; }
+  .g-meta{ flex:1; font-size:12.5px; color:#cfd5ee; line-height:1.35; font-weight:600; }
+  .g-chip{ flex:none; font-size:12px; font-weight:800; background:rgba(255,255,255,.18); padding:6px 11px; border-radius:20px; text-align:center; line-height:1.2; }
 
-/* ---- gate list ---- */
-.g{background:var(--card);border:1px solid var(--line);border-radius:11px;margin-bottom:7px;
-  display:flex;align-items:center;gap:11px;padding:12px;cursor:pointer}
-.g:active{background:#f4f6fc}
-.g .code{font-size:20px;font-weight:800;color:var(--navy);min-width:60px}
-.g .mid{flex:1;min-width:0}
-.g .t{font-size:12.5px;color:var(--mut)}
-.g .pill{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;
-  padding:5px 9px;border-radius:20px;white-space:nowrap}
-.p-todo{background:#eef0f5;color:var(--mut)}
-.p-done{background:#e6f4ea;color:var(--green)}
-.p-brk{background:#fdecec;color:var(--red)}
-.g.done{border-color:#9ed4b0;background:#f7fdf9}
-.g.brk{border-color:#e0a0a0;background:#fdf4f4}
-.g .bw{font-size:11.5px;color:var(--red);font-weight:700;margin-top:2px}
-.g .kw{font-size:11px;color:var(--amber);font-weight:700;margin-top:2px}
-.hd{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;
-  color:var(--mut);margin:14px 2px 7px}
-.hd:first-child{margin-top:2px}
+  .status-row{ display:flex; gap:9px; padding:12px 14px 0; }
+  .statbtn{ flex:1; padding:13px 8px; border-radius:11px; font-weight:800; font-size:14.5px; border:1.5px solid var(--line); background:#fff; color:var(--muted); }
+  .statbtn.sf.on{ background:var(--green); border-color:var(--green); color:#fff; }
+  .statbtn.se.on{ background:#5b6472; border-color:#5b6472; color:#fff; }
+  .statbtn.sb.on{ background:var(--red); border-color:var(--red); color:#fff; }
 
-/* ---- count sheet ---- */
-.sheet{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;z-index:40}
-.sh-top{background:var(--navy);color:#fff;padding:calc(env(safe-area-inset-top) + 10px) 12px 10px;
-  display:flex;align-items:center;gap:10px;flex:none}
-.sh-top .x{font-size:26px;line-height:1;background:none;border:0;color:#c5cbe8;cursor:pointer;padding:0 4px}
-.sh-top .gt{font-size:25px;font-weight:800;letter-spacing:-.5px}
-.sh-top .cf{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;
-  background:rgba(255,255,255,.18);padding:4px 9px;border-radius:20px}
-.sh-top .nx{margin-left:auto;font-size:11.5px;color:#c5cbe8}
-.sh-body{flex:1;overflow-y:auto;padding:10px 10px 12px}
-.sh-foot{flex:none;padding:9px 10px calc(env(safe-area-inset-bottom) + 10px);
-  background:var(--card);border-top:1px solid var(--line);display:flex;gap:8px}
-.sh-foot button{font:inherit;font-weight:800;border-radius:11px;border:1.5px solid var(--line);
-  background:#fff;color:var(--ink);padding:15px 10px;cursor:pointer;font-size:14px}
-.sh-foot .save{flex:1;background:var(--green);border-color:var(--green);color:#fff;font-size:16px}
-.sh-foot .brk{color:var(--red);border-color:#e0a0a0;flex:none;padding:15px 14px}
+  .hint-line{ font-size:13px; color:var(--muted); font-weight:600; padding:12px 14px 2px; display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .hint-line b{ color:var(--navy); }
+  .shelf-l{ font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.9px; color:var(--muted); padding:12px 14px 2px; }
 
-.quick{display:flex;gap:8px;margin-bottom:11px}
-.quick button{flex:1;font:inherit;font-size:12.5px;font-weight:800;text-transform:uppercase;
-  letter-spacing:.6px;padding:12px 6px;border-radius:10px;border:1.5px solid var(--navy);
-  background:#fff;color:var(--navy);cursor:pointer}
-.quick button.z{border-color:var(--line);color:var(--mut)}
+  .items{ padding:4px 10px 4px; }
+  .item{ margin:6px 0; border:1.5px solid var(--line); border-radius:11px; background:#fff; overflow:hidden; }
+  .item.low{ border-color:var(--red-line); }
+  .item.zero{ border-color:var(--red); }
+  .ihead{ display:flex; align-items:center; gap:10px; min-height:58px; padding:8px 12px; user-select:none; }
+  .item.low .ihead{ background:var(--red-bg); }
+  .i-name{ font-size:16.5px; font-weight:600; min-width:0; }
+  .i-name em{ font-style:normal; font-size:11.5px; font-weight:700; color:var(--dim); display:block; margin-top:1px; }
+  .item.low .i-name{ color:var(--red); }
+  .i-par{ font-size:11px; font-weight:700; color:var(--blue); flex:1; white-space:nowrap; }
+  .item.low .i-par{ color:var(--red); }
 
-.it{background:var(--card);border:1px solid var(--line);border-radius:11px;
-  padding:9px 10px 10px;margin-bottom:8px}
-.it-h{display:flex;align-items:baseline;gap:8px;margin-bottom:7px}
-.it-h b{font-size:14.5px;font-weight:800}
-.it-h .par{font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.4px}
-.it-h .val{margin-left:auto;font-size:12px;font-weight:800;color:var(--green)}
-.it-h .val.u{color:#c9ccd6}
-.stp{display:flex;align-items:center;gap:10px}
-.stp button{font:inherit;font-size:31px;font-weight:700;line-height:1;width:64px;height:58px;
-  border-radius:11px;border:1.5px solid var(--line);background:#f7f8fc;color:var(--navy);
-  cursor:pointer;flex:none;display:flex;align-items:center;justify-content:center;
-  user-select:none;touch-action:manipulation}
-.stp button:active{background:var(--navy);border-color:var(--navy);color:#fff}
-.stp button[disabled]{color:#c9ccd6;background:#fafbfd}
-.stp .n{flex:1;text-align:center;font-size:35px;font-weight:800;line-height:1;
-  font-variant-numeric:tabular-nums}
-.stp .n.zero{color:var(--red)}
-.stp .n.full{color:var(--green)}
-.shl{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;
-  color:var(--mut);margin:4px 2px 7px}
-.kn{background:#fff8e6;border:1px solid #e8c86a;border-radius:9px;padding:8px 10px;
-  font-size:12.5px;color:#6d4c00;margin-bottom:10px}
-.bkn{background:#fdecec;border:1px solid #e0a0a0;color:#7d1a1a}
+  .stepper{ display:inline-flex; align-items:stretch; border:1.5px solid var(--line); border-radius:9px; overflow:hidden; flex:none; }
+  .stepper .qtyinput{ width:56px; border:none; border-left:1.5px solid var(--line); border-right:1.5px solid var(--line); border-radius:0; text-align:center; font-weight:800; font-size:18px; padding:9px 2px; background:#fff; -moz-appearance:textfield; }
+  .stepper .qtyinput::-webkit-outer-spin-button,.stepper .qtyinput::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+  .stepper .qtyinput:focus{ outline:none; background:#fffdf5; }
+  .item.zero .qtyinput{ color:var(--red); }
+  .qbtn{ width:46px; min-height:44px; font-size:23px; font-weight:800; color:var(--navy); background:#eef0f7; line-height:1; display:flex; align-items:center; justify-content:center; user-select:none; touch-action:manipulation; }
+  .qbtn:active{ background:#dfe3ef; }
+  .qbtn:disabled{ color:var(--dim); background:#f4f5f9; }
 
-/* ---- summary ---- */
-table.sum{width:100%;border-collapse:collapse;background:var(--card);
-  border:1px solid var(--line);border-radius:11px;overflow:hidden;font-size:14px}
-table.sum th{background:#eef1f7;font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;
-  color:var(--mut);padding:8px 10px;text-align:left}
-table.sum th.r,table.sum td.r{text-align:right}
-table.sum td{padding:9px 10px;border-top:1px solid #edf0f6}
-table.sum td b{font-size:16px}
-.note{font-size:12px;color:var(--mut);margin:10px 2px;line-height:1.5}
-.big{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:14px;
-  text-align:center;margin-bottom:9px}
-.big b{display:block;font-size:31px;font-weight:800;color:var(--navy);line-height:1.1}
-.big span{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--mut)}
-.rw{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;
-  margin-bottom:6px;display:flex;align-items:center;gap:10px;font-size:13.5px}
-.rw .c{font-weight:800;color:var(--navy);min-width:52px}
-.rw .s{margin-left:auto;font-size:12px;color:var(--mut)}
+  .note-wrap{ padding:10px 14px 16px; }
+  .note-wrap input{ width:100%; border:1.5px solid var(--line); border-radius:11px; padding:11px 12px; }
+  .note-wrap input:focus{ outline:none; border-color:var(--blue); background:#fffdf5; }
+
+  footer{ flex:none; display:flex; align-items:stretch; gap:10px; padding:10px 12px; padding-bottom:calc(10px + env(safe-area-inset-bottom));
+    background:var(--card); border-top:1px solid var(--line-soft); box-shadow:0 -2px 10px rgba(20,30,70,.08); }
+  .nav-prev{ flex:none; width:58px; background:#eef0f7; color:var(--navy); font-size:24px; font-weight:800; border-radius:12px; }
+  .nav-prev:disabled{ opacity:.35; }
+  .nav-primary{ flex:1; background:var(--navy); color:#fff; font-size:19px; font-weight:800; border-radius:12px; padding:16px; letter-spacing:.3px; box-shadow:0 2px 8px rgba(26,35,126,.3); }
+  .nav-primary:active{ background:var(--navy-d); }
+
+  .ov-card{ background:var(--card); border-radius:14px; box-shadow:0 1px 6px rgba(20,30,70,.08); padding:16px; margin-bottom:12px; }
+  .ov-card h3{ font-size:12px; text-transform:uppercase; letter-spacing:1px; color:var(--navy); margin-bottom:12px; font-weight:800; }
+  .su-tiles{ display:flex; gap:10px; }
+  .su-tile{ flex:1; text-align:center; border-radius:12px; padding:12px 6px; border:1px solid var(--line-soft); }
+  .su-tile.g{ background:var(--green-soft); border-color:var(--green-line); }
+  .su-tile.a{ background:var(--amber-bg); border-color:var(--amber-line); }
+  .su-tile.x{ background:var(--red-bg); border-color:var(--red-line); }
+  .su-tile .n{ font-size:26px; font-weight:800; color:var(--navy); line-height:1; }
+  .su-tile .l{ font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin-top:5px; }
+  table{ width:100%; border-collapse:collapse; }
+  th,td{ padding:9px 6px; text-align:right; border-bottom:1px solid var(--line-soft); font-size:14px; }
+  th{ font-size:10.5px; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); font-weight:800; }
+  th.l,td.l{ text-align:left; }
+  td.l{ font-weight:600; }
+  td b{ font-size:17px; font-weight:800; color:var(--navy); }
+  tr:last-child td{ border-bottom:0; }
+  .muted{ font-size:12.5px; color:var(--muted); line-height:1.5; }
+
+  .chips{ display:grid; grid-template-columns:repeat(auto-fill,minmax(70px,1fr)); gap:8px; }
+  .chip{ border:1.5px solid var(--line); border-radius:11px; padding:10px 4px; text-align:center; background:#fff; }
+  .chip .c{ font-size:15px; font-weight:800; color:var(--ink); }
+  .chip .f{ font-size:10.5px; font-weight:700; color:var(--dim); margin-top:2px; }
+  .chip.done{ background:var(--green-soft); border-color:var(--green-line); }
+  .chip.done .f{ color:var(--green); }
+  .chip.brk{ background:var(--red-bg); border-color:var(--red-line); }
+  .chip.brk .f{ color:var(--red); }
+  .chip.now{ box-shadow:0 0 0 2px var(--navy) inset; }
+
+  .lrow{ display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--line-soft); font-size:13.5px; }
+  .lrow:last-child{ border-bottom:0; }
+  .lrow .c{ font-weight:800; color:var(--navy); min-width:52px; }
+  .lrow .s{ margin-left:auto; font-size:11.5px; color:var(--muted); text-align:right; }
 </style>
 </head>
 <body>
 
 <header>
-  <div class="hrow">
-    <h1>Cabinet Count</h1>
-    <span id="sync" class="sync off">offline</span>
-    <span id="who" class="who">who?</span>
+  <div class="hdr-top">
+    <div class="brand">Cabinet Count<small id="whoLine">tap to set your name</small></div>
+    <div class="seg">
+      <button data-v="count" class="active">Count</button>
+      <button data-v="used">Used</button>
+      <button data-v="log">Log</button>
+    </div>
   </div>
-  <div class="prog"><i id="pi"></i><span id="pt"></span></div>
+  <div class="hdr-sub">
+    <span class="meta-sum" id="metaSum">—</span>
+    <span class="live" id="live">offline</span>
+  </div>
+  <div class="pbar"><div class="pfill" id="pfill"></div></div>
 </header>
+<div class="save-banner" id="saveBanner" hidden></div>
 
-<nav>
-  <button data-v="walk" class="on">Walk</button>
-  <button data-v="used">Used</button>
-  <button data-v="log">Log</button>
-</nav>
+<main id="main">
+  <section id="countView">
+    <div class="card" id="card"></div>
+  </section>
 
-<main>
-  <div id="v-walk"></div>
-  <div id="v-used" class="hide"></div>
-  <div id="v-log" class="hide"></div>
+  <section id="usedView" hidden></section>
+  <section id="logView" hidden></section>
 </main>
 
-<div id="sheet" class="sheet hide"></div>
+<footer id="nav">
+  <button class="nav-prev" id="prevBtn">&#8249;</button>
+  <button class="nav-primary" id="primaryBtn">Save &amp; Next &#9654;</button>
+</footer>
 
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script>
 "use strict";
+/* ═══════════════════════════════════════════════════════════════════════════
+   Counts what is LEFT on the top two shelves so the gap against par is real
+   consumption. Shelves 3 and 4 are provisions and are not here -- they move on
+   a different cycle, and counting them doubles the taps at every cabinet for
+   numbers nobody acts on.
 
-/* ---------------------------------------------------------------------------
-   Counts what is LEFT on the top two shelves, so the difference against par is
-   real consumption. Shelves 3 and 4 are provisions and are deliberately not
-   here -- provisions move on a different cycle and counting them would double
-   the taps at every cabinet for numbers nobody is going to act on.
-
-   No camera, no barcode. This is a measurement tool, not a compliance one:
-   the walker is counting for us, not proving anything to us.
---------------------------------------------------------------------------- */
+   Every line is a counter. No holders, no labels, no low/missing toggles: this
+   measures draw, it does not audit condition.
+   ═══════════════════════════════════════════════════════════════════════════ */
 
 const FB = {
   apiKey:"AIzaSyD1gtIw23ffOKA8ANz9w-obR3ElGi_ie3k",
@@ -171,6 +185,23 @@ const FB = {
   messagingSenderId:"941784062745",
   appId:"1:941784062745:web:396cf982746e98e1924388"
 };
+
+/* ═══════════ items ═══════════ */
+// par differs above and below B38. A wrong par quietly corrupts every usage
+// figure downstream, so both numbers are spelled out per item rather than
+// derived from a multiplier.
+const ITEMS = [
+  { k:'pt',  label:'Paper Towels', shelf:1, low:12, high:12 },
+  { k:'tp',  label:'Toilet Paper', shelf:1, low:18, high:18 },
+  { k:'sp',  label:'Soap',         shelf:1, low:6,  high:6  },
+  { k:'bo',  label:'Bottles',      shelf:2, low:5,  high:6  },
+  { k:'gS',  label:'Gloves S',     shelf:2, low:1,  high:1, sub:'one of each size' },
+  { k:'gM',  label:'Gloves M',     shelf:2, low:1,  high:1 },
+  { k:'gL',  label:'Gloves L',     shelf:2, low:1,  high:1 },
+  { k:'gXL', label:'Gloves XL',    shelf:2, low:1,  high:1 },
+  { k:'fa',  label:'Facials',      shelf:2, low:1,  high:1 },
+  { k:'wy',  label:'WypAlls',      shelf:2, low:2,  high:2 }
+];
 
 const DUAL = ['B32','B36','B38','B42'];
 const GATES = (() => {
@@ -183,291 +214,300 @@ const GATES = (() => {
   }
   return out;
 })();
+const TOTAL = GATES.length;
 
-// B38 and up is the higher-gate layout: more bottles, more facials. Everything
-// below runs the lower-gate numbers.
-const gnum = g => parseInt(g.slice(1), 10);
+const gnum   = g => parseInt(g.slice(1), 10);
 const isHigh = g => gnum(g) >= 38;
+const parOf  = (it, g) => isHigh(g) ? it.high : it.low;
 
-// Top two shelves only. par is what a full cabinet holds; max is how far the
-// stepper opens at. It can be pushed past par for an overfilled shelf.
-const ITEMS = [
-  {k:'pt',  n:'Paper Towels', shelf:1, low:12, high:12},
-  {k:'tp',  n:'Toilet Paper', shelf:1, low:18, high:18},
-  {k:'sp',  n:'Soap',         shelf:1, low:6,  high:6},
-  {k:'bo',  n:'Bottles',      shelf:2, low:5,  high:6},
-  {k:'gl',  n:'Gloves',       shelf:2, low:4,  high:4, sub:'boxes present — S M L XL'},
-  {k:'fa',  n:'Facials',      shelf:2, low:1,  high:1},
-  {k:'wy',  n:'WypAlls',      shelf:2, low:2,  high:2}
-];
-const parOf = (it, g) => isHigh(g) ? it.high : it.low;
-
+// what the last go-back walk found, shown before the walker gets there
 const KNOWN = {"B36":{"blocked":"needs a key · dead battery","note":"maxi pad holder"},"B37":{"blocked":"won't open · needs a key · dead battery","note":null},"B38":{"blocked":"knob turns","note":null},"B39":{"blocked":"needs a key · locked","note":"dividers"},"B42":{"blocked":"won't open","note":"dividers · glove holder"},"B25":{"blocked":null,"note":"dividers"},"B27":{"blocked":null,"note":"dividers"},"B29":{"blocked":null,"note":"dividers · dirty"},"B24":{"blocked":null,"note":"dividers"},"B26":{"blocked":null,"note":"dividers · maxi pad holder"},"B28":{"blocked":null,"note":"dividers"},"B32":{"blocked":null,"note":"dividers · maxi pad holder"},"B44":{"blocked":null,"note":"dividers"},"B41":{"blocked":null,"note":"dividers · dirty"},"B43":{"blocked":null,"note":"dividers"},"B45":{"blocked":null,"note":"dividers · glove holder"},"B47":{"blocked":null,"note":"dividers · glove holder"},"B49":{"blocked":null,"note":"dividers"},"B46":{"blocked":null,"note":"dividers"},"B48":{"blocked":null,"note":"dividers"},"B50":{"blocked":null,"note":"dividers"},"B52":{"blocked":null,"note":"dividers"},"B53":{"blocked":null,"note":"dividers · glove holder"},"B55":{"blocked":null,"note":"dividers · glove holder · dirty"},"B59":{"blocked":null,"note":"dividers · dirty"},"B54":{"blocked":null,"note":"dividers · dirty"},"B56":{"blocked":null,"note":"dividers"},"B58":{"blocked":null,"note":"dividers"}};
-const baseOf = g => KNOWN[g.replace(/[ab]$/,'')] || {};
+const knownOf = g => KNOWN[g.replace(/[ab]$/,'')] || {};
 
 const todayKey = () => { const d = new Date();
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
 const hhmm = t => new Date(t).toTimeString().slice(0,5);
 
-let DAY = todayKey();
-let who = localStorage.getItem('cc_who') || '';
-let done = {};
+/* ═══════════ state ═══════════ */
+const DAY = todayKey();
+const UIK = 'cc_count_ui';
+let who   = localStorage.getItem('cc_who') || '';
+let saved = {};                    // gate -> committed record
+let draft = {};                    // gate -> in-progress counts, local only
+let idx   = 0;
+let view  = 'count';
 let db = null, online = false;
-let target = null, draft = {};
 
-/* ---- firebase -------------------------------------------------------------- */
+try { const u = JSON.parse(localStorage.getItem(UIK) || '{}');
+      if (u.idx != null) idx = Math.min(Math.max(u.idx|0, 0), TOTAL-1);
+      draft = u.draft || {}; } catch(_) {}
+const saveUI = () => { try { localStorage.setItem(UIK, JSON.stringify({idx, draft})); } catch(_) {} };
+
+const $ = s => document.querySelector(s);
+const card = $('#card'), main = $('#main');
+
+/* ═══════════ firebase ═══════════ */
 function initFB(){
   try {
     firebase.initializeApp(FB);
     db = firebase.database();
-    db.ref('.info/connected').on('value', s => {
-      online = !!s.val(); paintSync(); if (online) flush();
-    });
+    db.ref('.info/connected').on('value', s => { online = !!s.val(); paintLive(); if (online) flush(); });
     db.ref('count/' + DAY).on('value', s => {
       // rebuild from the server rather than merge into it: a record deleted
       // anywhere else has to disappear here too, or this phone keeps it forever
       const v = s.val() || {};
       const keep = {};
-      for (const g in done) if (done[g] && done[g].pending && !v[g]) keep[g] = done[g];
-      done = Object.assign({}, v, keep);
+      for (const g in saved) if (saved[g] && saved[g].pending && !v[g]) keep[g] = saved[g];
+      saved = Object.assign({}, v, keep);
       render();
     });
-  } catch(e){ paintSync(); }
+  } catch(e){ paintLive(); }
 }
-function paintSync(){
-  const el = document.getElementById('sync');
-  const q = queueLen();
-  el.textContent = online ? (q ? q + ' saving' : 'saved') : (q ? 'offline · ' + q : 'offline');
-  el.className = 'sync' + (online ? '' : ' off');
+function paintLive(){
+  const q = queueLen(), el = $('#live');
+  el.textContent = online ? (q ? q + ' saving' : 'live') : (q ? 'offline · ' + q : 'offline');
+  el.classList.toggle('on', online && !q);
 }
 
-/* ---- offline queue --------------------------------------------------------- */
 const QK = 'cc_count_q';
 const readQ  = () => { try { return JSON.parse(localStorage.getItem(QK) || '[]'); } catch(_) { return []; } };
-const writeQ = q  => { try { localStorage.setItem(QK, JSON.stringify(q)); } catch(_) {} };
+const writeQ = q  => { try { localStorage.setItem(QK, JSON.stringify(q)); }
+                       catch(_) { const b=$('#saveBanner'); b.textContent='This phone is not saving — stay on signal.'; b.hidden=false; } };
 const queueLen = () => readQ().length;
 
-function save(gate, rec){
+function commit(gate, rec){
   rec.pending = true;
-  done[gate] = rec;
+  saved[gate] = rec;
   const q = readQ().filter(x => !(x.day === DAY && x.gate === gate));
   q.push({ day: DAY, gate, rec });
   writeQ(q); render(); flush();
 }
 async function flush(){
   if (!db || !online) return;
-  const q = readQ();
-  if (!q.length) { paintSync(); return; }
-  for (const job of q.slice()) {
+  for (const job of readQ().slice()) {
     try {
-      const rec = Object.assign({}, job.rec);
-      delete rec.pending;
+      const rec = Object.assign({}, job.rec); delete rec.pending;
       await db.ref('count/' + job.day + '/' + job.gate).set(rec);
       writeQ(readQ().filter(x => !(x.day === job.day && x.gate === job.gate)));
     } catch(e) { break; }
   }
-  paintSync();
+  paintLive();
 }
 
-/* ---- count sheet ----------------------------------------------------------- */
-function nextAfter(gate){
-  const left = GATES.filter(g => !done[g]);
-  if (!left.length) return null;
-  const i = GATES.indexOf(gate);
-  return left.find(g => GATES.indexOf(g) > i) || left[0];
+/* ═══════════ draft helpers ═══════════ */
+function counts(g){
+  // a gate opens at par and counts down: the stepper has to show a number
+  // either way, and full is the honest starting point right after a fill
+  if (!draft[g]) {
+    const d = {};
+    const prev = saved[g];
+    for (const it of ITEMS)
+      d[it.k] = (prev && typeof prev[it.k] === 'number') ? prev[it.k] : parOf(it, g);
+    draft[g] = d;
+  }
+  return draft[g];
 }
-
-function openGate(g){
-  if (!who) { askWho(); if (!who) return; }
-  target = g;
-  const prev = done[g] && !done[g].broken ? done[g] : null;
-  // open at par and count down. A stepper has to show a number either way, and
-  // starting full means most cabinets are a few taps rather than a full count up.
-  draft = {};
-  for (const it of ITEMS) draft[it.k] = parOf(it, g);
-  if (prev) for (const it of ITEMS) if (typeof prev[it.k] === 'number') draft[it.k] = prev[it.k];
-  paintSheet();
-}
-
-function paintSheet(){
-  const g = target, k = baseOf(g), nx = nextAfter(g);
-  let body = '';
-  if (k.blocked) body += '<div class="kn bkn"><b>Known problem:</b> ' + k.blocked + '</div>';
-  else if (k.note) body += '<div class="kn"><b>Watch for:</b> ' + k.note + '</div>';
-
-  body += '<div class="quick">'
-       +  '<button id="qf">All full</button>'
-       +  '<button id="qz" class="z">All empty</button></div>';
-
-  let shelf = 0;
+function usedAt(g, rec){
+  let n = 0;
   for (const it of ITEMS) {
-    if (it.shelf !== shelf) { shelf = it.shelf; body += '<div class="shl">Shelf ' + shelf + '</div>'; }
-    const par = parOf(it, g);
-    const cur = draft[it.k];
-    const used = par - cur;
-    body += '<div class="it">'
-         +  '<div class="it-h"><b>' + it.n + '</b>'
-         +  '<span class="par">par ' + par + (it.sub ? ' · ' + it.sub : '') + '</span>'
-         +  '<span class="val' + (used > 0 ? '' : ' u') + '">'
-         +  (used > 0 ? used + ' used' : used < 0 ? 'over par' : 'full') + '</span></div>'
-         +  '<div class="stp">'
-         +  '<button data-k="' + it.k + '" data-d="-1"' + (cur <= 0 ? ' disabled' : '') + '>&minus;</button>'
-         +  '<span class="n' + (cur === 0 ? ' zero' : cur >= par ? ' full' : '') + '">' + cur + '</span>'
-         +  '<button data-k="' + it.k + '" data-d="1">+</button>'
-         +  '</div></div>';
+    const v = rec[it.k];
+    if (typeof v === 'number') n += Math.max(0, parOf(it, g) - v);
+  }
+  return n;
+}
+const statusOf = g => { const r = saved[g];
+  return !r ? 'left' : r.broken ? 'brk' : usedAt(g, r) ? 'att' : 'good'; };
+
+/* ═══════════ render: the cabinet card ═══════════ */
+function renderCard(keepScroll){
+  const sc = keepScroll ? main.scrollTop : 0;
+  const g = GATES[idx], k = knownOf(g), c = counts(g), rec = saved[g];
+  const st = statusOf(g);
+
+  let rows = '', shelf = 0;
+  for (const it of ITEMS) {
+    if (it.shelf !== shelf) {
+      shelf = it.shelf;
+      rows += '<div class="shelf-l">Shelf ' + shelf + '</div>';
+    }
+    const par = parOf(it, g), v = c[it.k];
+    const cls = v === 0 ? ' item low zero' : ' item';
+    rows += '<div class="' + cls.trim() + '" data-k="' + it.k + '">'
+         +    '<div class="ihead">'
+         +      '<span class="i-name">' + it.label + (it.sub ? '<em>' + it.sub + '</em>' : '') + '</span>'
+         +      '<span class="i-par">par ' + par + (v < par ? ' · ' + (par - v) + ' used' : v > par ? ' · over' : '') + '</span>'
+         +      '<span class="stepper">'
+         +        '<button class="qbtn" type="button" data-step="-1"' + (v <= 0 ? ' disabled' : '') + '>&minus;</button>'
+         +        '<input class="qtyinput" type="number" inputmode="numeric" min="0" value="' + v + '">'
+         +        '<button class="qbtn" type="button" data-step="1">+</button>'
+         +      '</span>'
+         +    '</div></div>';
   }
 
-  const nUsed = ITEMS.reduce((s, it) => s + Math.max(0, parOf(it, g) - draft[it.k]), 0);
-  document.getElementById('sheet').innerHTML =
-    '<div class="sh-top"><button class="x" id="sx">&times;</button>'
-    + '<span class="gt">' + g + '</span>'
-    + '<span class="cf">' + (isHigh(g) ? 'higher' : 'lower') + '</span>'
-    + '<span class="nx">' + (nx ? 'next ' + nx : 'last one') + '</span></div>'
-    + '<div class="sh-body">' + body + '</div>'
-    + '<div class="sh-foot"><button class="brk" id="sb">Can’t open</button>'
-    + '<button class="save" id="ss">Save' + (nUsed ? '  ·  ' + nUsed + ' used' : '  ·  full') + '</button></div>';
-  document.getElementById('sheet').classList.remove('hide');
+  const totUsed = ITEMS.reduce((s, it) => s + Math.max(0, parOf(it, g) - c[it.k]), 0);
+  const warn = k.blocked
+    ? '<div class="hint-line"><span><b>Known problem:</b> ' + k.blocked + '</span></div>'
+    : k.note ? '<div class="hint-line"><span><b>Watch for:</b> ' + k.note + '</span></div>' : '';
 
-  document.getElementById('sx').onclick = closeSheet;
-  document.getElementById('ss').onclick = saveSheet;
-  document.getElementById('sb').onclick = markBroken;
-  document.getElementById('qf').onclick = () => {
-    for (const it of ITEMS) draft[it.k] = parOf(it, target); paintSheet(); };
-  document.getElementById('qz').onclick = () => {
-    for (const it of ITEMS) draft[it.k] = 0; paintSheet(); };
-  for (const b of document.querySelectorAll('.stp button')) {
-    b.onclick = () => {
-      draft[b.dataset.k] = Math.max(0, (draft[b.dataset.k] || 0) + (+b.dataset.d));
-      // repaint in place: holding the scroll position keeps the row being
-      // counted under your thumb instead of jumping to the top of the sheet
-      const sc = document.querySelector('.sh-body').scrollTop;
-      paintSheet();
-      document.querySelector('.sh-body').scrollTop = sc;
-    };
+  card.innerHTML =
+      '<div class="card-hd ' + (st === 'left' ? '' : st) + '">'
+    +   '<div class="g-code">' + g + '</div>'
+    +   '<div class="g-meta">' + (isHigh(g) ? 'Higher gates' : 'Lower gates')
+    +     ' · Cabinet ' + (idx+1) + ' of ' + TOTAL + '<br>'
+    +     (rec ? (rec.broken ? 'Flagged ' : 'Counted ') + hhmm(rec.t) + ' · ' + (rec.who || '') : 'Not counted yet') + '</div>'
+    +   '<div class="g-chip">' + (totUsed ? totUsed + '<br>used' : 'full') + '</div>'
+    + '</div>'
+    + '<div class="status-row">'
+    +   '<button class="statbtn sf" id="btnFull">All full</button>'
+    +   '<button class="statbtn se" id="btnEmpty">All empty</button>'
+    +   '<button class="statbtn sb' + (rec && rec.broken ? ' on' : '') + '" id="btnBrk">Can’t open</button>'
+    + '</div>'
+    + warn
+    + '<div class="items" id="items">' + rows + '</div>'
+    + '<div class="note-wrap"><input id="note" type="text" placeholder="Optional note" value="'
+    +   ((rec && rec.note) ? String(rec.note).replace(/"/g,'&quot;') : '') + '"></div>';
+
+  $('#prevBtn').disabled = idx === 0;
+  $('#primaryBtn').innerHTML = (idx === TOTAL - 1 ? 'Save &amp; finish' : 'Save &amp; Next &#9654;');
+  main.scrollTop = sc;
+}
+
+/* ═══════════ render: used + log ═══════════ */
+function renderUsed(){
+  const done = GATES.filter(g => saved[g] && !saved[g].broken);
+  const brk  = GATES.filter(g => saved[g] && saved[g].broken);
+  let rows = '', grand = 0;
+  for (const it of ITEMS) {
+    let used = 0;
+    for (const g of done) {
+      const v = saved[g][it.k];
+      // an overfilled cabinet must not subtract from the total: it means
+      // somebody stocked over par, not that stock came back
+      if (typeof v === 'number') used += Math.max(0, parOf(it, g) - v);
+    }
+    grand += used;
+    rows += '<tr><td class="l">' + it.label + '</td><td><b>' + used + '</b></td>'
+         +  '<td style="color:#6b6f80;font-size:12.5px">'
+         +  (done.length ? (used/done.length).toFixed(1) : '—') + '</td></tr>';
   }
+  $('#usedView').innerHTML =
+      '<div class="ov-card"><h3>Today &mdash; ' + DAY + '</h3><div class="su-tiles">'
+    +   '<div class="su-tile g"><div class="n">' + done.length + '</div><div class="l">Counted</div></div>'
+    +   '<div class="su-tile a"><div class="n">' + grand + '</div><div class="l">Units used</div></div>'
+    +   '<div class="su-tile x"><div class="n">' + brk.length + '</div><div class="l">Flagged</div></div>'
+    + '</div></div>'
+    + '<div class="ov-card"><h3>What got used</h3><table>'
+    +   '<tr><th class="l">Item</th><th>Used</th><th>Per cab</th></tr>' + rows + '</table>'
+    +   '<p class="muted" style="margin-top:10px">Used = par minus what is left. '
+    +   'Shelves 1 and 2 only &mdash; provisions are not counted here.</p></div>'
+    + '<div class="ov-card"><h3>Jump to a cabinet</h3><div class="chips" id="jump">'
+    +   GATES.map((g,i) => {
+          const s = statusOf(g);
+          const cls = 'chip' + (s==='brk' ? ' brk' : s==='good'||s==='att' ? ' done' : '') + (i===idx ? ' now' : '');
+          const r = saved[g];
+          return '<button class="' + cls + '" data-i="' + i + '"><div class="c">' + g + '</div>'
+               + '<div class="f">' + (!r ? '&mdash;' : r.broken ? 'flag' : usedAt(g,r) + ' used') + '</div></button>';
+        }).join('')
+    + '</div></div>';
 }
-function closeSheet(){ target = null; draft = {}; document.getElementById('sheet').classList.add('hide'); }
 
-function saveSheet(){
-  const rec = { who, t: Date.now(), high: isHigh(target) };
-  for (const it of ITEMS) rec[it.k] = draft[it.k] || 0;
-  const g = target, nx = nextAfter(g);
-  save(g, rec);
-  if (nx) { openGate(nx); } else { closeSheet(); alert('That is every cabinet. Nice.'); }
-}
-function markBroken(){
-  const why = prompt('What is wrong with ' + target + '?', baseOf(target).blocked || '');
-  if (why === null) return;
-  const g = target, nx = nextAfter(g);
-  save(g, { who, t: Date.now(), broken: true, why: (why || 'could not open') });
-  if (nx) openGate(nx); else closeSheet();
+function renderLog(){
+  const fin = GATES.filter(g => saved[g]).sort((a,b) => saved[b].t - saved[a].t);
+  $('#logView').innerHTML = '<div class="ov-card"><h3>Log &mdash; ' + fin.length + ' cabinets</h3>'
+    + (fin.length ? fin.map(g => {
+        const r = saved[g];
+        const what = r.broken ? (r.why || 'could not open')
+                   : (usedAt(g, r) ? usedAt(g, r) + ' used' : 'full');
+        return '<div class="lrow"><span class="c">' + g + '</span><span>' + what
+             + (r.note ? ' · ' + r.note : '') + '</span>'
+             + '<span class="s">' + hhmm(r.t) + '<br>' + (r.who||'') + (r.pending?' · pending':'') + '</span></div>';
+      }).join('') : '<p class="muted">Nothing counted yet today.</p>')
+    + '</div>';
 }
 
-/* ---- views ----------------------------------------------------------------- */
+function renderHeader(){
+  const n = GATES.filter(g => saved[g]).length;
+  $('#pfill').style.width = Math.round(n / TOTAL * 100) + '%';
+  $('#metaSum').textContent = n + ' of ' + TOTAL + ' counted · tap to jump';
+  $('#whoLine').textContent = who || 'tap to set your name';
+  paintLive();
+}
+function render(){ renderHeader(); if (view === 'count') renderCard(true);
+                   renderUsed(); renderLog(); }
+
+/* ═══════════ actions ═══════════ */
+function setView(v){
+  view = v;
+  for (const b of document.querySelectorAll('.seg button')) b.classList.toggle('active', b.dataset.v === v);
+  $('#countView').hidden = v !== 'count';
+  $('#usedView').hidden  = v !== 'used';
+  $('#logView').hidden   = v !== 'log';
+  $('#nav').style.display = v === 'count' ? '' : 'none';
+  main.scrollTop = 0;
+  render();
+}
+function go(i){
+  idx = Math.min(Math.max(i, 0), TOTAL - 1);
+  saveUI(); setView('count'); renderCard(false);
+}
+function saveAndNext(){
+  if (!who) { askWho(); if (!who) return; }
+  const g = GATES[idx], c = counts(g), note = ($('#note') || {}).value || '';
+  const rec = { who, t: Date.now(), high: isHigh(g) };
+  for (const it of ITEMS) rec[it.k] = c[it.k] | 0;
+  if (note.trim()) rec.note = note.trim();
+  commit(g, rec);
+  const nx = GATES.findIndex((x, i) => i > idx && !saved[x]);
+  if (nx >= 0) go(nx);
+  else if (idx < TOTAL - 1) go(idx + 1);
+  else { renderCard(false); setView('used'); }
+}
 function askWho(){
   const v = prompt('Your name (so counts are attributable)', who);
   if (v && v.trim()) { who = v.trim(); localStorage.setItem('cc_who', who); render(); }
 }
 
-function progress(){
-  const n  = GATES.filter(g=>done[g] && !done[g].broken).length;
-  const bk = GATES.filter(g=>done[g] && done[g].broken).length;
-  document.getElementById('pi').style.width = Math.round((n+bk)/GATES.length*100)+'%';
-  document.getElementById('pt').textContent =
-    n + ' of ' + GATES.length + ' counted' + (bk ? '  ·  ' + bk + ' flagged' : '');
-  document.getElementById('who').textContent = who || 'who?';
-}
+card.addEventListener('click', e => {
+  const g = GATES[idx], c = counts(g);
 
-function gateRow(g){
-  const d = done[g], k = baseOf(g);
-  let cls = 'g', pill = '<span class="pill p-todo">count</span>', mid = '';
-  if (d && d.broken) { cls += ' brk'; pill = '<span class="pill p-brk">flagged</span>';
-    mid = '<div class="bw">' + (d.why || 'could not open') + '</div>'; }
-  else if (d) { cls += ' done'; pill = '<span class="pill p-done">' + hhmm(d.t) + '</span>';
-    mid = '<div class="t">' + usedLine(g, d) + '</div>'; }
-  else if (k.blocked) mid = '<div class="kw">' + k.blocked + '</div>';
-  else if (k.note) mid = '<div class="kw">' + k.note + '</div>';
-  return '<div class="' + cls + '" data-g="' + g + '"><div class="code">' + g + '</div>'
-       + '<div class="mid">' + mid + '</div>' + pill + '</div>';
-}
-function usedLine(g, d){
-  const parts = [];
-  for (const it of ITEMS) {
-    if (typeof d[it.k] !== 'number') continue;
-    const u = parOf(it, g) - d[it.k];
-    if (u > 0) parts.push(u + ' ' + it.n.toLowerCase());
+  const q = e.target.closest('.qbtn');
+  if (q) {
+    const k = q.closest('.item').dataset.k;
+    c[k] = Math.max(0, (c[k] | 0) + (+q.dataset.step));
+    saveUI(); renderCard(true); return;
   }
-  return parts.length ? 'used ' + parts.join(', ') : 'full';
-}
-
-function viewWalk(){
-  const todo = GATES.filter(g=>!done[g]);
-  const fin  = GATES.filter(g=>done[g]);
-  let h = '';
-  if (!who) h += '<div class="kn">Tap <b>who?</b> at the top and put your name in first.</div>';
-  if (todo.length) h += '<div class="hd">To count &middot; ' + todo.length + '</div>' + todo.map(gateRow).join('');
-  if (fin.length)  h += '<div class="hd">Done &middot; ' + fin.length + '</div>' + fin.map(gateRow).join('');
-  const el = document.getElementById('v-walk');
-  el.innerHTML = h;
-  for (const r of el.querySelectorAll('.g')) r.onclick = () => openGate(r.dataset.g);
-}
-
-function viewUsed(){
-  const counted = GATES.filter(g => done[g] && !done[g].broken);
-  if (!counted.length) {
-    document.getElementById('v-used').innerHTML =
-      '<div class="note">Nothing counted yet. Usage shows up here as you go.</div>';
-    return;
+  if (e.target.closest('#btnFull'))  { for (const it of ITEMS) c[it.k] = parOf(it, g); saveUI(); renderCard(true); return; }
+  if (e.target.closest('#btnEmpty')) { for (const it of ITEMS) c[it.k] = 0;            saveUI(); renderCard(true); return; }
+  if (e.target.closest('#btnBrk')) {
+    const why = prompt('What is wrong with ' + g + '?', knownOf(g).blocked || '');
+    if (why === null) return;
+    if (!who) { askWho(); if (!who) return; }
+    commit(g, { who, t: Date.now(), broken: true, why: why || 'could not open' });
+    if (idx < TOTAL - 1) go(idx + 1); else renderCard(false);
   }
-  let rows = '', grand = 0;
-  for (const it of ITEMS) {
-    let used = 0, seen = 0;
-    for (const g of counted) {
-      if (typeof done[g][it.k] !== 'number') continue;
-      seen++;
-      // an overfilled cabinet must not subtract from the total: it means
-      // somebody stocked over par, not that stock came back
-      used += Math.max(0, parOf(it, g) - done[g][it.k]);
-    }
-    grand += used;
-    rows += '<tr><td>' + it.n + '</td><td class="r"><b>' + used + '</b></td>'
-         +  '<td class="r" style="color:#5b6377;font-size:12.5px">'
-         +  (seen ? (used/seen).toFixed(1) + ' / cab' : '—') + '</td></tr>';
-  }
-  document.getElementById('v-used').innerHTML =
-    '<div class="big"><b>' + grand + '</b><span>units used across ' + counted.length + ' cabinets</span></div>'
-    + '<table class="sum"><tr><th>Item</th><th class="r">Used</th><th class="r">Average</th></tr>'
-    + rows + '</table>'
-    + '<div class="note">Used = par minus what is left. Shelves 1 and 2 only — '
-    + 'provisions are not counted here.</div>';
-}
+});
+card.addEventListener('change', e => {
+  const inp = e.target.closest('.qtyinput');
+  if (!inp) return;
+  const k = inp.closest('.item').dataset.k;
+  counts(GATES[idx])[k] = Math.max(0, parseInt(inp.value, 10) || 0);
+  saveUI(); renderCard(true);
+});
 
-function viewLog(){
-  const fin = GATES.filter(g=>done[g]).sort((a,b)=>done[b].t-done[a].t);
-  if (!fin.length) { document.getElementById('v-log').innerHTML =
-    '<div class="note">No counts yet today.</div>'; return; }
-  document.getElementById('v-log').innerHTML = fin.map(g => {
-    const d = done[g];
-    return '<div class="rw"><span class="c">' + g + '</span>'
-      + '<span>' + (d.broken ? (d.why || 'flagged') : usedLine(g, d)) + '</span>'
-      + '<span class="s">' + hhmm(d.t) + ' · ' + (d.who||'') + (d.pending?' · pending':'') + '</span></div>';
-  }).join('');
-}
-
-function render(){ progress(); viewWalk(); viewUsed(); viewLog(); paintSync(); }
-
-for (const b of document.querySelectorAll('nav button')) {
-  b.onclick = () => {
-    for (const o of document.querySelectorAll('nav button')) o.classList.toggle('on', o === b);
-    for (const v of ['walk','used','log'])
-      document.getElementById('v-' + v).classList.toggle('hide', v !== b.dataset.v);
-  };
-}
-document.getElementById('who').onclick = askWho;
+$('#usedView').addEventListener('click', e => {
+  const b = e.target.closest('.chip'); if (b) go(+b.dataset.i);
+});
+$('#prevBtn').addEventListener('click', () => go(idx - 1));
+$('#primaryBtn').addEventListener('click', saveAndNext);
+$('#metaSum').addEventListener('click', () => setView('used'));
+$('#whoLine').parentElement.addEventListener('click', askWho);
+for (const b of document.querySelectorAll('.seg button'))
+  b.addEventListener('click', ev => { ev.stopPropagation(); setView(b.dataset.v); });
 window.addEventListener('online', flush);
 
-render();
+setView('count');
 initFB();
 if (!who) setTimeout(askWho, 400);
 </script>
-</body></html>
+</body>
+</html>
