@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
+<meta name="theme-color" content="#1a237e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Cabinet Count">
+<title>Cabinet Count</title>
+<style>
+:root{--navy:#1a237e;--navy2:#283593;--ink:#1f2330;--mut:#5b6377;--line:#d7dbe8;
+  --bg:#eef0f5;--card:#fff;--red:#b71c1c;--amber:#e07800;--green:#1b7f3a}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{font-family:'Segoe UI',system-ui,-apple-system,Arial,sans-serif;font-size:15px;
+  color:var(--ink);background:var(--bg);display:flex;flex-direction:column;
+  height:100vh;height:100dvh;overflow:hidden;-webkit-font-smoothing:antialiased}
+
+header{background:var(--navy);color:#fff;padding:calc(env(safe-area-inset-top) + 9px) 13px 9px;flex:none}
+.hrow{display:flex;align-items:center;gap:8px}
+header h1{font-size:15px;font-weight:700;letter-spacing:.4px}
+.sync{font-size:10px;padding:3px 7px;border-radius:20px;background:rgba(255,255,255,.16)}
+.sync.off{background:#8c2f2f}
+.who{margin-left:auto;font-size:11.5px;color:#c5cbe8;text-decoration:underline;
+  text-underline-offset:2px;cursor:pointer}
+.prog{margin-top:8px;background:rgba(255,255,255,.15);border-radius:6px;height:22px;
+  position:relative;overflow:hidden}
+.prog i{position:absolute;inset:0;width:0;background:#4caf50;transition:width .3s}
+.prog span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:11.5px;font-weight:700;letter-spacing:.5px}
+
+nav{display:flex;background:var(--navy2);flex:none}
+nav button{flex:1;font:inherit;font-size:12px;font-weight:700;letter-spacing:.7px;
+  text-transform:uppercase;padding:9px 0;background:none;border:0;color:#b6bde0;cursor:pointer}
+nav button.on{color:#fff;box-shadow:inset 0 -3px 0 #fff}
+
+main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 10px 20px}
+.hide{display:none!important}
+
+/* ---- gate list ---- */
+.g{background:var(--card);border:1px solid var(--line);border-radius:11px;margin-bottom:7px;
+  display:flex;align-items:center;gap:11px;padding:12px;cursor:pointer}
+.g:active{background:#f4f6fc}
+.g .code{font-size:20px;font-weight:800;color:var(--navy);min-width:60px}
+.g .mid{flex:1;min-width:0}
+.g .t{font-size:12.5px;color:var(--mut)}
+.g .pill{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;
+  padding:5px 9px;border-radius:20px;white-space:nowrap}
+.p-todo{background:#eef0f5;color:var(--mut)}
+.p-done{background:#e6f4ea;color:var(--green)}
+.p-brk{background:#fdecec;color:var(--red)}
+.g.done{border-color:#9ed4b0;background:#f7fdf9}
+.g.brk{border-color:#e0a0a0;background:#fdf4f4}
+.g .bw{font-size:11.5px;color:var(--red);font-weight:700;margin-top:2px}
+.g .kw{font-size:11px;color:var(--amber);font-weight:700;margin-top:2px}
+.hd{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;
+  color:var(--mut);margin:14px 2px 7px}
+.hd:first-child{margin-top:2px}
+
+/* ---- count sheet ---- */
+.sheet{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;z-index:40}
+.sh-top{background:var(--navy);color:#fff;padding:calc(env(safe-area-inset-top) + 10px) 12px 10px;
+  display:flex;align-items:center;gap:10px;flex:none}
+.sh-top .x{font-size:26px;line-height:1;background:none;border:0;color:#c5cbe8;cursor:pointer;padding:0 4px}
+.sh-top .gt{font-size:25px;font-weight:800;letter-spacing:-.5px}
+.sh-top .cf{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;
+  background:rgba(255,255,255,.18);padding:4px 9px;border-radius:20px}
+.sh-top .nx{margin-left:auto;font-size:11.5px;color:#c5cbe8}
+.sh-body{flex:1;overflow-y:auto;padding:10px 10px 12px}
+.sh-foot{flex:none;padding:9px 10px calc(env(safe-area-inset-bottom) + 10px);
+  background:var(--card);border-top:1px solid var(--line);display:flex;gap:8px}
+.sh-foot button{font:inherit;font-weight:800;border-radius:11px;border:1.5px solid var(--line);
+  background:#fff;color:var(--ink);padding:15px 10px;cursor:pointer;font-size:14px}
+.sh-foot .save{flex:1;background:var(--green);border-color:var(--green);color:#fff;font-size:16px}
+.sh-foot .brk{color:var(--red);border-color:#e0a0a0;flex:none;padding:15px 14px}
+
+.quick{display:flex;gap:8px;margin-bottom:11px}
+.quick button{flex:1;font:inherit;font-size:12.5px;font-weight:800;text-transform:uppercase;
+  letter-spacing:.6px;padding:12px 6px;border-radius:10px;border:1.5px solid var(--navy);
+  background:#fff;color:var(--navy);cursor:pointer}
+.quick button.z{border-color:var(--line);color:var(--mut)}
+
+.it{background:var(--card);border:1px solid var(--line);border-radius:11px;
+  padding:9px 10px 10px;margin-bottom:8px}
+.it.un{border-color:#e8c86a;background:#fffdf6}
+.it-h{display:flex;align-items:baseline;gap:8px;margin-bottom:7px}
+.it-h b{font-size:14.5px;font-weight:800}
+.it-h .par{font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.4px}
+.it-h .val{margin-left:auto;font-size:12px;font-weight:800;color:var(--green)}
+.it-h .val.u{color:#c9ccd6}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chips button{font:inherit;font-size:15px;font-weight:700;min-width:42px;height:42px;
+  border-radius:9px;border:1.5px solid var(--line);background:#fff;color:var(--ink);cursor:pointer}
+.chips button.par{border-color:#b9c0d8;background:#f4f6fc}
+.chips button.on{background:var(--navy);border-color:var(--navy);color:#fff}
+.chips button.on.zero{background:var(--red);border-color:var(--red)}
+.shl{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;
+  color:var(--mut);margin:4px 2px 7px}
+.kn{background:#fff8e6;border:1px solid #e8c86a;border-radius:9px;padding:8px 10px;
+  font-size:12.5px;color:#6d4c00;margin-bottom:10px}
+.bkn{background:#fdecec;border:1px solid #e0a0a0;color:#7d1a1a}
+
+/* ---- summary ---- */
+table.sum{width:100%;border-collapse:collapse;background:var(--card);
+  border:1px solid var(--line);border-radius:11px;overflow:hidden;font-size:14px}
+table.sum th{background:#eef1f7;font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;
+  color:var(--mut);padding:8px 10px;text-align:left}
+table.sum th.r,table.sum td.r{text-align:right}
+table.sum td{padding:9px 10px;border-top:1px solid #edf0f6}
+table.sum td b{font-size:16px}
+.note{font-size:12px;color:var(--mut);margin:10px 2px;line-height:1.5}
+.big{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:14px;
+  text-align:center;margin-bottom:9px}
+.big b{display:block;font-size:31px;font-weight:800;color:var(--navy);line-height:1.1}
+.big span{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--mut)}
+.rw{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;
+  margin-bottom:6px;display:flex;align-items:center;gap:10px;font-size:13.5px}
+.rw .c{font-weight:800;color:var(--navy);min-width:52px}
+.rw .s{margin-left:auto;font-size:12px;color:var(--mut)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hrow">
+    <h1>Cabinet Count</h1>
+    <span id="sync" class="sync off">offline</span>
+    <span id="who" class="who">who?</span>
+  </div>
+  <div class="prog"><i id="pi"></i><span id="pt"></span></div>
+</header>
+
+<nav>
+  <button data-v="walk" class="on">Walk</button>
+  <button data-v="used">Used</button>
+  <button data-v="log">Log</button>
+</nav>
+
+<main>
+  <div id="v-walk"></div>
+  <div id="v-used" class="hide"></div>
+  <div id="v-log" class="hide"></div>
+</main>
+
+<div id="sheet" class="sheet hide"></div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+"use strict";
+
+/* ---------------------------------------------------------------------------
+   Counts what is LEFT on the top two shelves, so the difference against par is
+   real consumption. Shelves 3 and 4 are provisions and are deliberately not
+   here -- provisions move on a different cycle and counting them would double
+   the taps at every cabinet for numbers nobody is going to act on.
+
+   No camera, no barcode. This is a measurement tool, not a compliance one:
+   the walker is counting for us, not proving anything to us.
+--------------------------------------------------------------------------- */
+
+const FB = {
+  apiKey:"AIzaSyD1gtIw23ffOKA8ANz9w-obR3ElGi_ie3k",
+  authDomain:"cabinet-checker-a23cd.firebaseapp.com",
+  databaseURL:"https://cabinet-checker-a23cd-default-rtdb.firebaseio.com",
+  projectId:"cabinet-checker-a23cd",
+  storageBucket:"cabinet-checker-a23cd.firebasestorage.app",
+  messagingSenderId:"941784062745",
+  appId:"1:941784062745:web:396cf982746e98e1924388"
+};
+
+const DUAL = ['B32','B36','B38','B42'];
+const GATES = (() => {
+  const nums = [7,8,9,10,11,12,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,
+                35,36,37,38,39,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,58,59];
+  const out = [];
+  for (const n of nums) {
+    const g = 'B' + n;
+    if (DUAL.includes(g)) out.push(g + 'a', g + 'b'); else out.push(g);
+  }
+  return out;
+})();
+
+// B38 and up is the higher-gate layout: more bottles, more facials. Everything
+// below runs the lower-gate numbers.
+const gnum = g => parseInt(g.slice(1), 10);
+const isHigh = g => gnum(g) >= 38;
+
+// Top two shelves only. par is what a full cabinet holds; max is how far the
+// chips run, one over par so an overfilled shelf can still be recorded.
+const ITEMS = [
+  {k:'pt',  n:'Paper Towels', shelf:1, low:12, high:12},
+  {k:'tp',  n:'Toilet Paper', shelf:1, low:18, high:18},
+  {k:'sp',  n:'Soap',         shelf:1, low:6,  high:6},
+  {k:'bo',  n:'Bottles',      shelf:2, low:5,  high:6},
+  {k:'gl',  n:'Gloves',       shelf:2, low:4,  high:4, sub:'boxes present — S M L XL'},
+  {k:'fa',  n:'Facials',      shelf:2, low:4,  high:6},
+  {k:'wy',  n:'WypAlls',      shelf:2, low:2,  high:2}
+];
+const parOf = (it, g) => isHigh(g) ? it.high : it.low;
+
+const KNOWN = {"B36":{"blocked":"needs a key · dead battery","note":"maxi pad holder"},"B37":{"blocked":"won't open · needs a key · dead battery","note":null},"B38":{"blocked":"knob turns","note":null},"B39":{"blocked":"needs a key · locked","note":"dividers"},"B42":{"blocked":"won't open","note":"dividers · glove holder"},"B25":{"blocked":null,"note":"dividers"},"B27":{"blocked":null,"note":"dividers"},"B29":{"blocked":null,"note":"dividers · dirty"},"B24":{"blocked":null,"note":"dividers"},"B26":{"blocked":null,"note":"dividers · maxi pad holder"},"B28":{"blocked":null,"note":"dividers"},"B32":{"blocked":null,"note":"dividers · maxi pad holder"},"B44":{"blocked":null,"note":"dividers"},"B41":{"blocked":null,"note":"dividers · dirty"},"B43":{"blocked":null,"note":"dividers"},"B45":{"blocked":null,"note":"dividers · glove holder"},"B47":{"blocked":null,"note":"dividers · glove holder"},"B49":{"blocked":null,"note":"dividers"},"B46":{"blocked":null,"note":"dividers"},"B48":{"blocked":null,"note":"dividers"},"B50":{"blocked":null,"note":"dividers"},"B52":{"blocked":null,"note":"dividers"},"B53":{"blocked":null,"note":"dividers · glove holder"},"B55":{"blocked":null,"note":"dividers · glove holder · dirty"},"B59":{"blocked":null,"note":"dividers · dirty"},"B54":{"blocked":null,"note":"dividers · dirty"},"B56":{"blocked":null,"note":"dividers"},"B58":{"blocked":null,"note":"dividers"}};
+const baseOf = g => KNOWN[g.replace(/[ab]$/,'')] || {};
+
+const todayKey = () => { const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+const hhmm = t => new Date(t).toTimeString().slice(0,5);
+
+let DAY = todayKey();
+let who = localStorage.getItem('cc_who') || '';
+let done = {};
+let db = null, online = false;
+let target = null, draft = {};
+
+/* ---- firebase -------------------------------------------------------------- */
+function initFB(){
+  try {
+    firebase.initializeApp(FB);
+    db = firebase.database();
+    db.ref('.info/connected').on('value', s => {
+      online = !!s.val(); paintSync(); if (online) flush();
+    });
+    db.ref('count/' + DAY).on('value', s => {
+      // rebuild from the server rather than merge into it: a record deleted
+      // anywhere else has to disappear here too, or this phone keeps it forever
+      const v = s.val() || {};
+      const keep = {};
+      for (const g in done) if (done[g] && done[g].pending && !v[g]) keep[g] = done[g];
+      done = Object.assign({}, v, keep);
+      render();
+    });
+  } catch(e){ paintSync(); }
+}
+function paintSync(){
+  const el = document.getElementById('sync');
+  const q = queueLen();
+  el.textContent = online ? (q ? q + ' saving' : 'saved') : (q ? 'offline · ' + q : 'offline');
+  el.className = 'sync' + (online ? '' : ' off');
+}
+
+/* ---- offline queue --------------------------------------------------------- */
+const QK = 'cc_count_q';
+const readQ  = () => { try { return JSON.parse(localStorage.getItem(QK) || '[]'); } catch(_) { return []; } };
+const writeQ = q  => { try { localStorage.setItem(QK, JSON.stringify(q)); } catch(_) {} };
+const queueLen = () => readQ().length;
+
+function save(gate, rec){
+  rec.pending = true;
+  done[gate] = rec;
+  const q = readQ().filter(x => !(x.day === DAY && x.gate === gate));
+  q.push({ day: DAY, gate, rec });
+  writeQ(q); render(); flush();
+}
+async function flush(){
+  if (!db || !online) return;
+  const q = readQ();
+  if (!q.length) { paintSync(); return; }
+  for (const job of q.slice()) {
+    try {
+      const rec = Object.assign({}, job.rec);
+      delete rec.pending;
+      await db.ref('count/' + job.day + '/' + job.gate).set(rec);
+      writeQ(readQ().filter(x => !(x.day === job.day && x.gate === job.gate)));
+    } catch(e) { break; }
+  }
+  paintSync();
+}
+
+/* ---- count sheet ----------------------------------------------------------- */
+function nextAfter(gate){
+  const left = GATES.filter(g => !done[g]);
+  if (!left.length) return null;
+  const i = GATES.indexOf(gate);
+  return left.find(g => GATES.indexOf(g) > i) || left[0];
+}
+
+function openGate(g){
+  if (!who) { askWho(); if (!who) return; }
+  target = g;
+  const prev = done[g] && !done[g].broken ? done[g] : null;
+  draft = {};
+  if (prev) for (const it of ITEMS) if (typeof prev[it.k] === 'number') draft[it.k] = prev[it.k];
+  paintSheet();
+}
+
+function paintSheet(){
+  const g = target, k = baseOf(g), nx = nextAfter(g);
+  let body = '';
+  if (k.blocked) body += '<div class="kn bkn"><b>Known problem:</b> ' + k.blocked + '</div>';
+  else if (k.note) body += '<div class="kn"><b>Watch for:</b> ' + k.note + '</div>';
+
+  body += '<div class="quick">'
+       +  '<button id="qf">All full</button>'
+       +  '<button id="qz" class="z">All empty</button></div>';
+
+  let shelf = 0;
+  for (const it of ITEMS) {
+    if (it.shelf !== shelf) { shelf = it.shelf; body += '<div class="shl">Shelf ' + shelf + '</div>'; }
+    const par = parOf(it, g), max = par + 1;
+    const cur = draft[it.k];
+    const set = typeof cur === 'number';
+    let chips = '';
+    for (let n = 0; n <= max; n++) {
+      const cls = (set && cur === n ? 'on' + (n === 0 ? ' zero' : '') : (n === par ? 'par' : ''));
+      chips += '<button class="' + cls + '" data-k="' + it.k + '" data-n="' + n + '">' + n + '</button>';
+    }
+    body += '<div class="it' + (set ? '' : ' un') + '">'
+         +  '<div class="it-h"><b>' + it.n + '</b>'
+         +  '<span class="par">par ' + par + (it.sub ? ' · ' + it.sub : '') + '</span>'
+         +  '<span class="val' + (set ? '' : ' u') + '">' + (set ? cur + ' left' : 'not counted') + '</span></div>'
+         +  '<div class="chips">' + chips + '</div></div>';
+  }
+
+  const n = ITEMS.filter(it => typeof draft[it.k] === 'number').length;
+  document.getElementById('sheet').innerHTML =
+    '<div class="sh-top"><button class="x" id="sx">&times;</button>'
+    + '<span class="gt">' + g + '</span>'
+    + '<span class="cf">' + (isHigh(g) ? 'higher' : 'lower') + '</span>'
+    + '<span class="nx">' + (nx ? 'next ' + nx : 'last one') + '</span></div>'
+    + '<div class="sh-body">' + body + '</div>'
+    + '<div class="sh-foot"><button class="brk" id="sb">Can’t open</button>'
+    + '<button class="save" id="ss">Save' + (n < ITEMS.length ? '  ·  ' + n + '/' + ITEMS.length : '') + '</button></div>';
+  document.getElementById('sheet').classList.remove('hide');
+
+  document.getElementById('sx').onclick = closeSheet;
+  document.getElementById('ss').onclick = saveSheet;
+  document.getElementById('sb').onclick = markBroken;
+  document.getElementById('qf').onclick = () => {
+    for (const it of ITEMS) draft[it.k] = parOf(it, target); paintSheet(); };
+  document.getElementById('qz').onclick = () => {
+    for (const it of ITEMS) draft[it.k] = 0; paintSheet(); };
+  for (const b of document.querySelectorAll('.chips button')) {
+    b.onclick = () => {
+      const key = b.dataset.k, val = +b.dataset.n;
+      // tapping the same number again clears it, so a mis-tap does not force a
+      // wrong count to be saved
+      if (draft[key] === val) delete draft[key]; else draft[key] = val;
+      const sc = document.querySelector('.sh-body').scrollTop;
+      paintSheet();
+      document.querySelector('.sh-body').scrollTop = sc;
+    };
+  }
+}
+function closeSheet(){ target = null; draft = {}; document.getElementById('sheet').classList.add('hide'); }
+
+function saveSheet(){
+  const missing = ITEMS.filter(it => typeof draft[it.k] !== 'number');
+  if (missing.length && !confirm('Not counted: ' + missing.map(m=>m.n).join(', ') + '.\n\nSave anyway?')) return;
+  const rec = { who, t: Date.now(), high: isHigh(target) };
+  for (const it of ITEMS) if (typeof draft[it.k] === 'number') rec[it.k] = draft[it.k];
+  const g = target, nx = nextAfter(g);
+  save(g, rec);
+  if (nx) { openGate(nx); } else { closeSheet(); alert('That is every cabinet. Nice.'); }
+}
+function markBroken(){
+  const why = prompt('What is wrong with ' + target + '?', baseOf(target).blocked || '');
+  if (why === null) return;
+  const g = target, nx = nextAfter(g);
+  save(g, { who, t: Date.now(), broken: true, why: (why || 'could not open') });
+  if (nx) openGate(nx); else closeSheet();
+}
+
+/* ---- views ----------------------------------------------------------------- */
+function askWho(){
+  const v = prompt('Your name (so counts are attributable)', who);
+  if (v && v.trim()) { who = v.trim(); localStorage.setItem('cc_who', who); render(); }
+}
+
+function progress(){
+  const n  = GATES.filter(g=>done[g] && !done[g].broken).length;
+  const bk = GATES.filter(g=>done[g] && done[g].broken).length;
+  document.getElementById('pi').style.width = Math.round((n+bk)/GATES.length*100)+'%';
+  document.getElementById('pt').textContent =
+    n + ' of ' + GATES.length + ' counted' + (bk ? '  ·  ' + bk + ' flagged' : '');
+  document.getElementById('who').textContent = who || 'who?';
+}
+
+function gateRow(g){
+  const d = done[g], k = baseOf(g);
+  let cls = 'g', pill = '<span class="pill p-todo">count</span>', mid = '';
+  if (d && d.broken) { cls += ' brk'; pill = '<span class="pill p-brk">flagged</span>';
+    mid = '<div class="bw">' + (d.why || 'could not open') + '</div>'; }
+  else if (d) { cls += ' done'; pill = '<span class="pill p-done">' + hhmm(d.t) + '</span>';
+    mid = '<div class="t">' + usedLine(g, d) + '</div>'; }
+  else if (k.blocked) mid = '<div class="kw">' + k.blocked + '</div>';
+  else if (k.note) mid = '<div class="kw">' + k.note + '</div>';
+  return '<div class="' + cls + '" data-g="' + g + '"><div class="code">' + g + '</div>'
+       + '<div class="mid">' + mid + '</div>' + pill + '</div>';
+}
+function usedLine(g, d){
+  const parts = [];
+  for (const it of ITEMS) {
+    if (typeof d[it.k] !== 'number') continue;
+    const u = parOf(it, g) - d[it.k];
+    if (u > 0) parts.push(u + ' ' + it.n.toLowerCase());
+  }
+  return parts.length ? 'used ' + parts.join(', ') : 'full';
+}
+
+function viewWalk(){
+  const todo = GATES.filter(g=>!done[g]);
+  const fin  = GATES.filter(g=>done[g]);
+  let h = '';
+  if (!who) h += '<div class="kn">Tap <b>who?</b> at the top and put your name in first.</div>';
+  if (todo.length) h += '<div class="hd">To count &middot; ' + todo.length + '</div>' + todo.map(gateRow).join('');
+  if (fin.length)  h += '<div class="hd">Done &middot; ' + fin.length + '</div>' + fin.map(gateRow).join('');
+  const el = document.getElementById('v-walk');
+  el.innerHTML = h;
+  for (const r of el.querySelectorAll('.g')) r.onclick = () => openGate(r.dataset.g);
+}
+
+function viewUsed(){
+  const counted = GATES.filter(g => done[g] && !done[g].broken);
+  if (!counted.length) {
+    document.getElementById('v-used').innerHTML =
+      '<div class="note">Nothing counted yet. Usage shows up here as you go.</div>';
+    return;
+  }
+  let rows = '', grand = 0;
+  for (const it of ITEMS) {
+    let used = 0, seen = 0;
+    for (const g of counted) {
+      if (typeof done[g][it.k] !== 'number') continue;
+      seen++;
+      // an overfilled cabinet must not subtract from the total: it means
+      // somebody stocked over par, not that stock came back
+      used += Math.max(0, parOf(it, g) - done[g][it.k]);
+    }
+    grand += used;
+    rows += '<tr><td>' + it.n + '</td><td class="r"><b>' + used + '</b></td>'
+         +  '<td class="r" style="color:#5b6377;font-size:12.5px">'
+         +  (seen ? (used/seen).toFixed(1) + ' / cab' : '—') + '</td></tr>';
+  }
+  document.getElementById('v-used').innerHTML =
+    '<div class="big"><b>' + grand + '</b><span>units used across ' + counted.length + ' cabinets</span></div>'
+    + '<table class="sum"><tr><th>Item</th><th class="r">Used</th><th class="r">Average</th></tr>'
+    + rows + '</table>'
+    + '<div class="note">Used = par minus what is left. Shelves 1 and 2 only — '
+    + 'provisions are not counted here.</div>';
+}
+
+function viewLog(){
+  const fin = GATES.filter(g=>done[g]).sort((a,b)=>done[b].t-done[a].t);
+  if (!fin.length) { document.getElementById('v-log').innerHTML =
+    '<div class="note">No counts yet today.</div>'; return; }
+  document.getElementById('v-log').innerHTML = fin.map(g => {
+    const d = done[g];
+    return '<div class="rw"><span class="c">' + g + '</span>'
+      + '<span>' + (d.broken ? (d.why || 'flagged') : usedLine(g, d)) + '</span>'
+      + '<span class="s">' + hhmm(d.t) + ' · ' + (d.who||'') + (d.pending?' · pending':'') + '</span></div>';
+  }).join('');
+}
+
+function render(){ progress(); viewWalk(); viewUsed(); viewLog(); paintSync(); }
+
+for (const b of document.querySelectorAll('nav button')) {
+  b.onclick = () => {
+    for (const o of document.querySelectorAll('nav button')) o.classList.toggle('on', o === b);
+    for (const v of ['walk','used','log'])
+      document.getElementById('v-' + v).classList.toggle('hide', v !== b.dataset.v);
+  };
+}
+document.getElementById('who').onclick = askWho;
+window.addEventListener('online', flush);
+
+render();
+initFB();
+if (!who) setTimeout(askWho, 400);
+</script>
+</body></html>
