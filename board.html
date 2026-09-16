@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Cabinet Compliance</title>
+<style>
+:root{--navy:#1a237e;--navy2:#283593;--ink:#1f2330;--mut:#5b6377;--line:#d7dbe8;
+  --bg:#eef0f5;--card:#fff;--red:#b71c1c;--amber:#e07800;--green:#1b7f3a;
+  --am:#1565c0;--pm:#6a1b9a;--ovn:#00796b}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,-apple-system,Arial,sans-serif;font-size:13px;
+  color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased}
+button,select,input{font:inherit;color:inherit}
+
+header{background:var(--navy);color:#fff;padding:11px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+header h1{font-size:16px;font-weight:700;letter-spacing:.5px}
+header .sub{font-size:11px;color:#b6bde0;letter-spacing:.3px}
+.ctl{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ctl label{font-size:11px;color:#c5cbe8;text-transform:uppercase;letter-spacing:.6px}
+.ctl select,.ctl input{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);
+  color:#fff;border-radius:7px;padding:5px 8px;font-size:12.5px}
+.ctl select option{color:#1f2330}
+.nav{display:flex;gap:4px}
+.nav button{background:rgba(255,255,255,.14);border:0;color:#fff;border-radius:7px;
+  padding:5px 10px;cursor:pointer;font-size:13px}
+.nav button:hover{background:rgba(255,255,255,.26)}
+.pill{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:20px;background:rgba(255,255,255,.16);
+  text-transform:uppercase;letter-spacing:.6px}
+.pill.off{background:#8c2f2f}
+.demo{background:#7a1f1f;color:#fff;text-align:center;padding:7px 14px;font-size:12.5px;font-weight:600}
+.demo b{letter-spacing:.5px}
+.demo button{background:#fff;color:#7a1f1f;border:0;border-radius:6px;padding:3px 10px;
+  font-weight:700;margin-left:10px;cursor:pointer}
+
+main{padding:14px 18px 40px;max-width:1500px;margin:0 auto}
+.kpi{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:14px}
+.kpi div{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:11px 13px}
+.kpi b{display:block;font-size:26px;line-height:1.15;color:var(--navy);font-variant-numeric:tabular-nums}
+.kpi b.warn{color:var(--amber)} .kpi b.bad{color:var(--red)} .kpi b.good{color:var(--green)}
+.kpi span{font-size:10.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.6px}
+.kpi em{display:block;font-style:normal;font-size:11px;color:var(--mut);margin-top:3px}
+
+.cols{display:grid;grid-template-columns:1fr 340px;gap:14px;align-items:start}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:11px;margin-bottom:14px;overflow:hidden}
+.panel h2{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--mut);
+  padding:10px 13px;border-bottom:1px solid var(--line);background:#f6f7fb}
+.panel .body{padding:12px 13px}
+
+.map{display:flex;flex-wrap:wrap;gap:5px}
+.cab{width:62px;border-radius:8px;border:1px solid var(--line);background:#fff;padding:6px 4px;
+  text-align:center;cursor:default}
+.cab b{display:block;font-size:13px;font-weight:700;color:var(--navy)}
+.cab span{font-size:10px;color:var(--mut)}
+.cab.ok{background:#f2fbf5;border-color:#9ed4b0} .cab.ok b{color:var(--green)}
+.cab.due{background:#fff8e6;border-color:#e8c86a} .cab.due b{color:var(--amber)}
+.cab.late{background:#fdecec;border-color:#e0a0a0} .cab.late b{color:var(--red)}
+.cab.never{background:#f2f3f7;border-color:var(--line)} .cab.never b{color:#a3a9b8}
+.cab.flag{box-shadow:inset 0 -3px 0 var(--red)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:11px;font-size:11.5px;color:var(--mut)}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px;border:1px solid var(--line)}
+
+table{width:100%;border-collapse:collapse}
+th,td{padding:6px 9px;text-align:center;border-bottom:1px solid #eceff6;font-size:12.5px;
+  font-variant-numeric:tabular-nums}
+th{background:#f6f7fb;font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--mut);
+  position:sticky;top:0}
+td.l,th.l{text-align:left}
+td.l b{color:var(--navy)}
+tr.late td{background:#fdf6f6}
+tr.never td{color:#a3a9b8}
+.scroll{max-height:460px;overflow-y:auto}
+.sh{font-size:9.5px;font-weight:700;padding:2px 6px;border-radius:20px;color:#fff;letter-spacing:.4px}
+.sh.am{background:var(--am)}.sh.pm{background:var(--pm)}.sh.ovn{background:var(--ovn)}
+.att{display:flex;gap:9px;padding:9px 0;border-bottom:1px solid #eceff6;align-items:baseline}
+.att:last-child{border-bottom:0}
+.att b{font-size:14px;color:var(--navy);min-width:44px}
+.att .why{flex:1;font-size:12px}
+.att .why.red{color:var(--red);font-weight:600}
+.att .when{font-size:11px;color:var(--mut)}
+.none{color:var(--mut);padding:16px 2px;text-align:center}
+.foot{font-size:11.5px;color:var(--mut);line-height:1.6;margin-top:6px}
+.bar{height:7px;background:#e7eaf3;border-radius:4px;overflow:hidden;margin-top:7px}
+.bar i{display:block;height:100%;background:var(--green)}
+.bar i.warn{background:var(--amber)} .bar i.bad{background:var(--red)}
+.act{background:var(--navy);color:#fff;border:0;border-radius:8px;padding:7px 13px;cursor:pointer;font-size:12.5px}
+.act.alt{background:#fff;color:var(--navy);border:1.5px solid var(--navy)}
+@media(max-width:1100px){.kpi{grid-template-columns:repeat(3,1fr)}.cols{grid-template-columns:1fr}}
+#gate{position:fixed;inset:0;background:var(--bg);z-index:100;display:flex;align-items:center;justify-content:center}
+#gate form{background:#fff;border:1px solid var(--line);border-radius:12px;padding:26px 28px;width:320px;text-align:center}
+#gate h1{font-size:16px;color:var(--navy);letter-spacing:.5px;margin-bottom:6px}
+#gate p{color:var(--mut);margin-bottom:14px}
+#gate input{width:100%;padding:10px;border:1.5px solid var(--line);border-radius:8px;font-size:18px;
+  text-align:center;margin-bottom:10px;letter-spacing:4px}
+#gate button{width:100%;padding:10px}
+#gMsg{color:var(--red);margin-top:8px;min-height:16px;font-weight:600}
+</style></head><body>
+
+<div id="gate"><form id="gForm">
+  <h1>CABINET COMPLIANCE</h1>
+  <p>Supervisors only. Enter the PIN.</p>
+  <input id="gPin" type="password" inputmode="numeric" autocomplete="off" placeholder="PIN">
+  <button class="act" type="submit">Open</button>
+  <div id="gMsg"></div>
+</form></div>
+
+<header>
+  <div>
+    <h1>CABINET COMPLIANCE</h1>
+    <div class="sub">B CONCOURSE &middot; UNITED GROUND EXPRESS</div>
+  </div>
+  <div class="ctl">
+    <span class="pill off" id="live">connecting</span>
+    <div class="nav"><button id="prev">&lsaquo;</button><input type="date" id="day"><button id="next">&rsaquo;</button></div>
+    <label for="shift">Shift</label>
+    <select id="shift"><option value="">All</option><option>AM</option><option>PM</option><option>OVN</option></select>
+    <label for="due">Due every</label>
+    <select id="due"><option value="2">2 h</option><option value="3" selected>3 h</option><option value="4">4 h</option></select>
+    <button class="act alt" id="csv">CSV</button>
+  </div>
+</header>
+<div class="demo" id="demoBar" hidden>
+  <b>DEMO DATA</b> &mdash; made up, so the board can be seen before the tags go on.
+  <button id="demoOff">Show real data</button>
+</div>
+
+<main>
+  <div class="kpi" id="kpi"></div>
+  <div class="cols">
+    <div>
+      <div class="panel"><h2>Every cabinet, B7 to B61</h2><div class="body">
+        <div class="map" id="map"></div>
+        <div class="legend">
+          <span><i style="background:#f2fbf5;border-color:#9ed4b0"></i>done recently</span>
+          <span><i style="background:#fff8e6;border-color:#e8c86a"></i>due</span>
+          <span><i style="background:#fdecec;border-color:#e0a0a0"></i>overdue</span>
+          <span><i style="background:#f2f3f7"></i>not visited</span>
+          <span><i style="box-shadow:inset 0 -3px 0 #b71c1c"></i>problem flagged</span>
+        </div>
+      </div></div>
+      <div class="panel"><h2>By cabinet</h2><div class="scroll"><table id="tCab"></table></div></div>
+    </div>
+    <div>
+      <div class="panel"><h2>Needs attention</h2><div class="body" id="att"></div></div>
+      <div class="panel"><h2>Supplies needed</h2><div class="body"><table id="tItems"></table>
+        <div class="foot">What runners asked for, counted at the cabinet.</div></div></div>
+      <div class="panel"><h2>Proof of visit</h2><div class="body" id="proof"></div></div>
+    </div>
+  </div>
+  <div class="foot" id="explain"></div>
+</main>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+"use strict";
+
+/* ---------------------------------------------------------------------------
+   The supervisor's screen. Same database the phones write to, but the question
+   here is different: not "what does this cabinet need" but "is every cabinet
+   actually being walked, and can we prove it".
+
+   Compliance is judged on two things kept apart on purpose:
+     covered  -- was the cabinet visited at all, and how long ago
+     proved   -- was it a tag tap at the cabinet, or typed in by hand
+   A high number of by-hand entries is not cheating on its own; it usually means
+   a tag has stopped reading. Either way it is worth knowing.
+--------------------------------------------------------------------------- */
+
+const FB = {
+  apiKey:"AIzaSyD1gtIw23ffOKA8ANz9w-obR3ElGi_ie3k",
+  authDomain:"cabinet-checker-a23cd.firebaseapp.com",
+  databaseURL:"https://cabinet-checker-a23cd-default-rtdb.firebaseio.com",
+  projectId:"cabinet-checker-a23cd",
+  storageBucket:"cabinet-checker-a23cd.firebasestorage.app",
+  messagingSenderId:"941784062745",
+  appId:"1:941784062745:web:396cf982746e98e1924388"
+};
+const ROOT = 'nfc';
+
+const DUAL = ['B32','B36','B38','B42'];
+const CABS = (() => {
+  const nums = [7,8,9,10,11,12,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,
+                35,36,37,38,39,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,58,59,61];
+  const out = [];
+  for (const n of nums) { const g = 'B' + n; if (DUAL.includes(g)) out.push(g + 'a', g + 'b'); else out.push(g); }
+  return out;
+})();
+const higher = g => parseInt(g.slice(1), 10) >= 46;
+const ITEMS = [
+  {k:'blanket',  label:'Blankets',      lo:2, hi:2},
+  {k:'lav',      label:'Lav Kits',      lo:2, hi:2},
+  {k:'inflight', label:'Inflight Kits', lo:2, hi:3},
+  {k:'earbud',   label:'Earbud Kits',   lo:2, hi:1},
+];
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const pad = n => String(n).padStart(2, '0');
+const dayOf = t => { const d = new Date(t); return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()); };
+const hhmm = t => new Date(t).toTimeString().slice(0,5);
+function dur(ms){
+  if (ms == null || !isFinite(ms)) return '–';
+  const m = Math.round(ms / 60000);
+  if (m < 60) return m + ' min';
+  return Math.floor(m/60) + 'h ' + pad(m%60);
+}
+const median = a => { if (!a.length) return null; const b = a.slice().sort((x,y)=>x-y), m = b.length>>1;
+  return b.length % 2 ? b[m] : (b[m-1]+b[m])/2; };
+const needTotal = r => ITEMS.reduce((a,i) => a + ((r.need||{})[i.k]||0), 0);
+
+let DAY = dayOf(Date.now());
+let recs = [];            // records for the chosen day
+let demo = false;
+let db = null;
+
+/* ---- demo day ---------------------------------------------------------------
+   Deterministic, so the board looks the same on every reload: a hash of the gate
+   and round number stands in for the randomness. Three names, not real ones. */
+function hash(s){ let h = 2166136261; for (let i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h>>>0)/4294967296; }
+function demoDay(dayKey){
+  const base = new Date(dayKey + 'T00:00:00').getTime();
+  const out = [];
+  const rounds = [
+    {at: 6.6,  by: 'Runner 1', shift: 'AM'},
+    {at: 10.2, by: 'Runner 1', shift: 'AM'},
+    {at: 14.6, by: 'Runner 2', shift: 'PM'},
+    {at: 18.4, by: 'Runner 3', shift: 'PM'},
+  ];
+  rounds.forEach((r, ri) => {
+    CABS.forEach((g, gi) => {
+      const seed = hash(g + ':' + ri + ':' + dayKey);
+      if (seed > 0.86) return;                                   // missed on this round
+      const t = base + (r.at * 3600 + gi * 150 + Math.floor(seed * 400)) * 1000;
+      if (t > Date.now()) return;                                // never pretend the future happened
+      const need = {};
+      ITEMS.forEach((it, k) => {
+        const s2 = hash(g + it.k + ri);
+        need[it.k] = s2 > 0.72 ? (s2 > 0.93 ? (higher(g) ? it.hi : it.lo) : 1) : 0;
+      });
+      // some visits typed in by hand: that is what a tag which has stopped reading
+      // looks like, and spotting it is half the point of the board
+      const rec = { id: g + ri, gate: g, t, s: t + Math.floor(40000 + seed * 160000),
+                    by: r.by, shift: r.shift, via: hash(g + 'via' + ri) > 0.9 ? 'hand' : 'tag',
+                    need, n: 0, flag: null };
+      rec.n = needTotal(rec);
+      if (hash(g + 'flag' + ri) > 0.985) rec.flag = ["Won't open", 'Dead battery', 'Trash / bags inside'][ri % 3];
+      out.push(rec);
+    });
+  });
+  return out.sort((a,b) => a.t - b.t);
+}
+
+/* ---- firebase ---------------------------------------------------------------- */
+let dayRef = null;
+function initFB(){
+  if (typeof firebase === 'undefined') { setLive(false, 'no connection'); return; }
+  try {
+    firebase.initializeApp(FB);
+    db = firebase.database();
+    db.ref('.info/connected').on('value', s => setLive(!!s.val()));
+    listen();
+  } catch(e) { setLive(false, 'no connection'); }
+}
+function listen(){
+  if (!db || demo) return;
+  if (dayRef) dayRef.off();
+  dayRef = db.ref(ROOT + '/taps/' + DAY);
+  dayRef.on('value', s => { recs = Object.values(s.val() || {}).sort((a,b) => a.t - b.t); render(); });
+}
+function setLive(on, label){
+  const el = $('#live');
+  el.textContent = demo ? 'demo' : (label || (on ? 'live' : 'offline'));
+  el.className = 'pill' + (on && !demo ? '' : ' off');
+}
+
+/* ---- the numbers -------------------------------------------------------------- */
+function view(){
+  const sh = $('#shift').value;
+  return sh ? recs.filter(r => r.shift === sh) : recs;
+}
+// "now" on a past day means the end of that day, so history is not all red
+function asOf(){
+  const end = new Date(DAY + 'T23:59:59').getTime();
+  return Math.min(Date.now(), end);
+}
+function byGate(list){
+  const m = {};
+  list.forEach(r => (m[r.gate] = m[r.gate] || []).push(r));
+  return m;
+}
+function state(list, dueMs, now){
+  if (!list || !list.length) return 'never';
+  const age = now - list[list.length-1].t;
+  return age <= dueMs ? 'ok' : age <= dueMs * 2 ? 'due' : 'late';
+}
+
+function render(){
+  const list = view(), gates = byGate(list), now = asOf(), dueMs = +$('#due').value * 3600000;
+  const seen = CABS.filter(g => gates[g]);
+  const states = {}; CABS.forEach(g => states[g] = state(gates[g], dueMs, now));
+  const late = CABS.filter(g => states[g] === 'late').length;
+  const never = CABS.filter(g => states[g] === 'never').length;
+  const hand = list.filter(r => r.via === 'hand').length;
+  const flags = list.filter(r => r.flag);
+  const turn = list.filter(r => r.s).map(r => r.s - r.t);
+  const cover = Math.round(seen.length / CABS.length * 100);
+  const proved = list.length ? Math.round((list.length - hand) / list.length * 100) : 0;
+
+  $('#kpi').innerHTML =
+    card(cover + '%', 'cabinets covered', seen.length + ' of ' + CABS.length + ' visited', cover >= 90 ? 'good' : cover >= 70 ? 'warn' : 'bad') +
+    card(String(list.length), 'visits logged', list.length ? hhmm(list[0].t) + ' to ' + hhmm(list[list.length-1].t) : 'nothing yet') +
+    card(String(late + never), 'overdue now', 'not touched in ' + ($('#due').value * 2) + 'h or more', (late + never) ? ((late + never) > 6 ? 'bad' : 'warn') : 'good') +
+    card(proved + '%', 'proved by tag', hand + ' typed in by hand', proved >= 90 ? 'good' : proved >= 70 ? 'warn' : 'bad') +
+    card(String(flags.length), 'problems flagged', flags.length ? 'needs a go-back' : 'none reported', flags.length ? 'warn' : 'good') +
+    card(dur(median(turn)), 'tap to send', 'median walk back');
+
+  // the concourse
+  $('#map').innerHTML = CABS.map(g => {
+    const l = gates[g], st = states[g], flag = l && l.some(r => r.flag);
+    const sub = l ? hhmm(l[l.length-1].t) : 'never';
+    return '<div class="cab ' + st + (flag ? ' flag' : '') + '" title="' + g + ' – ' +
+      (l ? l.length + ' visit' + (l.length>1?'s':'') + ', last ' + hhmm(l[l.length-1].t) + (l[l.length-1].by ? ' by ' + esc(l[l.length-1].by) : '')
+         : 'no visit logged') + '">' +
+      '<b>' + g.replace('B','') + '</b><span>' + sub + '</span></div>';
+  }).join('');
+
+  // by cabinet
+  let h = '<tr><th class="l">Cabinet</th><th>Visits</th><th>Last</th><th>By</th><th>Since</th><th>Needed</th><th>Problem</th></tr>';
+  CABS.forEach(g => {
+    const l = gates[g];
+    if (!l) { h += '<tr class="never"><td class="l">' + g + '</td><td>0</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td></tr>'; return; }
+    const last = l[l.length-1], st = states[g];
+    h += '<tr class="' + (st === 'late' ? 'late' : '') + '"><td class="l"><b>' + g + '</b></td>' +
+      '<td>' + l.length + '</td><td>' + hhmm(last.t) + ' <span class="sh ' + last.shift.toLowerCase() + '">' + last.shift + '</span></td>' +
+      '<td>' + esc(last.by || '–') + (last.via === 'hand' ? ' <span style="color:#e07800">by hand</span>' : '') + '</td>' +
+      '<td>' + dur(now - last.t) + '</td>' +
+      '<td>' + l.reduce((a,r) => a + needTotal(r), 0) + '</td>' +
+      '<td>' + (l.filter(r=>r.flag).map(r => '<span style="color:#b71c1c">' + esc(r.flag) + '</span>').join(', ') || '–') + '</td></tr>';
+  });
+  $('#tCab').innerHTML = h;
+
+  // needs attention: overdue first, then flagged
+  const att = [];
+  CABS.filter(g => states[g] === 'never').forEach(g => att.push({g, why: 'No visit logged at all', red: true, when: ''}));
+  CABS.filter(g => states[g] === 'late').forEach(g => {
+    const l = gates[g];
+    att.push({g, why: 'Not visited in ' + dur(now - l[l.length-1].t), red: true, when: 'last ' + hhmm(l[l.length-1].t)});
+  });
+  flags.slice().reverse().forEach(r => att.push({g: r.gate, why: r.flag, red: false, when: hhmm(r.t) + (r.by ? ' · ' + esc(r.by) : '')}));
+  $('#att').innerHTML = att.length
+    ? att.slice(0, 40).map(a => '<div class="att"><b>' + a.g + '</b><div class="why' + (a.red ? ' red' : '') + '">' +
+        esc(a.why) + '</div><div class="when">' + a.when + '</div></div>').join('')
+    : '<div class="none">Every cabinet is covered and nothing is flagged.</div>';
+
+  // supplies
+  const sh = ['AM','PM','OVN'];
+  let ih = '<tr><th class="l">Item</th>' + sh.map(s => '<th>' + s + '</th>').join('') + '<th>Total</th></tr>';
+  ITEMS.forEach(it => {
+    const per = sh.map(s => list.filter(r => r.shift === s).reduce((a,r) => a + ((r.need||{})[it.k]||0), 0));
+    ih += '<tr><td class="l"><b>' + it.label + '</b></td>' + per.map(v => '<td>' + (v || '–') + '</td>').join('') +
+          '<td><b>' + per.reduce((a,b)=>a+b,0) + '</b></td></tr>';
+  });
+  $('#tItems').innerHTML = ih;
+
+  // proof
+  const byWho = {};
+  list.forEach(r => (byWho[r.by || '(no name)'] = byWho[r.by || '(no name)'] || []).push(r));
+  const names = Object.keys(byWho).sort();
+  $('#proof').innerHTML =
+    '<div style="font-size:12.5px">' + (list.length - hand) + ' of ' + list.length + ' visits were a tag tap at the cabinet.</div>' +
+    '<div class="bar"><i class="' + (proved >= 90 ? '' : proved >= 70 ? 'warn' : 'bad') + '" style="width:' + proved + '%"></i></div>' +
+    (names.length
+      ? '<table style="margin-top:11px"><tr><th class="l">Runner</th><th>Visits</th><th>By tag</th></tr>' +
+        names.map(w => '<tr><td class="l">' + esc(w) + '</td><td>' + byWho[w].length + '</td><td>' +
+          byWho[w].filter(r => r.via !== 'hand').length + '</td></tr>').join('') + '</table>'
+      : '') +
+    '<div class="foot">Lots of by-hand entries usually means a tag has stopped reading, not that someone skipped the walk. Check that cabinet’s tag.</div>';
+
+  $('#explain').innerHTML =
+    '<b>Covered</b> counts a cabinet as done if a runner logged it at any point in the day. ' +
+    '<b>Overdue</b> means nothing has been logged there for twice the chosen gap (' + ($('#due').value * 2) + ' hours). ' +
+    'On past days the clock stops at midnight, so history is judged the same way the day was lived. ' +
+    'Zone 7 (B62 to B71) has no cabinets and is not counted.';
+  setLive(true);
+}
+function card(big, label, sub, cls){
+  return '<div><b class="' + (cls || '') + '">' + big + '</b><span>' + label + '</span><em>' + sub + '</em></div>';
+}
+
+/* ---- csv ---------------------------------------------------------------------- */
+function csv(){
+  const q = s => { s = String(s == null ? '' : s); return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s; };
+  const rows = [['day','cabinet','tapped','sent','shift','runner','via','problem', ...ITEMS.map(i=>i.label)].join(',')];
+  view().forEach(r => rows.push([DAY, r.gate, new Date(r.t).toISOString(), r.s ? new Date(r.s).toISOString() : '',
+    r.shift, q(r.by), r.via, q(r.flag), ...ITEMS.map(i => (r.need||{})[i.k] || 0)].join(',')));
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([rows.join('\n')], {type:'text/csv'}));
+  a.download = 'cabinet-compliance-' + DAY + '.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+/* ---- wiring -------------------------------------------------------------------- */
+function setDay(d){
+  DAY = d; $('#day').value = d;
+  if (demo) { recs = demoDay(DAY); render(); } else { recs = []; render(); listen(); }
+}
+function shift(days){
+  const d = new Date(DAY + 'T12:00:00');
+  d.setDate(d.getDate() + days);
+  setDay(dayOf(d.getTime()));
+}
+$('#prev').onclick = () => shift(-1);
+$('#next').onclick = () => shift(1);
+$('#day').onchange = e => setDay(e.target.value);
+$('#shift').onchange = render;
+$('#due').onchange = render;
+$('#csv').onclick = csv;
+$('#demoOff').onclick = () => { location.search = ''; };
+
+// A soft lock. The PIN is in this page's source, so it keeps casual visitors out,
+// not a determined one; the real protection has to be the database rules.
+const BOARD_PIN = '7161';
+(function gate(){
+  const g = $('#gate');
+  try { if (sessionStorage.getItem('cb_ok') === '1') { g.remove(); return; } } catch(_) {}
+  $('#gPin').focus();
+  $('#gForm').onsubmit = e => {
+    e.preventDefault();
+    if ($('#gPin').value.trim() === BOARD_PIN) { try { sessionStorage.setItem('cb_ok', '1'); } catch(_) {} g.remove(); }
+    else { $('#gMsg').textContent = 'Wrong PIN'; $('#gPin').value = ''; }
+  };
+})();
+
+demo = /(\?|&)demo=1/.test(location.search);
+$('#demoBar').hidden = !demo;
+$('#day').value = DAY;
+if (demo) { recs = demoDay(DAY); render(); setLive(false); }
+else { render(); initFB(); }
+setInterval(() => { if (!demo) render(); }, 60000);        // keep "since" times honest
+</script>
+</body></html>
