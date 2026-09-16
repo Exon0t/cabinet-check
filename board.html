@@ -85,6 +85,17 @@ tr.never td{color:#a3a9b8}
 .bar i.warn{background:var(--amber)} .bar i.bad{background:var(--red)}
 .act{background:var(--navy);color:#fff;border:0;border-radius:8px;padding:7px 13px;cursor:pointer;font-size:12.5px}
 .act.alt{background:#fff;color:var(--navy);border:1.5px solid var(--navy)}
+tr.pick{cursor:pointer}
+tr.pick:hover td{background:#f4f6fc}
+tr.sel td{background:#eef1fb}
+tr.sel td.l b{text-decoration:underline}
+.plog{border-top:1px solid var(--line)}
+.plog .ph{display:flex;align-items:center;gap:10px;padding:11px 13px;background:#f6f7fb;border-bottom:1px solid var(--line)}
+.plog h3{font-size:14px;color:var(--navy)}
+.plog .ph span{color:var(--mut);font-size:12px}
+.plog .ph button{margin-left:auto}
+tr.gap td{background:#fff8e6}
+.gp{font-size:9.5px;font-weight:700;color:var(--amber);border:1px solid #e8c86a;border-radius:10px;padding:0 5px;margin-left:4px}
 @media(max-width:1100px){.kpi{grid-template-columns:repeat(3,1fr)}.cols{grid-template-columns:1fr}}
 #gate{position:fixed;inset:0;background:var(--bg);z-index:100;display:flex;align-items:center;justify-content:center}
 #gate form{background:#fff;border:1px solid var(--line);border-radius:12px;padding:26px 28px;width:320px;text-align:center}
@@ -147,6 +158,7 @@ tr.never td{color:#a3a9b8}
       <div class="panel"><h2>Proof of visit</h2><div class="body" id="proof"></div></div>
     </div>
   </div>
+  <div class="panel"><h2>People &mdash; click a name for their log</h2><div id="people"></div></div>
   <div class="foot" id="explain"></div>
 </main>
 
@@ -213,6 +225,7 @@ let DAY = dayOf(Date.now());
 let recs = [];            // records for the chosen day
 let demo = false;
 let db = null;
+let person = '';          // whose log is open on the board
 
 /* ---- demo day ---------------------------------------------------------------
    Deterministic, so the board looks the same on every reload: a hash of the gate
@@ -364,18 +377,13 @@ function render(){
   $('#tItems').innerHTML = ih;
 
   // proof
-  const byWho = {};
-  list.forEach(r => (byWho[r.by || '(no name)'] = byWho[r.by || '(no name)'] || []).push(r));
-  const names = Object.keys(byWho).sort();
   $('#proof').innerHTML =
     '<div style="font-size:12.5px">' + (list.length - hand) + ' of ' + list.length + ' visits were a tag tap at the cabinet.</div>' +
     '<div class="bar"><i class="' + (proved >= 90 ? '' : proved >= 70 ? 'warn' : 'bad') + '" style="width:' + proved + '%"></i></div>' +
-    (names.length
-      ? '<table style="margin-top:11px"><tr><th class="l">Runner</th><th>Visits</th><th>By tag</th></tr>' +
-        names.map(w => '<tr><td class="l">' + esc(w) + '</td><td>' + byWho[w].length + '</td><td>' +
-          byWho[w].filter(r => r.via !== 'hand').length + '</td></tr>').join('') + '</table>'
-      : '') +
+    '<div class="foot">Each person\u2019s count is in the People log below.</div>' +
     '<div class="foot">Lots of by-hand entries usually means a tag has stopped reading, not that someone skipped the walk. Check that cabinet’s tag.</div>';
+
+  renderPeople(list);
 
   $('#explain').innerHTML =
     '<b>Covered</b> counts a cabinet as done if a runner logged it at any point in the day. ' +
@@ -384,19 +392,83 @@ function render(){
     'Zone 7 (B62 to B71) has no cabinets and is not counted.';
   setLive(true);
 }
+/* ---- per-person log ---------------------------------------------------------------
+   The walk between cabinets is measured from when the last count was SENT to when the
+   next tag was tapped, so time spent counting is not counted as walking. Anything over
+   20 minutes is marked: it may be a break, a callback or a trip to the cart, and the
+   supervisor is the one who knows which. */
+const GAP_MS = 20 * 60000;
+const secs = ms => { const s = Math.round(ms / 1000); return Math.floor(s / 60) + ':' + pad(s % 60); };
+function needText(r){
+  const p = ITEMS.filter(i => (r.need||{})[i.k]).map(i => r.need[i.k] + ' ' + i.label);
+  return p.length ? p.join(' &middot; ') : '<span style="color:#1b7f3a">full</span>';
+}
+function walks(l){
+  const out = [];
+  for (let i = 1; i < l.length; i++) out.push(l[i].t - (l[i-1].s || l[i-1].t));
+  return out;
+}
+function peopleOf(list){
+  const by = {};
+  list.forEach(r => (by[r.by || '(no name)'] = by[r.by || '(no name)'] || []).push(r));
+  return by;
+}
+function renderPeople(list){
+  const by = peopleOf(list), names = Object.keys(by).sort();
+  if (person && !by[person]) person = '';
+  if (!person && names.length) person = names[0];
+  if (!names.length) { $('#people').innerHTML = '<div class="none">Nobody has logged a visit for this day.</div>'; return; }
+
+  let h = '<table><tr><th class="l">Person</th><th>Visits</th><th>First</th><th>Last</th><th>Cabinets</th>' +
+          '<th>By tag</th><th>Cabinet to cabinet</th><th>Gaps over 20 min</th><th>Problems</th></tr>';
+  names.forEach(w => {
+    const l = by[w], wk = walks(l);
+    const short = wk.filter(x => x > 0 && x <= GAP_MS);
+    h += '<tr class="pick' + (w === person ? ' sel' : '') + '" data-w="' + esc(w) + '">' +
+      '<td class="l"><b>' + esc(w) + '</b></td><td>' + l.length + '</td>' +
+      '<td>' + hhmm(l[0].t) + '</td><td>' + hhmm(l[l.length-1].t) + '</td>' +
+      '<td>' + new Set(l.map(r => r.gate)).size + '</td>' +
+      '<td>' + l.filter(r => r.via !== 'hand').length + '</td>' +
+      '<td>' + (short.length ? secs(median(short)) : '–') + '</td>' +
+      '<td>' + (wk.filter(x => x > GAP_MS).length || '–') + '</td>' +
+      '<td>' + (l.filter(r => r.flag).length || '–') + '</td></tr>';
+  });
+  h += '</table>';
+
+  const l = by[person];
+  h += '<div class="plog"><div class="ph"><h3>' + esc(person) + '</h3><span>' + l.length + ' visits, ' +
+       hhmm(l[0].t) + ' to ' + hhmm(l[l.length-1].t) + '</span>' +
+       '<button class="act alt" id="pCsv">CSV for ' + esc(person) + '</button></div>' +
+       '<div class="scroll"><table><tr><th>#</th><th>Tapped</th><th class="l">Cabinet</th><th>Shift</th><th>How</th>' +
+       '<th>Walk from last</th><th>Walk back</th><th class="l">Needed</th><th class="l">Problem</th></tr>';
+  l.forEach((r, i) => {
+    const walk = i ? r.t - (l[i-1].s || l[i-1].t) : null;
+    const gap = walk != null && walk > GAP_MS;
+    h += '<tr class="' + (gap ? 'gap' : '') + '"><td>' + (i + 1) + '</td><td>' + hhmm(r.t) + '</td>' +
+      '<td class="l"><b>' + r.gate + '</b></td>' +
+      '<td><span class="sh ' + r.shift.toLowerCase() + '">' + r.shift + '</span></td>' +
+      '<td>' + (r.via === 'hand' ? '<span style="color:#e07800">by hand</span>' : 'tag') + '</td>' +
+      '<td>' + (walk == null ? 'start' : walk < 0 ? '–' : gap ? dur(walk) + '<span class="gp">gap</span>' : secs(walk)) + '</td>' +
+      '<td>' + (r.s ? secs(r.s - r.t) : '–') + '</td>' +
+      '<td class="l">' + needText(r) + '</td>' +
+      '<td class="l" style="color:#b71c1c">' + esc(r.flag || '') + '</td></tr>';
+  });
+  $('#people').innerHTML = h + '</table></div></div>';
+}
+
 function card(big, label, sub, cls){
   return '<div><b class="' + (cls || '') + '">' + big + '</b><span>' + label + '</span><em>' + sub + '</em></div>';
 }
 
 /* ---- csv ---------------------------------------------------------------------- */
-function csv(){
+function csv(who){
   const q = s => { s = String(s == null ? '' : s); return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s; };
   const rows = [['day','cabinet','tapped','sent','shift','runner','via','problem', ...ITEMS.map(i=>i.label)].join(',')];
-  view().forEach(r => rows.push([DAY, r.gate, new Date(r.t).toISOString(), r.s ? new Date(r.s).toISOString() : '',
+  view().filter(r => !who || (r.by || '(no name)') === who).forEach(r => rows.push([DAY, r.gate, new Date(r.t).toISOString(), r.s ? new Date(r.s).toISOString() : '',
     r.shift, q(r.by), r.via, q(r.flag), ...ITEMS.map(i => (r.need||{})[i.k] || 0)].join(',')));
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([rows.join('\n')], {type:'text/csv'}));
-  a.download = 'cabinet-compliance-' + DAY + '.csv';
+  a.download = 'cabinet-compliance-' + DAY + (who ? '-' + who.replace(/[^A-Za-z0-9]+/g, '-') : '') + '.csv';
   document.body.appendChild(a); a.click(); a.remove();
 }
 
@@ -415,7 +487,12 @@ $('#next').onclick = () => shift(1);
 $('#day').onchange = e => setDay(e.target.value);
 $('#shift').onchange = render;
 $('#due').onchange = render;
-$('#csv').onclick = csv;
+$('#csv').onclick = () => csv();
+$('#people').onclick = e => {
+  if (e.target.closest('#pCsv')) { csv(person); return; }
+  const tr = e.target.closest('tr.pick');
+  if (tr) { person = tr.dataset.w; render(); }
+};
 $('#demoOff').onclick = () => { location.search = ''; };
 
 // A soft lock. The PIN is in this page's source, so it keeps casual visitors out,
