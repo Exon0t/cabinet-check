@@ -219,6 +219,7 @@ tr.gap td{background:#fff8e6}
   <a href="#people" data-p="people">People</a>
   <a href="#users" data-p="users">Users</a>
   <a href="#tags" data-p="tags">Tags</a>
+  <a href="#settings" data-p="settings">Settings</a>
 </nav>
 <div class="demo" id="demoBar" hidden>
   <b>DEMO DATA</b> &mdash; made up, so the board can be seen before the tags go on. Nothing you click here is saved.
@@ -254,7 +255,6 @@ tr.gap td{background:#fff8e6}
         <div class="panel"><h2>Needed today</h2><div class="body"><table id="tItems"></table>
           <div class="foot">Everything is counted at the cabinet against the numbers on the shelf diagrams.</div></div></div>
         <div class="panel"><h2>Proof of visit</h2><div class="body" id="proof"></div></div>
-        <div class="panel"><h2>Rules the phones follow</h2><div class="body" id="rules"></div></div>
       </div>
     </div>
     <div class="foot" id="explain"></div>
@@ -279,6 +279,10 @@ tr.gap td{background:#fff8e6}
 
   <section id="p-users" class="hide">
     <div class="panel"><h2>Users</h2><div class="body" id="users"></div></div>
+  </section>
+
+  <section id="p-settings" class="hide">
+    <div class="panel" style="max-width:560px"><h2>Rules the phones follow</h2><div class="body" id="rules"></div></div>
   </section>
 
   <section id="p-tags" class="hide">
@@ -655,10 +659,14 @@ function render(){
     '<div class="foot">Lots of by-hand entries usually means a tag has stopped reading, not that someone skipped the walk. Check that cabinet’s tag.</div>';
 
   $('#rules').innerHTML =
-    '<label class="set">Provisions: tap again after loading<input type="checkbox" id="cfDbl"' + (cfg.doubleTap ? ' checked' : '') + '></label>' +
+    '<label class="set"><span><b>Second tap after loading</b><br><span style="color:#5b6377;font-size:11.5px">' +
+      (cfg.doubleTap ? 'On: a provisions count that needs something stays open until the tag is tapped again.'
+                     : 'Off: a count is finished when it is sent. Nothing is left open.') + '</span></span>' +
+    '<input type="checkbox" id="cfDbl"' + (cfg.doubleTap ? ' checked' : '') + '></label>' +
     '<label class="set">A load turns yellow after<select id="cfY">' + [15,20,30,40].map(v => '<option' + (v === cfg.yellowMin ? ' selected' : '') + ' value="' + v + '">' + v + ' min</option>').join('') + '</select></label>' +
     '<label class="set">and red, not compliant, after<select id="cfR">' + [45,60,90].map(v => '<option' + (v === cfg.redMin ? ' selected' : '') + ' value="' + v + '">' + v + ' min</option>').join('') + '</select></label>' +
-    '<div class="foot">Phones pick a change up straight away, no update needed. A cabinet counted as full owes no second tap. ' +
+    '<div class="foot">Turning it off does not touch loads already open; those still close with a tap, or from the phone by hand. ' +
+    'Phones pick a change up straight away, no update needed. A cabinet counted as full owes no second tap. ' +
     'A photo has to be taken within 40 seconds of the tag being read.</div>';
 
   $('#explain').innerHTML =
@@ -1013,8 +1021,8 @@ function shift(days){
 }
 function showPage(){
   const p = (location.hash || '').slice(1);
-  page = ['cabinets','service','people','users','tags'].includes(p) ? p : 'cabinets';
-  ['cabinets','service','people','users','tags'].forEach(x => $('#p-' + x).classList.toggle('hide', x !== page));
+  page = ['cabinets','service','people','users','tags','settings'].includes(p) ? p : 'cabinets';
+  ['cabinets','service','people','users','tags','settings'].forEach(x => $('#p-' + x).classList.toggle('hide', x !== page));
   document.querySelectorAll('#pages a').forEach(a => a.classList.toggle('on', a.dataset.p === page));
   if (page !== 'cabinets' && page !== 'service') { openCab = ''; $('#drawer').classList.add('hide'); }
 }
