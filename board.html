@@ -47,6 +47,15 @@ main{padding:14px 18px 40px;max-width:1500px;margin:0 auto}
 .strip div.y{border-left-color:#e0b000;background:#fffbea}
 .strip div.a{border-left-color:var(--amber);background:#fff8e6}
 .strip div.r{border-left-color:var(--red);background:#fdf3f3}
+.crew{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;background:var(--card);border:1px solid var(--line);
+  border-radius:9px;padding:8px 13px;font-size:12.5px}
+.crew.bad{border-color:#e0a0a0;background:#fdf3f3}
+.crew h3{font-size:10.5px;text-transform:uppercase;letter-spacing:1px;color:var(--mut);margin-right:6px}
+.crew span{border:1px solid var(--line);border-radius:20px;padding:2px 10px;background:#f6f7fb}
+.crew span b{font-size:14px;margin-right:4px}
+.crew span.z{border-color:#e0a0a0;background:#fff;color:var(--red);font-weight:700}
+.crew em{font-style:normal;color:var(--red);font-weight:700;margin-left:4px}
+.crew i{font-style:normal;color:var(--mut)}
 .kpi{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:14px}
 .kpi div{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:11px 13px}
 .kpi b{display:block;font-size:26px;line-height:1.15;color:var(--navy);font-variant-numeric:tabular-nums}
@@ -200,6 +209,7 @@ tr.gap td{background:#fff8e6}
 
 <main>
   <section id="p-cabinets">
+    <div class="crew hide" id="crew"></div>
     <div class="strip" id="strip"></div>
     <div class="kpi" id="kpi"></div>
     <div class="cols">
@@ -311,6 +321,11 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;
 const pad = n => String(n).padStart(2, '0');
 const dayOf = t => { const d = new Date(t); return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()); };
 const hhmm = t => new Date(t).toTimeString().slice(0,5);
+function shiftOf(t){ const d = new Date(t), h = d.getHours() + d.getMinutes()/60;
+  return (h >= 22 || h < 5.5) ? 'OVN' : h < 13.5 ? 'AM' : 'PM'; }
+function shiftKey(t){ const sh = shiftOf(t), d = new Date(t);
+  if (sh === 'OVN' && d.getHours() < 12) d.setDate(d.getDate() - 1);
+  return dayOf(d.getTime()) + sh; }
 const keyOf = s => String(s).replace(/[.#$\/\[\]]/g, '_');
 function dur(ms){
   if (ms == null || !isFinite(ms)) return '–';
@@ -508,6 +523,7 @@ function render(){
     '<div class="' + (never + late ? 'r' : '') + '"><b>' + (never + late) + '</b>cabinet' + (never + late === 1 ? '' : 's') + ' overdue or not visited</div>' +
     '<div class="' + (flags.length ? 'a' : '') + '"><b>' + flags.length + '</b>problem' + (flags.length === 1 ? '' : 's') + ' flagged</div>';
 
+  renderCrew();
   $('#kpi').innerHTML =
     card(cover + '%', 'cabinets covered', seen.length + ' of ' + CABS.length + ' visited', cover >= 90 ? 'good' : cover >= 70 ? 'warn' : 'bad') +
     card(String(list.length), 'visits logged', list.length ? hhmm(list[0].t) + ' to ' + hhmm(list[list.length-1].t) : 'nothing yet') +
@@ -610,6 +626,36 @@ function render(){
   renderTags();
   if (openCab) drawCab();
   setLive(true);
+}
+
+/* ---- who is on what, right now ------------------------------------------------------
+   People choose their own duty, and the light ones are tempting. This is the early
+   warning: a shift with nobody on provisions shows here in the first ten minutes,
+   not three hours later as a concourse of red cabinets. Someone counts as on shift if
+   they signed in, were moved, or logged a visit during the shift that is running now. */
+function crewNow(){
+  const now = Date.now(), sk = shiftKey(now), on = {};
+  Object.values(dutyNow).forEach(x => { if (x && x.who && x.duty && shiftKey(x.t) === sk) on[x.who] = x.duty; });
+  if (DAY === dayOf(now) || demo) recs.forEach(r => {
+    if (!r.by || shiftKey(r.t) !== sk) return;
+    const d = dutyNow[keyOf(r.by)];
+    if (!on[r.by]) on[r.by] = d && d.lock ? d.duty : dutyOf(r);
+  });
+  return on;
+}
+function renderCrew(){
+  const el = $('#crew');
+  if (DAY !== dayOf(Date.now())) { el.classList.add('hide'); return; }
+  const on = crewNow(), names = Object.keys(on);
+  const count = k => names.filter(w => dutyList(on[w]).includes(k));
+  const noProv = names.length > 0 && !count('provisions').length;
+  el.className = 'crew' + (noProv ? ' bad' : '');
+  el.innerHTML = '<h3>On shift now</h3>' + (names.length
+    ? DUTIES.map(d => { const l = count(d.k);
+        return '<span class="' + (l.length ? '' : 'z') + '" title="' + esc(l.join(', ') || 'nobody') + '"><b>' + l.length + '</b>' + d.label + '</span>'; }).join('') +
+      '<i>' + names.length + ' signed in this ' + shiftOf(Date.now()) + ' shift</i>' +
+      (noProv ? '<em>Nobody is on Provisions.</em>' : '')
+    : '<i>Nobody has signed in on a phone this shift yet.</i>');
 }
 
 /* ---- one cabinet ---------------------------------------------------------------- */
@@ -775,9 +821,13 @@ function renderUsers(){
     '<div class="foot" style="margin:0 0 12px;font-size:12.5px"><b>Accounts are the next step.</b> Today a person types their name on the phone. ' +
     'When sign-in goes live this page is where a manager adds people by name and V number, hands out a temporary password, ' +
     'resets one, and unlocks an account that was locked after too many wrong tries. ' +
-    'Until then this is everyone who has signed in on a phone, and what they said they were on.</div>' +
-    (ppl.length ? '<table><tr><th class="l">Name</th><th>On</th><th>Since</th><th class="l">Set by</th></tr>' +
-      ppl.map(x => '<tr><td class="l"><b>' + esc(x.who) + '</b></td><td><span class="dt">' + dutyLabel(x.duty) + '</span></td>' +
+    'Until then this is everyone who has signed in on a phone. <b>Set a duty and tick Lock</b> for the people whose job does not change, ' +
+    'your runners for one: they never see the choice again, and it stays that way until you untick it.</div>' +
+    (ppl.length ? '<table><tr><th class="l">Name</th><th>On</th><th>Set to</th><th>Lock</th><th>Since</th><th class="l">Set by</th></tr>' +
+      ppl.map(x => '<tr data-w="' + esc(x.who) + '"><td class="l"><b>' + esc(x.who) + '</b></td><td><span class="dt">' + dutyLabel(x.duty) + '</span></td>' +
+        '<td><select class="uMove" style="border:1.5px solid var(--line);border-radius:7px;padding:3px 6px;background:#fff">' +
+          MOVES.concat(MOVES.includes(x.duty) ? [] : [x.duty]).map(k => '<option value="' + esc(k) + '"' + (k === x.duty ? ' selected' : '') + '>' + dutyLabel(k) + '</option>').join('') + '</select></td>' +
+        '<td><input type="checkbox" class="uLock" style="width:17px;height:17px"' + (x.lock ? ' checked' : '') + '></td>' +
         '<td>' + dayOf(x.t) + ' ' + hhmm(x.t) + '</td><td class="l">' + (x.by === x.who ? 'themselves' : esc(x.by || '') + (x.lock ? ', locked' : '')) + '</td></tr>').join('') + '</table>'
       : '<div class="none">Nobody has signed in on a phone yet.</div>');
 }
@@ -849,6 +899,13 @@ $('#people').onchange = e => {
                      : 'Move ' + person + ' to ' + dutyLabel(k) + '? They can still switch on the phone.') +
                '\n\nTheir phone switches over and it is logged.')) { render(); return; }
   moveTo(person, k, lock);
+};
+$('#users').onchange = e => {
+  const tr = e.target.closest('tr[data-w]'); if (!tr) return;
+  const w = tr.dataset.w, k = tr.querySelector('.uMove').value, lock = tr.querySelector('.uLock').checked;
+  if (!confirm((lock ? 'Set ' + w + ' to ' + dutyLabel(k) + ' and lock it? They cannot change it on the phone until you unlock it.'
+                     : 'Set ' + w + ' to ' + dutyLabel(k) + ', unlocked? They can switch on the phone.'))) { render(); return; }
+  moveTo(w, k, lock);
 };
 $('#rules').onchange = () => {
   const v = { doubleTap: $('#cfDbl').checked, yellowMin: +$('#cfY').value, redMin: +$('#cfR').value };

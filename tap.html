@@ -192,7 +192,7 @@ th.am{color:var(--am)}th.pm{color:var(--pm)}th.ovn{color:var(--ovn)}
 
 // Goes up by one with every change to this file. A phone swaps its copy for a
 // published one only when the published number is higher.
-const BUILD = 6;
+const BUILD = 7;
 
 /* ---------------------------------------------------------------------------
    The guard-tour idea. Nobody can follow a runner to every cabinet, so the
@@ -584,21 +584,27 @@ function setDuty(k, by){
 function showStart(){
   const old = $('#start'); if (old) old.remove();
   let h = '<div class="ov" id="start"><div class="pane">' +
-    '<div class="ph"><b style="font-size:26px">' + (who ? 'Hi ' + esc(who) : 'Sign in') + '</b>' +
-    (ready() ? '<button class="x" id="stX">Close</button>' : '') + '</div>' +
+    '<div class="ph"><b style="font-size:26px">' + (!who ? 'Sign in' : ready() ? 'Hi ' + esc(who) : 'Still ' + esc(who) + '?') + '</b>' +
+    (ready() ? '<button class="x" id="stX">Close</button>' : who ? '<button class="x" id="stNot" style="color:#b71c1c;font-weight:700">Not me</button>' : '') + '</div>' +
     '<div class="q">Your name</div>' +
     '<input class="inp" id="stName" autocomplete="off" autocapitalize="words" placeholder="First and last name" value="' + esc(who) + '">' +
     '<div class="q" style="margin-bottom:8px">What are you on today?</div>' +
     (dutyLocked() ? '<div class="card warn">Set by ' + esc(duty.by) + '. Ask a supervisor if it needs to change.</div>'
                   : '<div class="note" style="padding-top:0">Pick every one you are doing. One tap on a cabinet then asks for all of them. ' +
                     'Each one has its own sound: press it to hear it.</div>') +
-    DUTIES.map(d => '<button class="duty' + (dutyValid() && dutyList(duty.duty).includes(d.k) ? ' on' : '') + '" data-d="' + d.k + '"><b>' +
+    // most people do the same job every day: last shift's pick is ticked, so it is one press on Start
+    DUTIES.map(d => '<button class="duty' + (duty && duty.duty && dutyList(duty.duty).includes(d.k) ? ' on' : '') + '" data-d="' + d.k + '"><b>' +
       d.label + '</b><span>' + d.sub + '</span></button>').join('') +
     '<button class="big" id="stGo" style="margin-top:6px">' + (dutyLocked() ? 'OK' : 'Start') + '</button>' +
     '<div class="note">Picked the wrong one, or moved mid shift? Tap your name at the top to switch. ' +
     'Switches are saved with the time.</div><div class="note" style="text-align:center">Cabinet Tap, screens version ' + BUILD + '</div></div></div>';
   document.body.insertAdjacentHTML('beforeend', h);
   if ($('#stX')) $('#stX').onclick = () => $('#start').remove();
+  if ($('#stNot')) $('#stNot').onclick = () => {
+    who = ''; duty = null;
+    localStorage.removeItem('ct_who'); localStorage.removeItem('ct_duty');
+    listenDuty(); showStart(); $('#stName').focus();
+  };
   $('#start').querySelectorAll('.duty').forEach(b => b.onclick = () => {
     if (dutyLocked()) { tone(SOUND[b.dataset.d]); return; }
     if (b.classList.toggle('on')) tone(SOUND[b.dataset.d]);
