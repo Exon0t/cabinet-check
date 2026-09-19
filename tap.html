@@ -188,6 +188,7 @@ textarea.inp{min-height:74px;font-size:15px;resize:vertical}
 
 <nav>
   <button data-t="walk" class="on">Walk</button>
+  <button data-t="guide">Guide</button>
   <button data-t="today" id="navToday" hidden>Today</button>
   <button data-t="svc" id="navSvc" hidden>Service</button>
   <button data-t="tags" id="navTags" hidden>Tags</button>
@@ -195,6 +196,7 @@ textarea.inp{min-height:74px;font-size:15px;resize:vertical}
 
 <main>
   <section id="tab-walk"></section>
+  <section id="tab-guide" class="hide"></section>
   <section id="tab-today" class="hide"></section>
   <section id="tab-svc" class="hide"></section>
   <section id="tab-tags" class="hide"></section>
@@ -209,7 +211,7 @@ textarea.inp{min-height:74px;font-size:15px;resize:vertical}
 
 // Goes up by one with every change to this file. A phone swaps its copy for a
 // published one only when the published number is higher.
-const BUILD = 9;
+const BUILD = 10;
 
 /* ---------------------------------------------------------------------------
    The guard-tour idea. Nobody can follow a runner to every cabinet, so the
@@ -323,6 +325,10 @@ function soundFor(steps, asked){
 }
 // a browser will not play anything until the screen has been touched once
 if (!IN_APP) document.addEventListener('touchstart', () => { try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch(_) {} }, { once: true, passive: true });
+// Logging without a tag has to be about the tag, and has to be shown. "Forgot" is not
+// on the list: the phone is in their hand and the tag is on the cabinet.
+const HAND_WHY = ['Tag is gone', 'Tag will not read', 'Tag is damaged', 'No tag on this cabinet yet'];
+let handInfo = null;      // {why, img}, carried from the reason sheet into the visit
 const PHOTO_SECS = 40;       // from the tag read to the camera: no walking off first
 const RETAP_MS = 60000;      // a second tap sooner than this is a fumble, not a load
 // What an agent can report. Fixed choices, any number of them, and a photo: the
@@ -703,9 +709,49 @@ function showOut(g, via, serial, t){
   $('#oOk').onclick = closeOv;
   $('#oGo').onclick = () => { closeOv(); openCount(g, via, serial, t); };
 }
+function askHand(g, then){
+  closeOv();
+  const st = { why: '', img: null };
+  const draw = () => {
+    closeOv();
+    const why = nfc === 'none' ? HAND_WHY.concat(['This phone has no tag reader']) : HAND_WHY;
+    document.body.insertAdjacentHTML('beforeend',
+      '<div class="ov" id="ov"><div class="pane"><div class="ph"><b style="font-size:24px">' + g + ' &mdash; no tag?</b>' +
+      '<button class="x" id="hX">Cancel</button></div>' +
+      '<div class="pmeta">A visit without the tag is not proved, so say what is wrong with the tag and show it. ' +
+      'It goes to a supervisor so the tag gets replaced.</div><div class="rsn">' +
+      why.map(w => '<button data-w="' + esc(w) + '" class="' + (st.why === w ? 'on' : '') + '">' + esc(w) + '</button>').join('') + '</div>' +
+      (st.img ? '<img class="thumb" src="' + st.img + '" alt=""><label class="alt" style="text-align:center;margin-top:8px">Retake' +
+                '<input type="file" accept="image/*" capture="environment" id="hFile" style="display:none"></label>'
+              : '<label class="shot" id="hShot">Photo of where the tag goes<input type="file" accept="image/*" capture="environment" id="hFile"></label>') +
+      '<button class="big" id="hGo" style="margin-top:10px' + (st.why && st.img ? '' : ';opacity:.45') + '">' +
+      (!st.why ? 'Pick what is wrong with the tag' : !st.img ? 'Photo first' : 'Continue') + '</button></div></div>');
+    $('#hX').onclick = closeOv;
+    $('#ov').querySelectorAll('.rsn button').forEach(b => b.onclick = () => { st.why = b.dataset.w; draw(); });
+    $('#hFile').onchange = async () => {
+      const f = $('#hFile').files && $('#hFile').files[0]; if (!f) return;
+      try { st.img = await readPhoto(f); } catch(_) { toast("Couldn't read that photo. Try again."); }
+      draw();
+    };
+    $('#hGo').onclick = () => {
+      if (!st.why) { toast('Pick what is wrong with the tag'); return; }
+      if (!st.img) { toast('Take a photo of where the tag goes'); return; }
+      closeOv(); handInfo = st; then(); handInfo = null;
+    };
+  };
+  draw();
+}
+// the tag problem goes to the supervisor once, not on every visit until it is replaced
+function reportTag(id, g, why, day, t, img){
+  queue2('photos/' + day + '/' + id + '_p', { gate: g, t, by: who, img });
+  if (Object.values(reports).some(x => x && !x.closed && x.gate === g && x.kind === 'tag')) return;
+  const rp = { id, gate: g, flags: [why], by: who, t, day, photo: 1, kind: 'tag' };
+  reports[id] = rp; queue2('reports/' + id, rp);
+}
 function closeVisit(o, via, t){
   if (cur) sendCount();
   const r = Object.assign({}, o, { f: t, fvia: via, fby: who });
+  if (via === 'hand' && handInfo) { r.fwhy = handInfo.why; reportTag(r.id + 'f', r.gate, handInfo.why, r.day, t, handInfo.img); }
   storeRec(r); queue(r); flush();
   if (navigator.vibrate) navigator.vibrate([40, 40, 120]);
   tone(SOUND.filled);
@@ -729,7 +775,7 @@ function openActions(id){
     '<br>Tap the cabinet tag again once it is loaded. If the tag will not read, mark it here; it shows as by hand.</div>' +
     '<button class="alt" id="oHand">Mark ' + r.gate + ' filled without the tag</button></div></div>');
   $('#oX').onclick = closeOv;
-  $('#oHand').onclick = () => closeVisit(r, 'hand', Date.now());
+  $('#oHand').onclick = () => askHand(r.gate, () => closeVisit(r, 'hand', Date.now()));
 }
 
 function openCount(g, via, tag, t){
@@ -745,6 +791,7 @@ function openCount(g, via, tag, t){
   cur = { id: t.toString(36) + '-' + Math.random().toString(36).slice(2, 6), day: dayOf(t), gate: g, t,
           via, tag: tag || null, by: who, shift: shiftOf(t), duty: duty.duty, steps,
           reqs: rq.map(r => r.id), need: {}, sup: {}, flag: null, flags: [], fimg: null, img: null, pt0: t };
+  if (via === 'hand' && handInfo) { cur.handWhy = handInfo.why; cur.himg = handInfo.img; }
   ITEMS.forEach(i => cur.need[i.k] = 0);
   if (navigator.vibrate) navigator.vibrate(via === 'tag' ? [40, 40, 40] : 30);
   soundFor(steps, steps.some(st => !dutyList(duty.duty).includes(st)));
@@ -927,6 +974,8 @@ function sendCount(){
   const img = r.img; delete r.img; delete r.pt0;
   if (img) { r.photo = 1; queue2('photos/' + r.day + '/' + r.id, { gate: r.gate, t: r.pt || r.s, by: r.by, img }); }
   else if (r.steps.includes('photo') && !r.flag) r.flag = 'No photo taken';
+  const himg = r.himg; delete r.himg;
+  if (himg) { r.hphoto = 1; reportTag(r.id + 'h', r.gate, r.handWhy, r.day, r.t, himg); }
   const fimg = r.fimg; delete r.fimg;
   if (fimg) { r.fphoto = 1; queue2('photos/' + r.day + '/' + r.id + '_p', { gate: r.gate, t: r.s, by: r.by, img: fimg }); }
   if (r.flags && r.flags.length) {
@@ -1110,16 +1159,15 @@ function render(){
   // Today is everyone's numbers side by side, so it is a manager's screen. An agent sees
   // their own cabinets on Walk and nothing about anyone else.
   $('#navTags').hidden = !admin; $('#navSvc').hidden = !admin; $('#navToday').hidden = !admin;
-  document.querySelector('nav').style.display = admin ? '' : 'none';
   if (!admin && !$('#tab-today').classList.contains('hide')) showTab('walk');
   if (!admin && !$('#tab-svc').classList.contains('hide')) showTab('walk');
   if (!admin && !$('#tab-tags').classList.contains('hide')) showTab('walk');
-  paintSync(); renderWalk(); renderToday(); renderSvc(); renderTags();
+  paintSync(); renderWalk(); renderGuide(); renderToday(); renderSvc(); renderTags();
 }
 
 function rowRec(r, pend){
   return '<div class="r"><div class="code">' + r.gate + '</div><div class="mid">' +
-    '<div class="t">' + hhmm(r.t) + ' &middot; ' + (r.via === 'tag' ? 'tag' : r.via === 'link' ? 'tag link' : 'by hand') +
+    '<div class="t">' + hhmm(r.t) + ' &middot; ' + (r.via === 'tag' ? 'tag' : r.via === 'link' ? 'tag link' : 'by hand' + (r.handWhy ? ': ' + esc(r.handWhy.toLowerCase()) : '')) +
       (r.s ? ' &middot; ' + dur(r.s - r.t) + ' to send' : '') + (pend.has(r.id) ? ' &middot; sending' : '') + '</div>' +
     '<div class="nd">' + needText(r) + '<span class="tagd">' + dutyLabel(r.duty) + '</span></div>' +
     (r.dbl ? '<div class="t">' + (r.f ? 'filled ' + dur(r.f - (r.s || r.t)) + ' later' + (r.fvia === 'hand' ? ', by hand' : '') + (r.short ? ', short' : '')
@@ -1260,6 +1308,24 @@ function renderToday(){
   $('#tab-today').innerHTML = h;
 }
 
+/* ---- shelf guide: what full looks like, any time, not only at a cabinet ---------------- */
+let guideHi = false;
+function renderGuide(){
+  const g = guideHi ? 'B50' : 'B20';
+  const block = (title, pic, items) => '<div class="hdr">' + title + '</div>' +
+    '<img class="thumb" style="max-height:none;margin-top:0" src="' + SHELF_PICS[pic] + '" alt="">' +
+    '<table style="margin-top:8px"><tr><th class="l">Full is</th><th>How many</th></tr>' +
+    items.filter(i => parOf(i, g)).map(i => '<tr><td class="l">' + i.label + (i.sub ? ' <span style="font-weight:400;color:#5b6377">' + i.sub + '</span>' : '') +
+      '</td><td><b>' + parOf(i, g) + '</b></td></tr>').join('') + '</table>';
+  $('#tab-guide').innerHTML =
+    '<div class="row2" style="margin-top:0"><button id="gLo" style="' + (guideHi ? '' : 'border-color:#1a237e;color:#1a237e;background:#eef1fb') + '">Lower gates<br>B7 to B45</button>' +
+    '<button id="gHi" style="' + (guideHi ? 'border-color:#1a237e;color:#1a237e;background:#eef1fb' : '') + '">Higher gates<br>B46 to B61</button></div>' +
+    block('Provisions &mdash; bottom two shelves', guideHi ? 'provHi' : 'provLo', ITEMS) +
+    block('Supplies &mdash; top two shelves', guideHi ? 'supHi' : 'supLo', SUPPLIES) +
+    '<div class="note">Do not over stuff. Do not move the shelves. No provisions on the top two shelves. ' +
+    'Bottles, gloves and WypAlls get swapped for full, not topped off.</div>';
+}
+
 /* ---- service list: managers only ----------------------------------------------------
    Agents report, a manager decides. Walk to the cabinet with this tab open and tap its
    tag: the scan is the proof of who fixed it and that they were standing there. */
@@ -1394,7 +1460,7 @@ function toast(msg, ok){
 }
 function showTab(name){
   document.querySelectorAll('nav button').forEach(x => x.classList.toggle('on', x.dataset.t === name));
-  ['walk','today','svc','tags'].forEach(t => $('#tab-' + t).classList.toggle('hide', t !== name));
+  ['walk','guide','today','svc','tags'].forEach(t => $('#tab-' + t).classList.toggle('hide', t !== name));
 }
 document.querySelector('nav').onclick = e => {
   const b = e.target.closest('button'); if (!b) return;
@@ -1426,9 +1492,13 @@ $('#tab-walk').onclick = e => {
   if (e.target.closest('#btnScan')) startScan();
   if (e.target.closest('#btnNfcSet') && NATIVE) window.Android.openNfcSettings();
   if (e.target.closest('#btnHand'))
-    pickCabinet('Which cabinet?', 'No tag, so this visit is marked by hand.', g => onGate(g, 'hand', null, Date.now()));
+    pickCabinet('Which cabinet?', 'No tag, so this visit is marked by hand.', g => askHand(g, () => onGate(g, 'hand', null, Date.now())));
 };
 $('#tab-today').onclick = e => { if (e.target.closest('#btnCsv')) csv(); };
+$('#tab-guide').onclick = e => {
+  if (e.target.closest('#gLo')) { guideHi = false; renderGuide(); }
+  if (e.target.closest('#gHi')) { guideHi = true; renderGuide(); }
+};
 $('#tab-svc').onclick = e => {
   if (e.target.closest('#svPick')) { pickCabinet('Which cabinet?', 'Opened by hand, so it cannot be marked fixed from here.', g => openService(g, 'list')); return; }
   const r = e.target.closest('[data-sv]'); if (r) openService(r.dataset.sv, 'list');

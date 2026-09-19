@@ -535,7 +535,7 @@ function load(r, now){
 }
 function loadCell(r, now){
   const l = load(r, now); if (!l) return '–';
-  return '<span class="ld ' + l.st + '">' + (l.st === 'done' ? 'filled in ' + dur(l.ms) + (r.fvia === 'hand' ? ' (by hand)' : '') + (r.short ? ', short' : '')
+  return '<span class="ld ' + l.st + '">' + (l.st === 'done' ? 'filled in ' + dur(l.ms) + (r.fvia === 'hand' ? ' (by hand' + (r.fwhy ? ': ' + esc(r.fwhy.toLowerCase()) : '') + ')' : '') + (r.short ? ', short' : '')
                                                             : 'open ' + dur(l.ms)) + '</span>';
 }
 function needText(r){
@@ -775,11 +775,13 @@ function drawCab(){
   if (!list.length) h += '<div class="none">Nobody has logged this cabinet on this day.</div>';
   list.forEach(r => {
     h += '<div class="vis"><div class="top"><b>' + hhmm(r.t) + '</b>' + esc(r.by || '(no name)') +
-         ' <span class="dt">' + dutyLabel(dutyOf(r)) + '</span>' + (r.via === 'hand' ? '<span style="color:#e07800">by hand</span>' : '') +
+         ' <span class="dt">' + dutyLabel(dutyOf(r)) + '</span>' + (r.via === 'hand' ? '<span style="color:#e07800">by hand' + (r.handWhy ? ': ' + esc(r.handWhy.toLowerCase()) : '') + '</span>' : '') +
          '<span class="sp sh ' + r.shift.toLowerCase() + '">' + r.shift + '</span></div>' +
          '<div class="nd">' + needText(r) + '</div>' +
          (r.dbl ? '<div class="nd">' + loadCell(r, now) + '</div>' : '') +
          (r.flag ? '<div class="pb">' + esc(r.flag) + '</div>' : '') +
+         (r.hphoto ? (photos[r.id + 'h_p'] ? '<img src="' + photos[r.id + 'h_p'].img + '" alt=""><div class="cap">their photo of where the tag goes</div>'
+                                           : '<div class="cap">loading the tag photo…</div>') : '') +
          (r.photo ? (photos[r.id] ? '<img src="' + photos[r.id].img + '" alt="' + g + ' at ' + hhmm(r.t) + '">'
                                   : '<div class="cap" data-ph="' + r.id + '">loading the photo…</div>') : '') + '</div>';
   });
@@ -793,6 +795,14 @@ function drawCab(){
       photos[x.id + '_p'] = sn2.val() || { img: '' };
       if (openCab === g) drawCab();
     }).catch(() => { delete photos[x.id + '_p']; });
+  });
+  list.filter(r => r.hphoto && photos[r.id + 'h_p'] === undefined).forEach(r => {
+    if (!db) return;
+    photos[r.id + 'h_p'] = null;
+    db.ref(ROOT + '/photos/' + DAY + '/' + r.id + 'h_p').once('value').then(s3 => {
+      photos[r.id + 'h_p'] = s3.val() || { img: '' };
+      if (openCab === g) drawCab();
+    }).catch(() => { delete photos[r.id + 'h_p']; });
   });
   list.filter(r => r.photo && !photos[r.id]).forEach(r => {
     if (!db) return;
@@ -947,7 +957,7 @@ function renderPeople(list, now){
       '<td class="l"><b>' + r.gate + '</b></td>' +
       '<td><span class="sh ' + r.shift.toLowerCase() + '">' + r.shift + '</span></td>' +
       '<td><span class="dt">' + dutyLabel(dutyOf(r)) + '</span></td>' +
-      '<td>' + (r.via === 'hand' ? '<span style="color:#e07800">by hand</span>' : 'tag') + '</td>' +
+      '<td>' + (r.via === 'hand' ? '<span style="color:#e07800">by hand' + (r.handWhy ? ': ' + esc(r.handWhy.toLowerCase()) : '') + '</span>' : 'tag') + '</td>' +
       '<td>' + (walk == null ? 'start' : walk < 0 ? '–' : gap ? dur(walk) + '<span class="gp">gap</span>' : secs(walk)) +
         (fast ? '<span class="gp" style="color:#b71c1c;border-color:#e0a0a0">too fast from ' + l[i-1].gate + '</span>' : '') + '</td>' +
       '<td>' + (r.s ? secs(r.s - r.t) : '–') + '</td>' +
