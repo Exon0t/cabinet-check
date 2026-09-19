@@ -1,0 +1,1286 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
+<meta name="theme-color" content="#1a237e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Cabinet Tap">
+<meta name="robots" content="noindex,nofollow">
+<title>Cabinet Tap</title>
+<style>
+:root{--navy:#1a237e;--navy2:#283593;--ink:#1f2330;--mut:#5b6377;--line:#d7dbe8;
+  --bg:#eef0f5;--card:#fff;--red:#b71c1c;--amber:#e07800;--green:#1b7f3a;
+  --am:#1565c0;--pm:#6a1b9a;--ovn:#00796b}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{font-family:'Segoe UI',system-ui,-apple-system,Arial,sans-serif;font-size:15px;
+  color:var(--ink);background:var(--bg);display:flex;flex-direction:column;
+  height:100vh;height:100dvh;overflow:hidden;-webkit-font-smoothing:antialiased}
+button{font:inherit;cursor:pointer}
+
+header{background:var(--navy);color:#fff;padding:calc(env(safe-area-inset-top) + 9px) 13px 9px;flex:none}
+.hrow{display:flex;align-items:center;gap:8px}
+header h1{font-size:15px;font-weight:700;letter-spacing:.4px}
+.sync{font-size:10px;padding:3px 7px;border-radius:20px;background:rgba(255,255,255,.16)}
+.sync.off{background:#8c2f2f}
+.who{margin-left:auto;font-size:11.5px;color:#c5cbe8;text-decoration:underline;
+  text-underline-offset:2px;cursor:pointer}
+
+nav{display:flex;background:var(--navy2);flex:none}
+nav button{flex:1;font-size:12px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;
+  padding:9px 0;background:none;border:0;color:#b6bde0}
+nav button.on{color:#fff;box-shadow:inset 0 -3px 0 #fff}
+
+main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 10px 40px}
+.hide{display:none!important}
+
+.big{display:block;width:100%;font-size:17px;font-weight:800;letter-spacing:.4px;padding:18px;
+  border:0;border-radius:12px;background:var(--navy);color:#fff;margin-bottom:8px}
+.big:active{opacity:.85}
+.alt{display:block;width:100%;font-size:14px;font-weight:700;padding:13px;border-radius:11px;
+  background:#fff;color:var(--navy);border:2px solid var(--navy);margin-bottom:4px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:12px;
+  margin-bottom:8px;font-size:13px;line-height:1.45}
+.card.warn{background:#fff8e6;border-color:#e8c86a;color:#6d4c00}
+.card.ready{display:flex;align-items:center;gap:13px;border-color:#9ed4b0;background:#f2fbf5}
+.card.ready b{display:block;font-size:17px;color:var(--green)}
+.card.ready span{color:var(--mut)}
+.dot{width:16px;height:16px;border-radius:50%;background:var(--green);flex:none;
+  animation:pulse 1.6s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(27,127,58,.45)}70%{box-shadow:0 0 0 12px rgba(27,127,58,0)}100%{box-shadow:0 0 0 0 rgba(27,127,58,0)}}
+.note{font-size:11.5px;color:var(--mut);padding:2px 3px 8px;line-height:1.5}
+.hdr{font-size:10.5px;font-weight:800;color:var(--mut);text-transform:uppercase;
+  letter-spacing:1px;margin:15px 3px 7px}
+.empty{text-align:center;color:var(--mut);font-size:13px;padding:24px 14px;line-height:1.6}
+
+.r{background:var(--card);border:1px solid var(--line);border-radius:10px;margin-bottom:6px;
+  display:flex;align-items:center;gap:11px;padding:10px 12px}
+.r .code{font-size:18px;font-weight:800;color:var(--navy);min-width:56px}
+.r .mid{flex:1;min-width:0}
+.r .t{font-size:11.5px;color:var(--mut)}
+.r .nd{font-size:13px;font-weight:600}
+.r .bw{font-size:11.5px;color:var(--red);font-weight:700}
+.sh{font-size:10px;font-weight:800;letter-spacing:.5px;padding:3px 7px;border-radius:20px;color:#fff}
+.sh.am{background:var(--am)}.sh.pm{background:var(--pm)}.sh.ovn{background:var(--ovn)}
+
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-bottom:4px}
+.stats div{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 11px}
+.stats b{display:block;font-size:21px;color:var(--navy);line-height:1.15}
+.stats span{font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line)}
+th,td{padding:6px 7px;text-align:center;border-bottom:1px solid #eceff6;font-size:12.5px}
+th{background:#f6f7fb;font-size:9.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--mut)}
+td.l,th.l{text-align:left;font-weight:700;color:var(--navy)}
+tr.late td{background:#fff8e6}
+tr.none td{color:#a3a9b8}
+th.am{color:var(--am)}th.pm{color:var(--pm)}th.ovn{color:var(--ovn)}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chips span{font-size:12px;font-weight:700;padding:4px 8px;border-radius:20px;background:#fdecec;color:var(--red)}
+
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.grid button{padding:10px 0 8px;border:1.5px solid var(--line);background:#fff;border-radius:9px;
+  color:var(--navy);font-size:15px;font-weight:800;line-height:1.1}
+.grid button small{display:block;font-size:9.5px;font-weight:700;color:var(--mut);margin-top:3px}
+.grid button.set{border-color:#9ed4b0;background:#f2fbf5}
+.grid button.set small{color:var(--green)}
+.grid button.d{opacity:.45}
+
+/* the count sheet: filled in on the walk back, so everything is thumb-sized */
+.ov{position:fixed;inset:0;background:rgba(18,22,40,.6);z-index:50;display:flex;align-items:flex-end}
+.pane{background:#fff;width:100%;max-height:94dvh;overflow-y:auto;border-radius:16px 16px 0 0;
+  padding:14px 13px calc(env(safe-area-inset-bottom) + 14px)}
+.ph{display:flex;align-items:baseline;gap:10px}
+.ph b{font-size:34px;font-weight:800;color:var(--navy);letter-spacing:-.3px;line-height:1}
+.ph .x{margin-left:auto;font-size:13.5px;color:var(--mut);padding:6px 4px;background:none;border:0}
+.pmeta{font-size:12px;color:var(--mut);margin:4px 0 2px;line-height:1.45}
+.q{font-size:13px;font-weight:700;margin:12px 0 4px}
+.it{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #eceff6}
+.it:last-of-type{border-bottom:0}
+.it .nm{flex:1;min-width:0}
+.it .nm b{display:block;font-size:16px}
+.it .nm span{font-size:11.5px;color:var(--mut)}
+.it.on .nm b{color:var(--navy)}
+.st{display:flex;border:1.5px solid var(--line);border-radius:11px;overflow:hidden;flex:none}
+.st button{width:54px;height:52px;background:#fff;border:0;font-size:25px;font-weight:600;color:var(--navy)}
+.st button:active{background:#e9ecf7}
+.st .v{width:48px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;
+  border-left:1.5px solid var(--line);border-right:1.5px solid var(--line);font-variant-numeric:tabular-nums}
+.it.on .st{border-color:var(--navy)}
+.row2{display:flex;gap:8px;margin:12px 0 8px}
+.row2 button{flex:1;padding:11px 6px;border-radius:10px;border:1.5px solid var(--line);background:#fff;
+  font-size:13px;font-weight:700;color:var(--ink)}
+.row2 button.fl{color:var(--red)}
+.flagged{background:#fdecec;border:1px solid #e0a0a0;color:var(--red);font-weight:700;font-size:13px;
+  border-radius:9px;padding:8px 10px;margin-top:8px}
+.send{width:100%;font-size:17px;font-weight:800;letter-spacing:.3px;padding:17px;border:0;border-radius:12px;
+  background:var(--navy);color:#fff}
+.send.zero{background:var(--green)}
+.rsn{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:10px}
+.rsn button{padding:14px 6px;border:1.5px solid var(--line);background:#fff;border-radius:10px;
+  font-size:14px;font-weight:700;color:var(--ink)}
+.link{font-family:Consolas,monospace;font-size:12px;background:#f6f7fb;border:1px solid var(--line);
+  border-radius:8px;padding:8px;word-break:break-all;margin:8px 0}
+.hold{text-align:center;padding:18px 8px;font-size:15px;line-height:1.5}
+.hold b{font-size:30px;color:var(--navy);display:block}
+
+.duty{display:block;width:100%;text-align:left;padding:15px 16px;border:2px solid var(--line);border-radius:12px;
+  background:#fff;margin-bottom:8px}
+.duty b{display:block;font-size:18px;color:var(--navy)}
+.duty span{font-size:12.5px;color:var(--mut)}
+.duty.on{border-color:var(--navy);background:#eef1fb}
+.inp{width:100%;font:inherit;font-size:17px;padding:13px;border:1.5px solid var(--line);border-radius:10px;margin-bottom:10px}
+#start{z-index:70;align-items:stretch}
+#start .pane{max-height:none;height:100%;border-radius:0;padding-top:calc(env(safe-area-inset-top) + 22px)}
+.sec{font-size:10.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:1px;
+  margin:16px 0 2px;padding-top:12px;border-top:1px solid var(--line)}
+.sec.rq{color:var(--amber)}
+.tg{flex:none;min-width:104px;height:48px;border-radius:11px;border:1.5px solid var(--line);background:#fff;
+  font-size:14px;font-weight:800;color:var(--green)}
+.it.on .tg{border-color:var(--red);background:#fdecec;color:var(--red)}
+.shot{display:block;width:100%;text-align:center;font-size:17px;font-weight:800;padding:18px;border-radius:12px;
+  background:var(--navy);color:#fff;margin-top:8px}
+.shot.dead{background:#9aa0b4}
+.shot input{display:none}
+.clock{font-size:13px;font-weight:700;color:var(--amber);margin-top:7px;text-align:center}
+.clock.dead{color:var(--red)}
+.thumb{display:block;width:100%;max-height:230px;object-fit:contain;border-radius:10px;border:1px solid var(--line);
+  margin-top:8px;background:#f6f7fb}
+.r.open{border-left:5px solid var(--green)}
+.r.open.y{border-left-color:#e0b000;background:#fffbea}
+.r.open.rd{border-left-color:var(--red);background:#fdf3f3}
+.r .age{font-size:13px;font-weight:800;color:var(--mut);white-space:nowrap}
+.r.open.y .age{color:#a07800}.r.open.rd .age{color:var(--red)}
+.r.rq{border-left:5px solid var(--amber)}
+.tagd{font-size:9.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--mut);
+  border:1px solid var(--line);border-radius:10px;padding:1px 6px;margin-left:5px}
+.donebig{text-align:center;padding:22px 8px 12px}
+.donebig b{display:block;font-size:40px;color:var(--green);line-height:1.05}
+.donebig span{font-size:15px;color:var(--mut)}
+
+.toast{position:fixed;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom) + 14px);z-index:90;
+  background:#1f2330;color:#fff;font-size:14px;font-weight:600;padding:12px 14px;border-radius:11px;
+  text-align:center;transition:opacity .25s;pointer-events:none}
+.toast.ok{background:var(--green)}
+</style></head><body>
+
+<header>
+  <div class="hrow">
+    <h1>CABINET TAP</h1>
+    <span class="sync" id="sync">&hellip;</span>
+    <span class="who" id="who">set name</span>
+  </div>
+</header>
+
+<nav>
+  <button data-t="walk" class="on">Walk</button>
+  <button data-t="today">Today</button>
+  <button data-t="tags" id="navTags" hidden>Tags</button>
+</nav>
+
+<main>
+  <section id="tab-walk"></section>
+  <section id="tab-today" class="hide"></section>
+  <section id="tab-tags" class="hide"></section>
+</main>
+
+<div class="toast hide" id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+"use strict";
+
+// Goes up by one with every change to this file. A phone swaps its copy for a
+// published one only when the published number is higher.
+const BUILD = 5;
+
+/* ---------------------------------------------------------------------------
+   The guard-tour idea. Nobody can follow a runner to every cabinet, so the
+   cabinet itself records the visit: a tag inside the door, the phone taps it,
+   and the tap is the proof -- which cabinet, what time, who. The runner then
+   counts what the bottom two shelves need on the walk back to the cart.
+
+   Runners only count provisions. No photos: the equipment room owns the top
+   shelves, and a count is enough to build usage and timing averages.
+
+   Two times are kept on every visit: t when the tag was read, s when the count
+   was sent. s - t is the walk back; the next tag's t minus this s is the walk
+   to the next cabinet.
+--------------------------------------------------------------------------- */
+
+const FB = {
+  apiKey:"AIzaSyD1gtIw23ffOKA8ANz9w-obR3ElGi_ie3k",
+  authDomain:"cabinet-checker-a23cd.firebaseapp.com",
+  databaseURL:"https://cabinet-checker-a23cd-default-rtdb.firebaseio.com",
+  projectId:"cabinet-checker-a23cd",
+  storageBucket:"cabinet-checker-a23cd.firebasestorage.app",
+  messagingSenderId:"941784062745",
+  appId:"1:941784062745:web:396cf982746e98e1924388"
+};
+// everything this app writes lives under here, apart from the other cabinet apps
+const ROOT = 'nfc';
+
+// Same cabinet list as the fill check. The four wide-body gates have two bridges.
+const DUAL = ['B32','B36','B38','B42'];
+const CABS = (() => {
+  const nums = [7,8,9,10,11,12,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,
+                35,36,37,38,39,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,58,59,61];
+  const out = [];
+  for (const n of nums) { const g = 'B' + n; if (DUAL.includes(g)) out.push(g + 'a', g + 'b'); else out.push(g); }
+  return out;
+})();
+const higher = g => parseInt(g.slice(1), 10) >= 46;
+
+// Bottom two shelves, from the bag shelf diagrams. Lower gates: a blanket and an
+// inflight-on-earbud stack on shelf 3, lav kits either side of the same stack on
+// shelf 4. Higher gates: three inflight kits on shelf 3 and one earbud kit on 4.
+const ITEMS = [
+  {k:'blanket',  label:'Blankets',      lo:2, hi:2},
+  {k:'lav',      label:'Lav Kits',      lo:2, hi:2},
+  {k:'inflight', label:'Inflight Kits', lo:2, hi:3},
+  {k:'earbud',   label:'Earbud Kits',   lo:2, hi:1},
+];
+const parOf = (it, g) => higher(g) ? it.hi : it.lo;
+// What a person is on the cabinets for. Picked at sign-in, because duties move
+// around too much to be assigned from a desk every morning.
+const DUTIES = [
+  {k:'provisions', label:'Provisions',  sub:'Bottom two shelves: count what it needs, load it, tap again'},
+  {k:'supplies',   label:'Supplies',    sub:'Top two shelves: mark what needs swapping for full'},
+  {k:'photo',      label:'Photo check', sub:'One photo of the whole cabinet, taken at the cabinet'},
+];
+// a person can be on more than one: 'provisions+supplies'
+const dutyList = k => String(k || 'provisions').split('+').filter(x => DUTIES.some(d => d.k === x));
+const dutyLabel = k => dutyList(k).map(x => DUTIES.find(d => d.k === x).label).join(' + ') || DUTIES[0].label;
+// Top two shelves, from the shelf diagrams: stock to these numbers. Lower gates have
+// no inflight bags, so that row only shows from B46 up.
+const SUPPLIES = [
+  {k:'towel',  label:'Paper Towels',  lo:12, hi:12},
+  {k:'tp',     label:'Toilet Paper',  lo:18, hi:18},
+  {k:'soap',   label:'Soap',          lo:6,  hi:6},
+  {k:'glove',  label:'Gloves',        lo:4,  hi:4, sub:'one box each of M, S, L, XL'},
+  {k:'facial', label:'Facials',       lo:4,  hi:6},
+  {k:'wypall', label:'WypAlls',       lo:1,  hi:1},
+  {k:'bottle', label:'Bottles',       lo:5,  hi:5},
+  {k:'bag',    label:'Inflight Bags', lo:0,  hi:3},
+];
+/* Each job has its own sound on the scan, so after a week nobody has to look at the
+   screen to know what the cabinet wants: one low note is provisions, two middle notes
+   is supplies, three rising notes is a photo. A warble in front means a supervisor
+   asked for something extra on this cabinet. Two jobs play one after the other. */
+const SOUND = {
+  provisions: [[440, .17]],
+  supplies:   [[660, .11], [660, .11]],
+  photo:      [[784, .09], [988, .09], [1245, .15]],
+  asked:      [[1400, .08], [900, .08], [1400, .08], [900, .08]],
+  filled:     [[523, .12], [784, .3]],
+  no:         [[180, .38]],
+};
+let actx = null;
+function tone(seq){
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === 'suspended') actx.resume();
+    let t = actx.currentTime + 0.03;
+    seq.forEach(([f, d, gap]) => {
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type = 'square'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.45, t + 0.012);
+      g.gain.setValueAtTime(0.45, t + d - 0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+      o.connect(g); g.connect(actx.destination);
+      o.start(t); o.stop(t + d + 0.02);
+      t += d + (gap || 0.06);
+    });
+  } catch(_) {}
+}
+function soundFor(steps, asked){
+  let seq = asked ? SOUND.asked.map((x, i, a) => i === a.length - 1 ? [x[0], x[1], .25] : x) : [];
+  steps.forEach(st => { const m = SOUND[st].map(x => x.slice()); m[m.length - 1][2] = .25; seq = seq.concat(m); });
+  tone(seq);
+}
+// a browser will not play anything until the screen has been touched once
+document.addEventListener('touchstart', () => { try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch(_) {} }, { once: true, passive: true });
+const PHOTO_SECS = 40;       // from the tag read to the camera: no walking off first
+const RETAP_MS = 60000;      // a second tap sooner than this is a fumble, not a load
+const FLAGS = ["Won't open", 'Needs a key', 'Dead battery', 'Trash / bags inside', 'Missing shelf', 'Other'];
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const dayOf = t => { const d = new Date(t);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+const hhmm = t => new Date(t).toTimeString().slice(0,5);
+function shiftOf(t){ const d = new Date(t), h = d.getHours() + d.getMinutes()/60;
+  return (h >= 22 || h < 5.5) ? 'OVN' : h < 13.5 ? 'AM' : 'PM'; }
+function dur(ms){
+  if (ms == null || !isFinite(ms)) return '&ndash;';
+  const s = Math.round(ms/1000);
+  if (s < 60) return s + 's';
+  const m = Math.floor(s/60);
+  if (m < 60) return m + 'm ' + String(s%60).padStart(2,'0') + 's';
+  return Math.floor(m/60) + 'h ' + String(m%60).padStart(2,'0') + 'm';
+}
+const median = a => { if (!a.length) return null; const b = a.slice().sort((x,y)=>x-y), m = b.length>>1;
+  return b.length % 2 ? b[m] : (b[m-1]+b[m])/2; };
+const needTotal = r => ITEMS.reduce((a,i)=>a + ((r.need||{})[i.k]||0), 0);
+const supTotal = r => SUPPLIES.reduce((a,i)=>a + ((r.sup||{})[i.k]||0), 0);
+const stepsOf = r => r.steps || ['provisions'];
+function needText(r){
+  const parts = ITEMS.filter(i => (r.need||{})[i.k]).map(i => r.need[i.k] + ' ' + i.label)
+    .concat(SUPPLIES.filter(i => (r.sup||{})[i.k]).map(i => r.sup[i.k] + ' ' + i.label));
+  if (r.photo) parts.push('photo');
+  return parts.length ? parts.join(' &middot; ') : 'nothing needed';
+}
+// the shift a moment belongs to, as one key; overnight belongs to the day it started
+function shiftKey(t){ const sh = shiftOf(t), d = new Date(t);
+  if (sh === 'OVN' && d.getHours() < 12) d.setDate(d.getDate() - 1);
+  return dayOf(d.getTime()) + sh; }
+
+let DAY = dayOf(Date.now());
+let who = localStorage.getItem('ct_who') || '';
+let mine = {};          // records made on this phone today
+let server = {};        // records for today from the database
+let tagMap = {};        // tag serial -> {gate, serial}
+let db = null, online = false, fbTried = false;
+// Inside the APK the phone's own NFC reader does the reading and talks to this
+// page through window.Android. In a browser it is Web NFC.
+const NATIVE = !!(window.Android && window.Android.nfcStatus);
+const nativeNfc = () => { const s = String(window.Android.nfcStatus()); return s === 'on' ? 'on' : s === 'off' ? 'disabled' : 'none'; };
+let nfc = NATIVE ? nativeNfc() : ('NDEFReader' in window ? 'off' : 'none'), nfcErr = '', reader = null;
+let cur = null;         // the open count
+let duty = null;        // {duty, t, by} for this shift
+try { duty = JSON.parse(localStorage.getItem('ct_duty') || 'null'); } catch(_) { duty = null; }
+let cfg = { doubleTap: true, yellowMin: 30, redMin: 45 };     // the board can change these
+try { Object.assign(cfg, JSON.parse(localStorage.getItem('ct_cfg') || '{}')); } catch(_) {}
+let reqs = {};          // checks a supervisor asked for on one cabinet
+try { reqs = JSON.parse(localStorage.getItem('ct_req') || '{}'); } catch(_) { reqs = {}; }
+let updateReady = false;
+let pendingTap = null;  // a tag read before anyone had signed in
+let clockT = null;
+let setup = null;       // {g, wrote, serial, ctl} while writing a tag
+let lastSerial = '', lastSerialAt = 0, quietUntil = 0;
+
+// Programming tags is a supervisor job, so the Tags tab stays hidden until the PIN
+// is entered: five taps on the title. Change ADMIN_PIN here if it gets around.
+const ADMIN_PIN = '7161';                  // B7 to B61
+const ADMIN_MINS = 60;
+const adminValid = () => Date.now() - (+localStorage.getItem('ct_admin') || 0) < ADMIN_MINS * 60000;
+let admin = adminValid();
+let lockNew = false;                       // write the next tags read-only
+let protNew = true;                        // and give them the app's password
+
+/* ---- local store and offline queue ----------------------------------------
+   Jet bridges drop signal. Every visit is written to the phone first and sent
+   when it can be; a reload never loses a count. */
+function loadMine(){ try { mine = JSON.parse(localStorage.getItem('ct_rec_' + DAY) || '{}'); } catch(_) { mine = {}; } }
+function saveMine(){ try { localStorage.setItem('ct_rec_' + DAY, JSON.stringify(mine)); } catch(_) {} }
+try { tagMap = JSON.parse(localStorage.getItem('ct_tags') || '{}'); } catch(_) { tagMap = {}; }
+const saveTags = () => { try { localStorage.setItem('ct_tags', JSON.stringify(tagMap)); } catch(_) {} };
+
+const getQ = () => { try { return JSON.parse(localStorage.getItem('ct_q') || '[]'); } catch(_) { return []; } };
+const setQ = q => { try { localStorage.setItem('ct_q', JSON.stringify(q)); } catch(_) {} };
+function queue(rec){ const q = getQ().filter(x => x.id !== rec.id); q.push(rec); setQ(q); paintSync(); }
+// everything that is not a visit: photos, duty changes, requests answered
+const getQ2 = () => { try { return JSON.parse(localStorage.getItem('ct_q2') || '[]'); } catch(_) { return []; } };
+const setQ2 = q => { try { localStorage.setItem('ct_q2', JSON.stringify(q)); return true; } catch(_) { return false; } };
+function queue2(path, val){
+  const q = getQ2().filter(x => x.path !== path);
+  q.push({ path, val });
+  if (!setQ2(q)) toast('Phone storage is full. Get a signal so the photos can send.');
+  paintSync();
+}
+const timed = p => Promise.race([p, new Promise((_, no) => setTimeout(() => no(new Error('timeout')), 20000))]);
+let flushing = false;
+async function flush(){
+  if (!db || !online || flushing) return;
+  const q = getQ(), q2 = getQ2(); if (!q.length && !q2.length) return;
+  flushing = true;
+  const left2 = [];
+  for (const w of q2){
+    try { await timed(db.ref(ROOT + '/' + w.path).set(w.val)); } catch(_) { left2.push(w); }
+  }
+  setQ2(left2.concat(getQ2().filter(x => !q2.some(y => y.path === x.path))));
+  const left = [];
+  for (const rec of q){
+    try { await Promise.race([db.ref(ROOT + '/taps/' + rec.day + '/' + rec.id).set(rec),
+                              new Promise((_, no) => setTimeout(() => no(new Error('timeout')), 12000))]); }
+    catch(_) { left.push(rec); }
+  }
+  setQ(left.concat(getQ().filter(x => !q.some(y => y.id === x.id))));
+  flushing = false;
+  paintSync(); render();
+}
+
+function recs(){ return Object.values(Object.assign({}, server, mine)).sort((a,b) => a.t - b.t); }
+
+/* ---- firebase -------------------------------------------------------------- */
+let dayRef = null;
+function initFB(){
+  fbTried = true;
+  if (typeof firebase === 'undefined') { paintSync(); return; }
+  try {
+    firebase.initializeApp(FB);
+    db = firebase.database();
+    db.ref('.info/connected').on('value', s => { online = !!s.val(); paintSync(); if (online) flush(); });
+    db.ref(ROOT + '/tags').on('value', s => {
+      const v = s.val() || {};
+      for (const k in tagMap) if (tagMap[k].local && !v[k]) v[k] = tagMap[k];
+      tagMap = v; saveTags(); render();
+    });
+    db.ref(ROOT + '/cfg').on('value', s => {
+      Object.assign(cfg, s.val() || {});
+      try { localStorage.setItem('ct_cfg', JSON.stringify(cfg)); } catch(_) {}
+      render();
+    });
+    db.ref(ROOT + '/req').on('value', s => {
+      const v = s.val() || {};
+      // a request answered on this phone stays answered until the send gets through
+      for (const k in reqs) if (reqs[k].done && v[k] && !v[k].done) v[k].done = reqs[k].done;
+      reqs = v;
+      try { localStorage.setItem('ct_req', JSON.stringify(reqs)); } catch(_) {}
+      render();
+    });
+    listenDay(); listenDuty();
+  } catch(e) { db = null; paintSync(); }
+}
+// A supervisor can move someone to another duty from the board, mid job.
+let dutyRef = null;
+function listenDuty(){
+  if (dutyRef) { dutyRef.off(); dutyRef = null; }
+  if (!db || !who) return;
+  dutyRef = db.ref(ROOT + '/duty/' + keyOf(who));
+  dutyRef.on('value', s => {
+    const v = s.val();
+    if (!v || !v.duty || v.by === who) return;
+    if (duty && v.t <= duty.t) return;
+    if (!v.lock && shiftKey(v.t) !== shiftKey(Date.now())) return;     // an old move from another shift
+    const changed = !dutyValid() || v.duty !== duty.duty || !!v.lock !== !!duty.lock;
+    duty = { duty: v.duty, t: v.t, by: v.by, lock: !!v.lock };
+    localStorage.setItem('ct_duty', JSON.stringify(duty));
+    if (changed) {
+      toast((v.lock ? 'You are set to ' : 'Your duty was changed to ') + dutyLabel(v.duty) + ' by ' + esc(v.by));
+      if (navigator.vibrate) navigator.vibrate([60, 60, 60]);
+      const st = $('#start'); if (st) { st.remove(); if (!ready()) showStart(); }
+    }
+    render();
+  });
+}
+function listenDay(){
+  if (!db) return;
+  if (dayRef) dayRef.off();
+  dayRef = db.ref(ROOT + '/taps/' + DAY);
+  dayRef.on('value', s => { server = s.val() || {}; render(); });
+}
+function paintSync(){
+  const el = $('#sync'), q = getQ().length + getQ2().length;
+  if (!db) { el.textContent = fbTried ? (q ? 'not connected · ' + q : 'not connected') : '…'; el.className = 'sync off'; return; }
+  el.textContent = online ? (q ? q + ' sending' : 'saved') : (q ? 'offline · ' + q : 'offline');
+  el.className = 'sync' + (online ? '' : ' off');
+}
+
+/* ---- NFC --------------------------------------------------------------------
+   Web NFC: Chrome on Android, https only, and only while this page is on screen.
+   The reader is started once by a button press; after the phone has allowed it
+   the app starts it by itself on every open. */
+async function startScan(){
+  if (NATIVE) { nfc = nativeNfc(); render(); return nfc === 'on'; }
+  if (!('NDEFReader' in window)) { nfc = 'none'; render(); return false; }
+  try {
+    reader = new NDEFReader();
+    await reader.scan();
+    reader.onreading = e => onTag(e.serialNumber || '', e.message);
+    reader.onreadingerror = () => toast("Couldn't read that tag. Hold the phone still on it.");
+    nfc = 'on';
+  } catch(e) {
+    nfc = e && e.name === 'NotAllowedError' ? 'denied' : 'err';
+    nfcErr = (e && e.message) || String(e);
+  }
+  render();
+  return nfc === 'on';
+}
+if (nfc === 'off' && navigator.permissions)
+  navigator.permissions.query({ name: 'nfc' }).then(p => { if (p.state === 'granted') startScan(); }).catch(() => {});
+
+function parseGate(txt){
+  if (!txt) return null;
+  const m = String(txt).match(/[?&]c=(B\d{1,2}[ab]?)/i) || String(txt).trim().match(/^(B\d{1,2}[ab]?)$/i);
+  if (!m) return null;
+  const g = 'B' + m[1].slice(1).replace(/[AB]$/, x => x.toLowerCase());
+  return CABS.includes(g) ? g : null;
+}
+function gateFromMessage(msg){
+  for (const r of (msg && msg.records) || []) {
+    let txt = '';
+    try {
+      if (typeof r.txt === 'string') txt = r.txt;
+      else if (r.recordType === TAG_TYPE) txt = new TextDecoder().decode(r.data);
+      else if (r.recordType === 'url' || r.recordType === 'absolute-url') txt = new TextDecoder().decode(r.data);
+      else if (r.recordType === 'text') txt = new TextDecoder(r.encoding || 'utf-8').decode(r.data);
+    } catch(_) {}
+    const g = parseGate(txt);
+    if (g) return g;
+  }
+  return null;
+}
+const keyOf = serial => String(serial).replace(/[.#$\/\[\]]/g, '_');
+
+function onTag(serial, msg){
+  const now = Date.now();
+  if (serial && serial === lastSerial && now - lastSerialAt < 4000) return;   // one touch fires more than once
+  lastSerial = serial; lastSerialAt = now;
+  const byTag = serial && tagMap[keyOf(serial)] ? tagMap[keyOf(serial)].gate : null;
+  const g = gateFromMessage(msg) || byTag;
+  if (setup) { setupSaw(serial, gateFromMessage(msg), byTag); return; }
+  if (now < quietUntil) return;
+  if (!g) { tone(SOUND.no); toast('This tag is not set up. Set it up on the Tags tab.'); return; }
+  onGate(g, 'tag', serial || null, now);
+}
+
+// The APK calls these. A write reports back with the tag's serial even when the
+// write itself failed, so a locked tag still gets remembered.
+if (NATIVE) {
+  window.__nativeTag = (serial, texts) => onTag(serial || '', { records: (texts || []).map(t => ({ txt: String(t) })) });
+  window.__nativeWrite = (ok, err, serial, prot) => {
+    if (!setup) return;
+    setup.wrote = !!ok;
+    setup.prot = !!prot;
+    setup.err = err || '';
+    if (serial) { setup.serial = serial; if (setup.mode === 'write') saveSerial(serial, setup.g); }
+    if (ok || serial) finishSetup();
+    else { const m = $('#sMsg'); if (m) m.textContent = "Couldn't write that tag (" + (err || 'unknown error') + '). Try again.'; }
+  };
+  // a newer copy of these screens has been downloaded: switch to it between cabinets
+  window.__nativeUpdate = () => { updateReady = true; render(); };
+  window.__nativeResume = () => { const was = nfc; nfc = nativeNfc(); if (nfc !== was) render(); };
+}
+
+/* ---- the count ---------------------------------------------------------------- */
+function lastVisit(g, before){
+  const list = recs().filter(r => r.gate === g && r.t < before);
+  return list.length ? list[list.length - 1] : null;
+}
+/* ---- sign-in: who, and what they are on today ---------------------------------
+   The duty is asked once a shift. A wrong pick is a conversation, not a lockout:
+   anyone can switch from the name at the top, a supervisor can switch them from
+   the board, and every switch is logged either way. */
+// a duty a manager has locked stays until the manager lifts it; anything else lasts the shift
+const dutyValid = () => !!(duty && duty.duty && (duty.lock || shiftKey(duty.t) === shiftKey(Date.now())));
+const dutyLocked = () => dutyValid() && !!duty.lock;
+const ready = () => !!who && dutyValid();
+function setDuty(k, by){
+  const from = dutyValid() ? duty.duty : null, t = Date.now();
+  duty = { duty: k, t, by: by || who };
+  localStorage.setItem('ct_duty', JSON.stringify(duty));
+  queue2('duty/' + keyOf(who), { who, duty: k, t, by: by || who });
+  if (from !== k)
+    queue2('dutyLog/' + dayOf(t) + '/' + t.toString(36) + '-' + keyOf(who).slice(0, 12), { who, duty: k, from, t, by: by || who });
+  flush();
+}
+function showStart(){
+  const old = $('#start'); if (old) old.remove();
+  let h = '<div class="ov" id="start"><div class="pane">' +
+    '<div class="ph"><b style="font-size:26px">' + (who ? 'Hi ' + esc(who) : 'Sign in') + '</b>' +
+    (ready() ? '<button class="x" id="stX">Close</button>' : '') + '</div>' +
+    '<div class="q">Your name</div>' +
+    '<input class="inp" id="stName" autocomplete="off" autocapitalize="words" placeholder="First and last name" value="' + esc(who) + '">' +
+    '<div class="q" style="margin-bottom:8px">What are you on today?</div>' +
+    (dutyLocked() ? '<div class="card warn">Set by ' + esc(duty.by) + '. Ask a supervisor if it needs to change.</div>'
+                  : '<div class="note" style="padding-top:0">Pick every one you are doing. One tap on a cabinet then asks for all of them. ' +
+                    'Each one has its own sound: press it to hear it.</div>') +
+    DUTIES.map(d => '<button class="duty' + (dutyValid() && dutyList(duty.duty).includes(d.k) ? ' on' : '') + '" data-d="' + d.k + '"><b>' +
+      d.label + '</b><span>' + d.sub + '</span></button>').join('') +
+    '<button class="big" id="stGo" style="margin-top:6px">' + (dutyLocked() ? 'OK' : 'Start') + '</button>' +
+    '<div class="note">Picked the wrong one, or moved mid shift? Tap your name at the top to switch. ' +
+    'Switches are saved with the time.</div><div class="note" style="text-align:center">Cabinet Tap, screens version ' + BUILD + '</div></div></div>';
+  document.body.insertAdjacentHTML('beforeend', h);
+  if ($('#stX')) $('#stX').onclick = () => $('#start').remove();
+  $('#start').querySelectorAll('.duty').forEach(b => b.onclick = () => {
+    if (dutyLocked()) { tone(SOUND[b.dataset.d]); return; }
+    if (b.classList.toggle('on')) tone(SOUND[b.dataset.d]);
+  });
+  $('#stGo').onclick = () => {
+    const name = $('#stName').value.trim().replace(/\s+/g, ' ');
+    if (!name) { toast('Type your name first'); $('#stName').focus(); return; }
+    const picked = DUTIES.filter(d => $('#start .duty[data-d=' + d.k + ']').classList.contains('on')).map(d => d.k).join('+');
+    if (!picked) { toast('Pick what you are on today'); return; }
+    const renamed = name !== who;
+    if (renamed) { who = name; localStorage.setItem('ct_who', who); listenDuty(); }
+    if (dutyLocked() && !renamed) { $('#start').remove(); render(); return; }
+    setDuty(picked);
+    $('#start').remove();
+    toast(dutyLabel(picked) + ' it is', true);
+    render();
+    if (pendingTap) { const p = pendingTap; pendingTap = null; onGate(p.g, p.via, p.serial, p.t); }
+  };
+}
+
+/* ---- the visit -------------------------------------------------------------------
+   A tap on a cabinet is one of two things. If a provisions count is still waiting to
+   be loaded there, the tap is the load being finished. Otherwise it is a new visit,
+   and what the visit asks for is the person's duty plus anything a supervisor has
+   asked for on that one cabinet. */
+const activeReq = r => r && !r.done && (r.exp || 0) > Date.now();
+const reqsFor = g => Object.values(reqs).filter(r => activeReq(r) && r.gate === g);
+function allOpen(){
+  let y = {};
+  try { y = JSON.parse(localStorage.getItem('ct_rec_' + dayOf(Date.now() - 86400000)) || '{}'); } catch(_) {}
+  const since = Date.now() - 12 * 3600000;           // last night's, for a shift that crosses midnight
+  return Object.values(y).concat(recs()).filter(r => r.dbl && !r.f && r.t > since);
+}
+function storeRec(r){
+  if (r.day === DAY) { mine[r.id] = r; saveMine(); return; }
+  try { const k = 'ct_rec_' + r.day, m = JSON.parse(localStorage.getItem(k) || '{}'); m[r.id] = r; localStorage.setItem(k, JSON.stringify(m)); } catch(_) {}
+}
+function onGate(g, via, serial, t){
+  if (!ready()) { pendingTap = { g, via, serial, t }; showStart(); return; }
+  const o = allOpen().filter(r => r.gate === g && (r.by === who || dutyList(duty.duty).includes('provisions'))).pop();
+  if (o && !(cur && cur.gate === g)) {
+    if (t - (o.s || o.t) < RETAP_MS) { tone(SOUND.no); toast(g + ' is counted. Tap it again after you load it.'); return; }
+    closeVisit(o, via, t);
+    return;
+  }
+  openCount(g, via, serial, t);
+}
+function closeVisit(o, via, t){
+  if (cur) sendCount();
+  const r = Object.assign({}, o, { f: t, fvia: via, fby: who });
+  storeRec(r); queue(r); flush();
+  if (navigator.vibrate) navigator.vibrate([40, 40, 120]);
+  tone(SOUND.filled);
+  closeOv();
+  document.body.insertAdjacentHTML('beforeend',
+    '<div class="ov" id="ov" data-f="' + r.id + '"><div class="pane"><div class="donebig"><b>' + r.gate + ' filled</b>' +
+    '<span>Loaded ' + dur(t - (r.s || r.t)) + ' after the count &middot; ' + needText(r) + '</span></div>' +
+    '<button class="big" id="fOk">Done</button>' +
+    '<button class="alt" id="fShort">Couldn\u2019t fill it all</button></div></div>');
+  $('#fOk').onclick = closeOv;
+  $('#fShort').onclick = () => { r.short = 1; storeRec(r); queue(r); flush(); closeOv(); toast(r.gate + ' marked short'); render(); };
+  setTimeout(() => { const o2 = $('#ov'); if (o2 && o2.dataset.f === r.id) closeOv(); }, 8000);
+  render();
+}
+function openActions(id){
+  const r = allOpen().find(x => x.id === id); if (!r) return;
+  closeOv();
+  document.body.insertAdjacentHTML('beforeend',
+    '<div class="ov" id="ov"><div class="pane"><div class="ph"><b>' + r.gate + '</b><button class="x" id="oX">Close</button></div>' +
+    '<div class="pmeta" style="margin-bottom:12px">Counted ' + hhmm(r.t) + ' &middot; ' + needText(r) +
+    '<br>Tap the cabinet tag again once it is loaded. If the tag will not read, mark it here; it shows as by hand.</div>' +
+    '<button class="alt" id="oHand">Mark ' + r.gate + ' filled without the tag</button></div></div>');
+  $('#oX').onclick = closeOv;
+  $('#oHand').onclick = () => closeVisit(r, 'hand', Date.now());
+}
+
+function openCount(g, via, tag, t){
+  if (cur && cur.gate === g && t - cur.t < 5 * 60000) {
+    // tapped the same cabinet again: they are standing at it, so the photo clock restarts
+    if (cur.steps.includes('photo') && !cur.img) { cur.pt0 = t; drawCount(); toast('Photo clock restarted', true); }
+    else toast(g + ' is already open');
+    return;
+  }
+  if (cur) sendCount();                    // tapped the next cabinet first: send this one as it stands
+  const rq = reqsFor(g), steps = dutyList(duty.duty);
+  rq.forEach(r => { if (!steps.includes(r.type)) steps.push(r.type); });
+  cur = { id: t.toString(36) + '-' + Math.random().toString(36).slice(2, 6), day: dayOf(t), gate: g, t,
+          via, tag: tag || null, by: who, shift: shiftOf(t), duty: duty.duty, steps,
+          reqs: rq.map(r => r.id), need: {}, sup: {}, flag: null, img: null, pt0: t };
+  ITEMS.forEach(i => cur.need[i.k] = 0);
+  if (navigator.vibrate) navigator.vibrate(via === 'tag' ? [40, 40, 40] : 30);
+  soundFor(steps, steps.some(st => !dutyList(duty.duty).includes(st)));
+  drawCount();
+}
+const photoLeft = () => PHOTO_SECS - Math.floor((Date.now() - cur.pt0) / 1000);
+function readPhoto(file){
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file), im = new Image();
+    im.onload = () => {
+      const k = Math.min(1, 1000 / Math.max(im.width, im.height)), c = document.createElement('canvas');
+      c.width = Math.round(im.width * k); c.height = Math.round(im.height * k);
+      c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      res(c.toDataURL('image/jpeg', 0.6));
+    };
+    im.onerror = () => { URL.revokeObjectURL(url); rej(new Error('not a picture')); };
+    im.src = url;
+  });
+}
+function drawCount(){
+  const was = $('#ov') && $('#ov .pane') ? $('#ov .pane').scrollTop : 0;
+  closeOv();
+  const g = cur.gate, lv = lastVisit(g, cur.t), steps = cur.steps;
+  const viaTxt = cur.via === 'tag' ? 'tag read ' : cur.via === 'link' ? 'opened from tag ' : 'logged by hand ';
+  let h = '<div class="ov" id="ov"><div class="pane">' +
+    '<div class="ph"><b>' + g + '</b><span style="font-size:12px;color:#5b6377">' + dutyLabel(cur.duty) + '</span>' +
+      '<button class="x" id="cX">Cancel</button></div>' +
+    '<div class="pmeta">' + viaTxt + hhmm(cur.t) +
+      (lv ? ' &middot; last visit ' + dur(cur.t - lv.t) + ' ago' + (lv.by ? ' by ' + esc(lv.by) : '') +
+            ' &middot; ' + needText(lv) : ' &middot; first visit today') + '</div>';
+  steps.forEach(st => {
+    const asked = !dutyList(cur.duty).includes(st), rq = asked ? reqsFor(g).find(r => r.type === st) : null;
+    if (steps.length > 1)
+      h += '<div class="sec' + (asked ? ' rq' : '') + '">' + dutyLabel(st) +
+           (asked ? ' &mdash; asked for by ' + esc((rq && rq.by) || 'a supervisor') : '') + '</div>';
+    if (st === 'provisions') {
+      h += '<div class="q">Bottom two shelves: how many does it need?</div>';
+      ITEMS.forEach(i => {
+        const v = cur.need[i.k], par = parOf(i, g);
+        h += '<div class="it' + (v ? ' on' : '') + '"><div class="nm"><b>' + i.label + '</b><span>full is ' + par + '</span></div>' +
+             '<div class="st"><button data-k="' + i.k + '" data-d="-1">&minus;</button>' +
+             '<div class="v">' + v + '</div>' +
+             '<button data-k="' + i.k + '" data-d="1">+</button></div></div>';
+      });
+    } else if (st === 'supplies') {
+      h += '<div class="q">Top two shelves: how many does it need?</div>';
+      SUPPLIES.filter(i => parOf(i, g)).forEach(i => {
+        const v = cur.sup[i.k] || 0, par = parOf(i, g);
+        h += '<div class="it' + (v ? ' on' : '') + '"><div class="nm"><b>' + i.label + '</b><span>full is ' + par +
+             (i.sub ? ' &middot; ' + i.sub : '') + '</span></div>' +
+             '<div class="st"><button data-sk="' + i.k + '" data-d="-1">&minus;</button>' +
+             '<div class="v">' + v + '</div>' +
+             '<button data-sk="' + i.k + '" data-d="1">+</button></div></div>';
+      });
+    } else {
+      h += '<div class="q">One photo of the whole cabinet, doors open</div>';
+      if (cur.img)
+        h += '<img class="thumb" src="' + cur.img + '" alt=""><div class="clock" style="color:#1b7f3a">Photo taken ' + cur.pdt + ' s after the tap</div>';
+      else if (photoLeft() > 0)
+        h += '<label class="shot" id="cShot">Take photo<input type="file" accept="image/*" capture="environment" id="cFile"></label>' +
+             '<div class="clock" id="cClock">' + photoLeft() + ' s left to take the photo</div>';
+      else
+        h += '<button class="shot dead" id="cShot">Time ran out</button><div class="clock dead" id="cClock">' +
+             (cur.via === 'hand' ? 'Press the button to start the clock again.'
+                                 : 'Tap the cabinet tag again to take the photo.') + '</div>';
+    }
+  });
+  h += '<div class="row2">' + (steps.includes('provisions') || steps.includes('supplies') ? '<button id="cEmpty">Empty &mdash; needs all</button>' : '') +
+       '<button class="fl" id="cFlag">Problem</button></div>' +
+       (cur.flag ? '<div class="flagged">' + esc(cur.flag) + '</div><div style="height:8px"></div>' : '');
+  const n = needTotal(cur) + supTotal(cur), owed = steps.includes('photo') && !cur.img && !cur.flag;
+  h += '<button class="send' + (n || owed ? '' : ' zero') + '" id="cSend"' + (owed ? ' style="opacity:.45"' : '') + '>' +
+       (owed ? 'Photo first, then send' : n ? 'Send &mdash; ' + n + ' needed'
+             : steps.length === 1 && steps[0] === 'photo' ? 'Send photo' : 'Full &mdash; nothing needed') + '</button></div></div>';
+  document.body.insertAdjacentHTML('beforeend', h);
+  $('#ov .pane').scrollTop = was;
+
+  $('#ov').querySelectorAll('.st button').forEach(b => b.onclick = () => {
+    const k = b.dataset.k, sk = b.dataset.sk;
+    if (k) cur.need[k] = Math.max(0, Math.min(20, cur.need[k] + (+b.dataset.d)));
+    else { const it = SUPPLIES.find(i => i.k === sk);
+           cur.sup[sk] = Math.max(0, Math.min(parOf(it, cur.gate), (cur.sup[sk] || 0) + (+b.dataset.d))); }
+    drawCount();
+  });
+  const file = $('#cFile');
+  if (file) {
+    file.onclick = e => { if (photoLeft() <= 0) { e.preventDefault(); drawCount(); } };
+    file.onchange = async () => {
+      const f = file.files && file.files[0]; if (!f || !cur) return;
+      const at = Date.now();
+      try { cur.img = await readPhoto(f); cur.pdt = Math.round((at - cur.pt0) / 1000); cur.pt = at; }
+      catch(_) { toast("Couldn't read that photo. Try again."); }
+      if (cur) drawCount();
+    };
+  } else if ($('#cShot') && cur.via === 'hand') $('#cShot').onclick = () => { cur.pt0 = Date.now(); drawCount(); };
+  if ($('#cEmpty')) $('#cEmpty').onclick = () => {
+    if (cur.steps.includes('provisions')) ITEMS.forEach(i => cur.need[i.k] = parOf(i, cur.gate));
+    if (cur.steps.includes('supplies')) SUPPLIES.forEach(i => { if (parOf(i, cur.gate)) cur.sup[i.k] = parOf(i, cur.gate); });
+    drawCount();
+  };
+  $('#cFlag').onclick = pickFlag;
+  $('#cSend').onclick = () => { if (owed) { toast('Take the photo first, or press Problem if you can\u2019t'); return; } sendCount(); };
+  $('#cX').onclick = () => {
+    if (!confirm('Throw away the ' + cur.gate + ' visit? Nothing will be saved.')) return;
+    cur = null; closeOv();
+  };
+}
+// the photo countdown, ticking on whatever count sheet is open
+setInterval(() => {
+  const el = $('#cClock');
+  if (!cur || !el || cur.img || el.classList.contains('dead')) return;
+  const left = photoLeft();
+  if (left <= 0) drawCount(); else el.textContent = left + ' s left to take the photo';
+}, 500);
+
+function pickFlag(){
+  closeOv();
+  let h = '<div class="ov" id="ov"><div class="pane"><div class="ph"><b style="font-size:24px">' + cur.gate +
+          ' &mdash; problem</b><button class="x" id="fX">Back</button></div>' +
+          '<div class="pmeta">Saved with the visit so it can be fixed. The count still goes in.</div><div class="rsn">' +
+          FLAGS.map(f => '<button data-f="' + esc(f) + '">' + esc(f) + '</button>').join('') +
+          (cur.flag ? '<button data-f="" style="color:#1b7f3a">No problem</button>' : '') + '</div></div></div>';
+  document.body.insertAdjacentHTML('beforeend', h);
+  $('#fX').onclick = drawCount;
+  $('#ov').querySelectorAll('.rsn button').forEach(b => b.onclick = () => {
+    let f = b.dataset.f;
+    if (f === 'Other') { f = prompt('What is wrong with ' + cur.gate + '?') || ''; f = f.trim(); if (!f) return drawCount(); }
+    cur.flag = f || null;
+    drawCount();
+  });
+}
+function sendCount(){
+  const r = cur; cur = null; closeOv();
+  r.s = Date.now();
+  r.by = r.by || who || '';
+  r.n = needTotal(r);
+  r.sn = supTotal(r);
+  const img = r.img; delete r.img; delete r.pt0;
+  if (img) { r.photo = 1; queue2('photos/' + r.day + '/' + r.id, { gate: r.gate, t: r.pt || r.s, by: r.by, img }); }
+  else if (r.steps.includes('photo') && !r.flag) r.flag = 'No photo taken';
+  // the load is still owed: the visit stays open until the tag is tapped again
+  r.dbl = cfg.doubleTap && r.steps.includes('provisions') && r.n > 0 ? 1 : 0;
+  r.reqs.forEach(id => {
+    const q = reqs[id]; if (!q || (q.type === 'photo' && !img)) return;
+    q.done = { by: r.by, t: r.s, tap: r.id, day: r.day };
+    queue2('req/' + id + '/done', q.done);
+  });
+  try { localStorage.setItem('ct_req', JSON.stringify(reqs)); } catch(_) {}
+  if (r.day === DAY) { mine[r.id] = r; saveMine(); }
+  queue(r); flush();
+  toast(r.gate + ' sent &mdash; ' + (r.dbl ? 'load it, then tap the tag again' : (r.n + r.sn) ? (r.n + r.sn) + ' needed' : r.photo ? 'photo in' : 'full'), true);
+  render();
+}
+function closeOv(){ const o = $('#ov'); if (o) o.remove(); }
+
+function pickCabinet(title, sub, onPick){
+  closeOv();
+  const seen = new Set(recs().map(r => r.gate));
+  let h = '<div class="ov" id="ov"><div class="pane"><div class="ph"><b style="font-size:22px">' + title +
+          '</b><button class="x" id="pX">Close</button></div><div class="pmeta" style="margin-bottom:10px">' + sub + '</div>' +
+          '<div class="grid">' + CABS.map(g => '<button data-g="' + g + '" class="' + (seen.has(g) ? 'd' : '') + '">' + g + '</button>').join('') +
+          '</div></div></div>';
+  document.body.insertAdjacentHTML('beforeend', h);
+  $('#pX').onclick = closeOv;
+  $('#ov').querySelectorAll('.grid button').forEach(b => b.onclick = () => { closeOv(); onPick(b.dataset.g); });
+}
+
+/* ---- tag setup ----------------------------------------------------------------
+   Pick the cabinet, hold a blank tag to the phone. The cabinet's link is written
+   onto the tag (so a phone with the app closed still opens the right cabinet) and
+   the tag's serial number is saved, so even a tag that cannot be written works. */
+// What goes on the tag: the cabinet code in a record type only this app knows.
+// Deliberately not a web link. A passenger tapping a cabinet tag with their own
+// phone gets nothing, because nothing else understands the type.
+const TAG_TYPE = 'uge.com:cabinet';
+function tagsFor(g){ return Object.values(tagMap).filter(x => x && x.gate === g); }
+
+function drawHold(g, mode){
+  closeOv();
+  const head = mode === 'erase' ? 'Erase' : mode === 'check' ? 'Check' : g;
+  const line = mode === 'erase' ? 'Hold the sticker you want to wipe to the back of the phone. It is cleared and forgotten, ready for another cabinet.'
+             : mode === 'check' ? 'Hold any sticker to the back of the phone to see which cabinet it belongs to. Nothing is logged.'
+             : 'Hold the tag for this cabinet to the back of the phone.';
+  document.body.insertAdjacentHTML('beforeend',
+    '<div class="ov" id="ov"><div class="pane"><div class="hold"><b>' + head + '</b>' +
+    line + '<div class="pmeta" id="sMsg"></div></div>' +
+    '<button class="alt" id="sX">Cancel</button></div></div>');
+  $('#sX').onclick = () => {
+    if (NATIVE) window.Android.cancelWrite();
+    if (setup && setup.ctl) setup.ctl.abort();
+    setup = null; closeOv();
+  };
+}
+async function openSetup(g, mode){
+  mode = mode || 'write';
+  if (NATIVE) {
+    nfc = nativeNfc();
+    if (nfc !== 'on') { toast(nfc === 'disabled' ? 'Turn NFC on first' : 'This phone has no NFC reader'); render(); return; }
+    setup = { g, mode, wrote: null, serial: '', ctl: null };
+    drawHold(g, mode);
+    if (mode === 'write') window.Android.writeTag(g, lockNew, protNew);
+    else if (mode === 'erase') window.Android.eraseTag();
+    return;                                    // check mode just waits for a tap
+  }
+  if (nfc !== 'on') {
+    if (nfc === 'off' || nfc === 'err') await startScan();
+    if (nfc !== 'on') { showLink(g); return; }
+  }
+  const ctl = 'AbortController' in window ? new AbortController() : null;
+  setup = { g, mode, wrote: null, serial: '', ctl };
+  drawHold(g, mode);
+  if (mode === 'check') return;
+  try {
+    await reader.write({ records: mode === 'erase' ? [{ recordType: 'empty' }]
+                                  : [{ recordType: TAG_TYPE, data: new TextEncoder().encode(g) }] },
+                       ctl ? { signal: ctl.signal } : {});
+    if (!setup || setup.g !== g) return;
+    setup.wrote = true;
+    if (setup.serial) finishSetup(); else setTimeout(() => { if (setup && setup.g === g) finishSetup(); }, 1500);
+  } catch(e) {
+    if (!setup || setup.g !== g || (e && e.name === 'AbortError')) return;
+    setup.wrote = false;
+    if (setup.serial) finishSetup();
+    else { const m = $('#sMsg'); if (m) m.textContent = "Couldn't write that tag (" + ((e && e.message) || e) + '). Tap it again to save it by its serial number.'; }
+  }
+}
+function forgetSerial(serial){
+  const k = keyOf(serial);
+  delete tagMap[k]; saveTags();
+  if (db) { try { db.ref(ROOT + '/tags/' + k).remove(); } catch(_) {} }
+}
+function forgetCabinet(g){
+  Object.values(tagMap).filter(x => x && x.gate === g && x.serial).forEach(x => forgetSerial(x.serial));
+}
+function saveSerial(serial, g){
+  tagMap[keyOf(serial)] = { gate: g, serial, t: Date.now(), by: who || '', local: 1 };
+  saveTags();
+  if (db) { try { db.ref(ROOT + '/tags/' + keyOf(serial)).set({ gate: g, serial, t: Date.now(), by: who || '' }); } catch(_) {} }
+}
+function setupSaw(serial, gateOnTag, gateOnRecord){
+  if (!setup) return;
+  if (setup.mode === 'check') { showWhat(serial, gateOnTag, gateOnRecord); return; }
+  if (!serial) return;
+  setup.serial = serial;
+  if (setup.mode === 'erase') return;          // the erase result arrives on its own
+  saveSerial(serial, setup.g);
+  if (setup.wrote !== null) finishSetup();
+  else { const g = setup.g; setTimeout(() => { if (setup && setup.g === g) { if (setup.ctl) setup.ctl.abort(); finishSetup(); } }, 3000); }
+}
+function finishSetup(){
+  const s = setup; setup = null; closeOv();
+  quietUntil = Date.now() + 2500;          // the same touch must not also open a count
+  if (s.mode === 'erase') {
+    if (s.wrote && s.serial) forgetSerial(s.serial);
+    if (s.wrote) toast('Tag erased', true);
+    else showProblem('Could not erase that tag', s.err);
+  } else if (!s.wrote && s.err) {
+    showProblem(s.g + ' tag not written', s.err +
+      (s.serial ? ' The tag is still remembered by its serial number, so a tap on it still works.' : ''));
+  } else {
+    toast(s.g + ' tag ' + (s.wrote ? 'written' : 'saved') +
+          (s.wrote ? (s.prot ? ', password set' : lockNew ? ', locked read-only' : ', no password') : '') +
+          (s.serial ? '' : ' (no serial)'), true);
+  }
+  render();
+}
+// A failed write or erase is worth a full sheet, not a toast that vanishes: the
+// reason is what tells you whether to try again or bin the sticker.
+function showProblem(head, why){
+  closeOv();
+  document.body.insertAdjacentHTML('beforeend',
+    '<div class="ov" id="ov"><div class="pane"><div class="hold">' +
+    '<b style="color:#b71c1c;font-size:23px">' + esc(head) + '</b>' +
+    esc(why || 'The phone did not say why.') +
+    '<div class="pmeta">Read-only tags can never be changed. A tag with a different password, or one that ' +
+    'is not an NTAG213/215/216, cannot be written by this app either.</div></div>' +
+    '<button class="alt" id="pX">Close</button></div></div>');
+  $('#pX').onclick = closeOv;
+}
+// Check mode: say which cabinet a sticker is, without logging a visit
+function showWhat(serial, gateOnTag, gateOnRecord){
+  setup = null; closeOv();
+  quietUntil = Date.now() + 2500;
+  const g = gateOnTag || gateOnRecord;
+  const clash = gateOnTag && gateOnRecord && gateOnTag !== gateOnRecord
+    ? 'The tag says ' + gateOnTag + ' but our record says ' + gateOnRecord + '.' : '';
+  document.body.insertAdjacentHTML('beforeend',
+    '<div class="ov" id="ov"><div class="pane"><div class="hold"><b>' + (g || 'Not set up') + '</b>' +
+    (g ? 'This tag belongs to ' + g + '.' : 'This tag is not set up for any cabinet.') +
+    '<div class="pmeta">' + (serial ? 'Serial ' + esc(serial) : 'No serial number') +
+    (clash ? '<br><b style="color:#b71c1c">' + clash + '</b>' : '') + '</div></div>' +
+    '<button class="alt" id="kX">Close</button></div></div>');
+  $('#kX').onclick = closeOv;
+  render();
+}
+function showLink(g){
+  closeOv();
+  document.body.insertAdjacentHTML('beforeend',
+    '<div class="ov" id="ov"><div class="pane"><div class="ph"><b>' + g + '</b><button class="x" id="lX">Close</button></div>' +
+    '<div class="pmeta">This browser can\'t write NFC tags. Write them from the app on the Sonim, or with an NFC ' +
+    'writer app add one record of this type holding this text:</div><div class="link">' + esc(TAG_TYPE) + '<br>' + g + '</div>' +
+    '<button class="alt" id="lX2">Close</button></div></div>');
+  $('#lX').onclick = closeOv;
+  $('#lX2').onclick = closeOv;
+}
+
+/* ---- render -------------------------------------------------------------------- */
+function render(){
+  const d = dayOf(Date.now());
+  if (d !== DAY) { DAY = d; server = {}; loadMine(); listenDay(); }
+  $('#who').textContent = who ? who + (dutyValid() ? ' \u00b7 ' + dutyLabel(duty.duty) : '') : 'sign in';
+  if (updateReady && !cur && !setup && !$('#ov')) { updateReady = false; location.reload(); return; }
+  if (!ready() && !cur && !setup && !$('#start')) showStart();
+  if (admin && !adminValid()) admin = false;
+  $('#navTags').hidden = !admin;
+  if (!admin && !$('#tab-tags').classList.contains('hide')) showTab('walk');
+  paintSync(); renderWalk(); renderToday(); renderTags();
+}
+
+function rowRec(r, pend){
+  return '<div class="r"><div class="code">' + r.gate + '</div><div class="mid">' +
+    '<div class="t">' + hhmm(r.t) + ' &middot; ' + (r.via === 'tag' ? 'tag' : r.via === 'link' ? 'tag link' : 'by hand') +
+      (r.s ? ' &middot; ' + dur(r.s - r.t) + ' to send' : '') + (pend.has(r.id) ? ' &middot; sending' : '') + '</div>' +
+    '<div class="nd">' + needText(r) + '<span class="tagd">' + dutyLabel(r.duty) + '</span></div>' +
+    (r.dbl ? '<div class="t">' + (r.f ? 'filled ' + dur(r.f - (r.s || r.t)) + ' later' + (r.fvia === 'hand' ? ', by hand' : '') + (r.short ? ', short' : '')
+                                     : 'waiting for the second tap') + '</div>' : '') +
+    (r.flag ? '<div class="bw">' + esc(r.flag) + '</div>' : '') +
+    '</div><span class="sh ' + r.shift.toLowerCase() + '">' + r.shift + '</span></div>';
+}
+
+function renderWalk(){
+  let h = '';
+  if (nfc === 'on')
+    h += '<div class="card ready"><div class="dot"></div><div><b>Ready</b><span>Hold the back of the phone to a cabinet tag</span></div></div>';
+  else if (nfc === 'off')
+    h += '<button class="big" id="btnScan">Start scanning</button>' +
+         '<div class="note">Turns the tag reader on. It stays on while this screen is open.</div>';
+  else if (nfc === 'none')
+    h += '<div class="card warn"><b>Practice mode.</b> ' +
+         (NATIVE ? 'This phone has no NFC reader.'
+                 : 'This browser can\'t read NFC tags &mdash; that needs the app, or Chrome on an Android phone with NFC.') +
+         ' Use <b>Log without a tag</b> to try the same steps.</div>';
+  else if (nfc === 'disabled')
+    h += '<div class="card warn"><b>NFC is turned off on this phone.</b> Turn it on to read cabinet tags.</div>' +
+         '<button class="big" id="btnNfcSet">Open NFC settings</button>';
+  else if (nfc === 'denied')
+    h += '<div class="card warn"><b>NFC is blocked for this page.</b> Allow NFC for this site in Chrome settings, then try again.</div>' +
+         '<button class="big" id="btnScan">Try again</button>';
+  else
+    h += '<div class="card warn"><b>The tag reader did not start.</b> ' + esc(nfcErr) +
+         '<br>Check that NFC is turned on in the phone settings.</div><button class="big" id="btnScan">Try again</button>';
+  h += '<button class="alt" id="btnHand">Log without a tag</button>';
+
+  const now = Date.now();
+  const open = allOpen().filter(r => r.by === who).sort((a, b) => a.t - b.t);
+  if (open.length) {
+    h += '<div class="hdr">Still open &mdash; tap again after loading</div>';
+    open.forEach(r => {
+      const m = Math.floor((now - (r.s || r.t)) / 60000);
+      h += '<div class="r open' + (m >= cfg.redMin ? ' rd' : m >= cfg.yellowMin ? ' y' : '') + '" data-o="' + r.id + '">' +
+           '<div class="code">' + r.gate + '</div><div class="mid"><div class="nd">' + needText(r) + '</div>' +
+           '<div class="t">counted ' + hhmm(r.t) + '</div></div><div class="age">' + m + ' min</div></div>';
+    });
+  }
+  const asked = Object.values(reqs).filter(activeReq).sort((a, b) => a.t - b.t);
+  if (asked.length) {
+    h += '<div class="hdr">Asked for by a supervisor</div>';
+    asked.forEach(r => {
+      h += '<div class="r rq"><div class="code">' + r.gate + '</div><div class="mid"><div class="nd">' + dutyLabel(r.type) + '</div>' +
+           '<div class="t">' + esc(r.by || 'supervisor') + ' at ' + hhmm(r.t) + ' &middot; whoever taps ' + r.gate + ' next does it</div></div></div>';
+    });
+  }
+  const pend = new Set(getQ().map(x => x.id));
+  const list = recs().filter(r => !who || r.by === who).reverse();
+  h += '<div class="hdr">' + (who ? 'My cabinets today' : 'Cabinets today') + ' &mdash; ' + list.length + '</div>';
+  h += list.length ? list.slice(0, 60).map(r => rowRec(r, pend)).join('')
+                   : '<div class="empty">Nothing yet.<br>Tap a cabinet tag and the app asks for what your duty needs.</div>';
+  $('#tab-walk').innerHTML = h;
+}
+
+function renderToday(){
+  const all = recs();
+  let h = '';
+  if (!all.length) { $('#tab-today').innerHTML = '<div class="empty">No cabinet visits yet today.</div>'; return; }
+
+  const visited = new Set(all.map(r => r.gate));
+  const sends = all.filter(r => r.s).map(r => r.s - r.t);
+  // time between visits to the same cabinet
+  const byGate = {};
+  all.forEach(r => (byGate[r.gate] = byGate[r.gate] || []).push(r));
+  const gaps = [];
+  for (const g in byGate) for (let i = 1; i < byGate[g].length; i++) gaps.push(byGate[g][i].t - byGate[g][i-1].t);
+  // walk from one cabinet to the next, same runner, breaks over 45 min left out
+  const byWho = {};
+  all.forEach(r => (byWho[r.by || '(no name)'] = byWho[r.by || '(no name)'] || []).push(r));
+  const walks = [], walkBy = {};
+  for (const w in byWho) {
+    walkBy[w] = [];
+    for (let i = 1; i < byWho[w].length; i++) {
+      const a = byWho[w][i-1], b = byWho[w][i], ms = b.t - (a.s || a.t);
+      if (ms > 0 && ms < 45 * 60000) { walks.push(ms); walkBy[w].push(ms); }
+    }
+  }
+  const hand = all.filter(r => r.via === 'hand').length;
+
+  h += '<div class="stats">' +
+    '<div><b>' + all.length + '</b><span>visits</span></div>' +
+    '<div><b>' + visited.size + ' / ' + CABS.length + '</b><span>cabinets visited</span></div>' +
+    '<div><b>' + dur(median(sends)) + '</b><span>tap to send (walk back)</span></div>' +
+    '<div><b>' + dur(median(walks)) + '</b><span>cabinet to cabinet</span></div>' +
+    '<div><b>' + dur(median(gaps)) + '</b><span>between visits, same cabinet</span></div>' +
+    '<div><b>' + (all.length - hand) + ' / ' + all.length + '</b><span>proved by tag</span></div>' +
+    '</div><div class="note">Times are medians, so one long break does not drag the average.</div>';
+
+  // needed, by shift
+  const sh = ['AM','PM','OVN'];
+  h += '<div class="hdr">Needed today</div><table><tr><th class="l">Item</th>' +
+       sh.map(s => '<th class="' + s.toLowerCase() + '">' + s + '</th>').join('') + '<th>Per visit</th></tr>';
+  ITEMS.forEach(i => {
+    const tot = sh.map(s => all.filter(r => r.shift === s).reduce((a, r) => a + ((r.need||{})[i.k]||0), 0));
+    const sum = tot.reduce((a, b) => a + b, 0);
+    h += '<tr><td class="l">' + i.label + '</td>' + tot.map(v => '<td>' + (v || '&ndash;') + '</td>').join('') +
+         '<td><b>' + (sum / all.length).toFixed(1) + '</b></td></tr>';
+  });
+  const vis = sh.map(s => all.filter(r => r.shift === s).length);
+  h += '<tr><td class="l" style="color:#5b6377">Visits</td>' + vis.map(v => '<td style="color:#5b6377">' + (v || '&ndash;') + '</td>').join('') + '<td></td></tr></table>';
+
+  // cabinets
+  const now = Date.now();
+  h += '<div class="hdr">By cabinet</div><table><tr><th class="l">Cab</th><th>Visits</th><th>Last</th><th>Needed</th><th>Every</th></tr>';
+  CABS.forEach(g => {
+    const list = byGate[g] || [];
+    if (!list.length) { h += '<tr class="none"><td class="l" style="color:#a3a9b8">' + g + '</td><td>0</td><td>&ndash;</td><td>&ndash;</td><td>&ndash;</td></tr>'; return; }
+    const last = list[list.length - 1];
+    const gg = []; for (let i = 1; i < list.length; i++) gg.push(list[i].t - list[i-1].t);
+    const late = now - last.t > 3 * 3600000;
+    const flag = list.some(r => r.flag);
+    h += '<tr class="' + (late ? 'late' : '') + '"><td class="l">' + g + (flag ? ' <span style="color:#b71c1c">!</span>' : '') + '</td>' +
+         '<td>' + list.length + '</td><td>' + hhmm(last.t) + '</td>' +
+         '<td>' + list.reduce((a, r) => a + needTotal(r), 0) + '</td><td>' + (gg.length ? dur(median(gg)) : '&ndash;') + '</td></tr>';
+  });
+  h += '</table><div class="note">Shaded: no visit in the last 3 hours. <span style="color:#b71c1c">!</span> a problem was flagged.</div>';
+
+  // runners
+  h += '<div class="hdr">Runners</div><table><tr><th class="l">Runner</th><th>Visits</th><th>By tag</th><th>Cab to cab</th></tr>';
+  Object.keys(byWho).sort().forEach(w => {
+    const l = byWho[w];
+    h += '<tr><td class="l">' + esc(w) + '</td><td>' + l.length + '</td><td>' + l.filter(r => r.via !== 'hand').length +
+         '</td><td>' + dur(median(walkBy[w])) + '</td></tr>';
+  });
+  h += '</table>';
+
+  const flags = all.filter(r => r.flag);
+  if (flags.length)
+    h += '<div class="hdr">Problems</div>' + flags.slice().reverse().map(r =>
+      '<div class="r"><div class="code">' + r.gate + '</div><div class="mid"><div class="t">' + hhmm(r.t) +
+      (r.by ? ' &middot; ' + esc(r.by) : '') + '</div><div class="bw">' + esc(r.flag) + '</div></div></div>').join('');
+
+  h += '<div style="height:12px"></div><button class="alt" id="btnCsv">Download today as CSV</button>';
+  $('#tab-today').innerHTML = h;
+}
+
+function renderTags(){
+  const setN = CABS.filter(g => tagsFor(g).length).length;
+  let h = '<div class="card">' +
+    (nfc === 'none' ? 'This browser can\'t write tags. On the Sonim, tap a cabinet below and hold a blank tag to the phone. ' +
+                      'Tapping a cabinet here shows the link to write with another NFC app.'
+                    : 'Tap a cabinet, then hold a blank tag to the back of the phone. The app writes the cabinet onto the tag ' +
+                      'and remembers it. Stick the tag inside the cabinet door.') +
+    '</div><button class="alt" id="tCheck">Check a tag</button>' +
+    '<button class="alt" id="tErase">Erase a tag for re-use</button>' +
+    '<div class="hdr">' + setN + ' of ' + CABS.length + ' cabinets have a tag</div><div class="grid">';
+  CABS.forEach(g => { const n = tagsFor(g).length;
+    h += '<button data-g="' + g + '" class="' + (n ? 'set' : '') + '">' + g + '<small>' + (n ? 'tag set' : 'no tag') + '</small></button>'; });
+  h += '</div><label class="card" style="display:flex;gap:10px;align-items:center">' +
+       '<input type="checkbox" id="tProt" style="width:22px;height:22px;flex:none"' + (protNew ? ' checked' : '') + '>' +
+       '<span>Password protect each tag. Anyone can still read it, but only this app can change or erase it. ' +
+       'Needs NTAG213, 215 or 216 stickers.</span></label>' +
+       '<label class="card" style="display:flex;gap:10px;align-items:center">' +
+       '<input type="checkbox" id="tLock" style="width:22px;height:22px;flex:none"' + (lockNew ? ' checked' : '') + '>' +
+       '<span><b>Read-only \u2014 permanent.</b> The sticker can never be erased or moved to another cabinet ' +
+       'afterwards. Password protection is the safer choice.</span></label>' +
+       '<button class="alt" id="tOff">Lock admin mode</button>' +
+       '<div class="note">Admin stays unlocked for ' + ADMIN_MINS + ' minutes. Five taps on the title unlocks it again.</div>';
+  $('#tab-tags').innerHTML = h;
+}
+
+/* ---- CSV ------------------------------------------------------------------------- */
+function csv(){
+  const q = s => { s = String(s == null ? '' : s); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  const rows = [['day','cabinet','tapped','sent','seconds_to_send','shift','runner','duty','via','tag','problem',
+    'filled','minutes_to_fill','filled_via','photo', ...ITEMS.map(i => i.label), ...SUPPLIES.map(i => i.label)].join(',')];
+  recs().forEach(r => rows.push([r.day, r.gate, new Date(r.t).toISOString(), r.s ? new Date(r.s).toISOString() : '',
+    r.s ? Math.round((r.s - r.t)/1000) : '', r.shift, q(r.by), r.duty || 'provisions', r.via, q(r.tag), q(r.flag),
+    r.f ? new Date(r.f).toISOString() : (r.dbl ? 'open' : ''), r.f ? Math.round((r.f - (r.s || r.t))/60000) : '', r.fvia || '',
+    r.photo ? 'yes' : '', ...ITEMS.map(i => (r.need||{})[i.k] || 0), ...SUPPLIES.map(i => (r.sup||{})[i.k] || 0)].join(',')));
+  const text = rows.join('\n'), name = 'cabinet-taps-' + DAY + '.csv';
+  if (NATIVE && window.Android.shareFile) { window.Android.shareFile(text, name, 'text/csv'); return; }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type: 'text/csv' }));
+  a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+/* ---- wiring ---------------------------------------------------------------------- */
+let toastT = null;
+function toast(msg, ok){
+  const t = $('#toast');
+  t.innerHTML = msg; t.className = 'toast' + (ok ? ' ok' : '');
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.add('hide'), 2200);
+}
+function showTab(name){
+  document.querySelectorAll('nav button').forEach(x => x.classList.toggle('on', x.dataset.t === name));
+  ['walk','today','tags'].forEach(t => $('#tab-' + t).classList.toggle('hide', t !== name));
+}
+document.querySelector('nav').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  showTab(b.dataset.t);
+};
+function setAdmin(on){
+  admin = on;
+  if (on) localStorage.setItem('ct_admin', String(Date.now())); else localStorage.removeItem('ct_admin');
+  render();
+  showTab(on ? 'tags' : 'walk');
+  toast(on ? 'Admin mode on' : 'Admin locked', on);
+}
+// five taps on the title, then the PIN, and the Tags tab appears
+let titleTaps = [];
+document.querySelector('header h1').onclick = () => {
+  const now = Date.now();
+  titleTaps = titleTaps.filter(t => now - t < 3000);
+  titleTaps.push(now);
+  if (titleTaps.length < 5) return;
+  titleTaps = [];
+  if (admin) { setAdmin(false); return; }
+  const v = prompt('Admin PIN');
+  if (v === null) return;
+  if (v.trim() === ADMIN_PIN) setAdmin(true); else toast('Wrong PIN');
+};
+$('#who').onclick = showStart;
+$('#tab-walk').onclick = e => {
+  const o = e.target.closest('[data-o]'); if (o) { openActions(o.dataset.o); return; }
+  if (e.target.closest('#btnScan')) startScan();
+  if (e.target.closest('#btnNfcSet') && NATIVE) window.Android.openNfcSettings();
+  if (e.target.closest('#btnHand'))
+    pickCabinet('Which cabinet?', 'No tag, so this visit is marked by hand.', g => onGate(g, 'hand', null, Date.now()));
+};
+$('#tab-today').onclick = e => { if (e.target.closest('#btnCsv')) csv(); };
+$('#tab-tags').onclick = e => {
+  // read-only and password are alternatives: a locked tag can never be changed again
+  if (e.target.id === 'tLock') {
+    // one-way: the chip's lock bits cannot be cleared by us or by anyone else
+    if (e.target.checked && !confirm('Read-only is permanent.\n\nA tag written this way can never be erased, ' +
+        'reassigned or fixed by any app, ever. Password protection keeps other people out and can still be undone.' +
+        '\n\nTurn read-only on anyway?')) { e.target.checked = false; return; }
+    lockNew = e.target.checked; if (lockNew) protNew = false; renderTags(); return;
+  }
+  if (e.target.id === 'tProt') { protNew = e.target.checked; if (protNew) lockNew = false; renderTags(); return; }
+  if (e.target.closest('#tOff')) { setAdmin(false); return; }
+  if (e.target.closest('#tCheck')) { openSetup('', 'check'); return; }
+  if (e.target.closest('#tErase')) { openSetup('', 'erase'); return; }
+  const b = e.target.closest('button[data-g]');
+  if (b) { if (tagsFor(b.dataset.g).length) tagActions(b.dataset.g); else openSetup(b.dataset.g, 'write'); }
+};
+// a cabinet that already has a tag: add a second one, or drop what we have on record
+function tagActions(g){
+  closeOv();
+  const n = tagsFor(g).length;
+  document.body.insertAdjacentHTML('beforeend',
+    '<div class="ov" id="ov"><div class="pane"><div class="ph"><b>' + g + '</b>' +
+    '<button class="x" id="aX">Close</button></div>' +
+    '<div class="pmeta" style="margin-bottom:12px">' + n + ' tag' + (n === 1 ? '' : 's') + ' on record for this cabinet.</div>' +
+    '<button class="alt" id="aAdd">Write another tag for ' + g + '</button>' +
+    '<button class="alt" id="aForget" style="color:#b71c1c;border-color:#b71c1c">Forget ' + g + '\u2019s tags</button>' +
+    '<div class="note">Forgetting clears our record only. To wipe the sticker itself, use <b>Erase a tag</b>.</div>' +
+    '</div></div>');
+  $('#aX').onclick = closeOv;
+  $('#aAdd').onclick = () => { closeOv(); openSetup(g, 'write'); };
+  $('#aForget').onclick = () => {
+    if (!confirm('Forget the tags on record for ' + g + '?')) return;
+    forgetCabinet(g); closeOv(); toast(g + ' tags forgotten'); render();
+  };
+}
+
+loadMine();
+render();
+initFB();
+setInterval(flush, 15000);
+setInterval(render, 60000);
+
+// A tag read while the app was closed opens the page with ?c=B24. Log it, then
+// strip the link so a reload does not log the same visit again.
+(() => {
+  const g = parseGate(location.search);
+  if (!g) return;
+  history.replaceState(null, '', location.pathname);
+  onGate(g, 'link', null, Date.now());
+})();
+</script>
+</body></html>

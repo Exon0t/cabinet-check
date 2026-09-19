@@ -6,12 +6,13 @@
 <title>Cabinet Compliance</title>
 <style>
 :root{--navy:#1a237e;--navy2:#283593;--ink:#1f2330;--mut:#5b6377;--line:#d7dbe8;
-  --bg:#eef0f5;--card:#fff;--red:#b71c1c;--amber:#e07800;--green:#1b7f3a;
+  --bg:#eef0f5;--card:#fff;--red:#b71c1c;--amber:#e07800;--yel:#a07800;--green:#1b7f3a;
   --am:#1565c0;--pm:#6a1b9a;--ovn:#00796b}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Segoe UI',system-ui,-apple-system,Arial,sans-serif;font-size:13px;
   color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased}
 button,select,input{font:inherit;color:inherit}
+.hide{display:none!important}
 
 header{background:var(--navy);color:#fff;padding:11px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 header h1{font-size:16px;font-weight:700;letter-spacing:.5px}
@@ -28,12 +29,24 @@ header .sub{font-size:11px;color:#b6bde0;letter-spacing:.3px}
 .pill{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:20px;background:rgba(255,255,255,.16);
   text-transform:uppercase;letter-spacing:.6px}
 .pill.off{background:#8c2f2f}
+.pages{background:var(--navy2);display:flex;padding:0 14px}
+.pages a{color:#b6bde0;text-decoration:none;font-size:12px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;
+  padding:9px 15px}
+.pages a.on{color:#fff;box-shadow:inset 0 -3px 0 #fff}
+.pages a em{font-style:normal;background:#fff;color:var(--navy);border-radius:10px;padding:0 6px;margin-left:6px;font-size:10.5px}
 .demo{background:#7a1f1f;color:#fff;text-align:center;padding:7px 14px;font-size:12.5px;font-weight:600}
 .demo b{letter-spacing:.5px}
 .demo button{background:#fff;color:#7a1f1f;border:0;border-radius:6px;padding:3px 10px;
   font-weight:700;margin-left:10px;cursor:pointer}
 
 main{padding:14px 18px 40px;max-width:1500px;margin:0 auto}
+.strip{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.strip div{background:var(--card);border:1px solid var(--line);border-left:5px solid var(--green);border-radius:9px;
+  padding:7px 13px;font-size:12.5px}
+.strip div b{font-size:16px;margin-right:6px;font-variant-numeric:tabular-nums}
+.strip div.y{border-left-color:#e0b000;background:#fffbea}
+.strip div.a{border-left-color:var(--amber);background:#fff8e6}
+.strip div.r{border-left-color:var(--red);background:#fdf3f3}
 .kpi{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:14px}
 .kpi div{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:11px 13px}
 .kpi b{display:block;font-size:26px;line-height:1.15;color:var(--navy);font-variant-numeric:tabular-nums}
@@ -49,7 +62,8 @@ main{padding:14px 18px 40px;max-width:1500px;margin:0 auto}
 
 .map{display:flex;flex-wrap:wrap;gap:5px}
 .cab{width:62px;border-radius:8px;border:1px solid var(--line);background:#fff;padding:6px 4px;
-  text-align:center;cursor:default}
+  text-align:center;cursor:pointer;position:relative}
+.cab:hover{outline:2px solid var(--navy)}
 .cab b{display:block;font-size:13px;font-weight:700;color:var(--navy)}
 .cab span{font-size:10px;color:var(--mut)}
 .cab.ok{background:#f2fbf5;border-color:#9ed4b0} .cab.ok b{color:var(--green)}
@@ -57,6 +71,8 @@ main{padding:14px 18px 40px;max-width:1500px;margin:0 auto}
 .cab.late{background:#fdecec;border-color:#e0a0a0} .cab.late b{color:var(--red)}
 .cab.never{background:#f2f3f7;border-color:var(--line)} .cab.never b{color:#a3a9b8}
 .cab.flag{box-shadow:inset 0 -3px 0 var(--red)}
+.cab.lo{border-top:4px solid var(--green)} .cab.ly{border-top:4px solid #e0b000} .cab.lr{border-top:4px solid var(--red)}
+.cab.rq::after{content:'';position:absolute;top:3px;right:3px;width:9px;height:9px;border-radius:50%;background:var(--amber)}
 .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:11px;font-size:11.5px;color:var(--mut)}
 .legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px;border:1px solid var(--line)}
 
@@ -72,11 +88,16 @@ tr.never td{color:#a3a9b8}
 .scroll{max-height:460px;overflow-y:auto}
 .sh{font-size:9.5px;font-weight:700;padding:2px 6px;border-radius:20px;color:#fff;letter-spacing:.4px}
 .sh.am{background:var(--am)}.sh.pm{background:var(--pm)}.sh.ovn{background:var(--ovn)}
-.att{display:flex;gap:9px;padding:9px 0;border-bottom:1px solid #eceff6;align-items:baseline}
+.dt{font-size:9.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--mut);
+  border:1px solid var(--line);border-radius:10px;padding:1px 6px;white-space:nowrap}
+.ld{font-weight:700;white-space:nowrap}
+.ld.done{color:var(--green);font-weight:400}.ld.open{color:var(--mut)}.ld.yellow{color:var(--yel)}.ld.red{color:var(--red)}
+.att{display:flex;gap:9px;padding:9px 0;border-bottom:1px solid #eceff6;align-items:baseline;cursor:pointer}
 .att:last-child{border-bottom:0}
 .att b{font-size:14px;color:var(--navy);min-width:44px}
 .att .why{flex:1;font-size:12px}
 .att .why.red{color:var(--red);font-weight:600}
+.att .why.amb{color:var(--amber);font-weight:600}
 .att .when{font-size:11px;color:var(--mut)}
 .none{color:var(--mut);padding:16px 2px;text-align:center}
 .foot{font-size:11.5px;color:var(--mut);line-height:1.6;margin-top:6px}
@@ -85,17 +106,50 @@ tr.never td{color:#a3a9b8}
 .bar i.warn{background:var(--amber)} .bar i.bad{background:var(--red)}
 .act{background:var(--navy);color:#fff;border:0;border-radius:8px;padding:7px 13px;cursor:pointer;font-size:12.5px}
 .act.alt{background:#fff;color:var(--navy);border:1.5px solid var(--navy)}
+.act.sm{padding:3px 9px;font-size:11.5px}
 tr.pick{cursor:pointer}
 tr.pick:hover td{background:#f4f6fc}
 tr.sel td{background:#eef1fb}
 tr.sel td.l b{text-decoration:underline}
 .plog{border-top:1px solid var(--line)}
-.plog .ph{display:flex;align-items:center;gap:10px;padding:11px 13px;background:#f6f7fb;border-bottom:1px solid var(--line)}
+.plog .ph{display:flex;align-items:center;gap:10px;padding:11px 13px;background:#f6f7fb;border-bottom:1px solid var(--line);flex-wrap:wrap}
 .plog h3{font-size:14px;color:var(--navy)}
 .plog .ph span{color:var(--mut);font-size:12px}
-.plog .ph button{margin-left:auto}
+.plog .ph .sp{margin-left:auto}
+.plog select{border:1.5px solid var(--line);border-radius:7px;padding:4px 7px;background:#fff}
 tr.gap td{background:#fff8e6}
 .gp{font-size:9.5px;font-weight:700;color:var(--amber);border:1px solid #e8c86a;border-radius:10px;padding:0 5px;margin-left:4px}
+.set{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:12.5px}
+.set select{border:1.5px solid var(--line);border-radius:7px;padding:3px 6px;background:#fff;margin-left:auto}
+.set input{width:17px;height:17px;margin-left:auto}
+
+/* one cabinet, opened from the map or the table */
+#drawer{position:fixed;top:0;right:0;bottom:0;width:430px;max-width:100%;background:#fff;border-left:1px solid var(--line);
+  box-shadow:-8px 0 24px rgba(18,22,40,.18);z-index:60;overflow-y:auto}
+#drawer .dh{background:var(--navy);color:#fff;padding:14px 16px;display:flex;align-items:baseline;gap:10px;position:sticky;top:0}
+#drawer .dh b{font-size:26px}
+#drawer .dh span{font-size:12px;color:#c5cbe8}
+#drawer .dh button{margin-left:auto;background:rgba(255,255,255,.16);border:0;color:#fff;border-radius:7px;padding:5px 11px;cursor:pointer}
+#drawer .db{padding:14px 16px}
+#drawer h4{font-size:10.5px;text-transform:uppercase;letter-spacing:1px;color:var(--mut);margin:16px 0 7px}
+#drawer h4:first-child{margin-top:0}
+.ask{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.ask button{padding:10px 4px;border:1.5px solid var(--navy);background:#fff;color:var(--navy);border-radius:9px;
+  font-weight:700;cursor:pointer;font-size:12.5px}
+.ask button:hover{background:#eef1fb}
+.ask button:disabled{border-color:var(--line);color:#a3a9b8;cursor:default;background:#f6f7fb}
+.rqrow{display:flex;gap:8px;align-items:baseline;padding:7px 0;border-bottom:1px solid #eceff6;font-size:12.5px}
+.rqrow b{color:var(--amber)} .rqrow.dn b{color:var(--green)} .rqrow.ex b{color:#a3a9b8}
+.rqrow span{flex:1;color:var(--mut)}
+.vis{border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin-bottom:7px}
+.vis .top{display:flex;gap:8px;align-items:center;font-size:12.5px}
+.vis .top b{font-size:14px;color:var(--navy)}
+.vis .top .sp{margin-left:auto}
+.vis .nd{margin-top:4px;font-size:12.5px}
+.vis .pb{color:var(--red);font-weight:600;margin-top:3px}
+.vis img{display:block;width:100%;border-radius:8px;margin-top:8px;border:1px solid var(--line);background:#f6f7fb;min-height:60px}
+.vis .cap{font-size:11px;color:var(--mut);margin-top:3px}
+
 @media(max-width:1100px){.kpi{grid-template-columns:repeat(3,1fr)}.cols{grid-template-columns:1fr}}
 #gate{position:fixed;inset:0;background:var(--bg);z-index:100;display:flex;align-items:center;justify-content:center}
 #gate form{background:#fff;border:1px solid var(--line);border-radius:12px;padding:26px 28px;width:320px;text-align:center}
@@ -125,42 +179,70 @@ tr.gap td{background:#fff8e6}
     <div class="nav"><button id="prev">&lsaquo;</button><input type="date" id="day"><button id="next">&rsaquo;</button></div>
     <label for="shift">Shift</label>
     <select id="shift"><option value="">All</option><option>AM</option><option>PM</option><option>OVN</option></select>
+    <label for="dutyF">Duty</label>
+    <select id="dutyF"><option value="">All</option><option value="provisions">Provisions</option>
+      <option value="supplies">Supplies</option><option value="photo">Photo check</option></select>
     <label for="due">Due every</label>
     <select id="due"><option value="2">2 h</option><option value="3" selected>3 h</option><option value="4">4 h</option></select>
     <button class="act alt" id="csv">CSV</button>
   </div>
 </header>
+<nav class="pages" id="pages">
+  <a href="#cabinets" data-p="cabinets">Cabinets</a>
+  <a href="#people" data-p="people">People</a>
+  <a href="#users" data-p="users">Users</a>
+  <a href="#tags" data-p="tags">Tags</a>
+</nav>
 <div class="demo" id="demoBar" hidden>
-  <b>DEMO DATA</b> &mdash; made up, so the board can be seen before the tags go on.
+  <b>DEMO DATA</b> &mdash; made up, so the board can be seen before the tags go on. Nothing you click here is saved.
   <button id="demoOff">Show real data</button>
 </div>
 
 <main>
-  <div class="kpi" id="kpi"></div>
-  <div class="cols">
-    <div>
-      <div class="panel"><h2>Every cabinet, B7 to B61</h2><div class="body">
-        <div class="map" id="map"></div>
-        <div class="legend">
-          <span><i style="background:#f2fbf5;border-color:#9ed4b0"></i>done recently</span>
-          <span><i style="background:#fff8e6;border-color:#e8c86a"></i>due</span>
-          <span><i style="background:#fdecec;border-color:#e0a0a0"></i>overdue</span>
-          <span><i style="background:#f2f3f7"></i>not visited</span>
-          <span><i style="box-shadow:inset 0 -3px 0 #b71c1c"></i>problem flagged</span>
-        </div>
-      </div></div>
-      <div class="panel"><h2>By cabinet</h2><div class="scroll"><table id="tCab"></table></div></div>
+  <section id="p-cabinets">
+    <div class="strip" id="strip"></div>
+    <div class="kpi" id="kpi"></div>
+    <div class="cols">
+      <div>
+        <div class="panel"><h2>Every cabinet, B7 to B61 &mdash; click one to see it or ask for a check</h2><div class="body">
+          <div class="map" id="map"></div>
+          <div class="legend">
+            <span><i style="background:#f2fbf5;border-color:#9ed4b0"></i>done recently</span>
+            <span><i style="background:#fff8e6;border-color:#e8c86a"></i>due</span>
+            <span><i style="background:#fdecec;border-color:#e0a0a0"></i>overdue</span>
+            <span><i style="background:#f2f3f7"></i>not visited</span>
+            <span><i style="border-top:4px solid #e0b000"></i>load open over <span class="yM">30</span> min</span>
+            <span><i style="border-top:4px solid #b71c1c"></i>load open over <span class="rM">45</span> min</span>
+            <span><i style="border-radius:50%;background:#e07800;border-color:#e07800"></i>check asked for</span>
+            <span><i style="box-shadow:inset 0 -3px 0 #b71c1c"></i>problem flagged</span>
+          </div>
+        </div></div>
+        <div class="panel"><h2>By cabinet</h2><div class="scroll"><table id="tCab"></table></div></div>
+      </div>
+      <div>
+        <div class="panel"><h2>Needs attention</h2><div class="body" id="att"></div></div>
+        <div class="panel"><h2>Needed today</h2><div class="body"><table id="tItems"></table>
+          <div class="foot">Everything is counted at the cabinet against the numbers on the shelf diagrams.</div></div></div>
+        <div class="panel"><h2>Proof of visit</h2><div class="body" id="proof"></div></div>
+        <div class="panel"><h2>Rules the phones follow</h2><div class="body" id="rules"></div></div>
+      </div>
     </div>
-    <div>
-      <div class="panel"><h2>Needs attention</h2><div class="body" id="att"></div></div>
-      <div class="panel"><h2>Supplies needed</h2><div class="body"><table id="tItems"></table>
-        <div class="foot">What runners asked for, counted at the cabinet.</div></div></div>
-      <div class="panel"><h2>Proof of visit</h2><div class="body" id="proof"></div></div>
-    </div>
-  </div>
-  <div class="panel"><h2>People &mdash; click a name for their log</h2><div id="people"></div></div>
-  <div class="foot" id="explain"></div>
+    <div class="foot" id="explain"></div>
+  </section>
+
+  <section id="p-people" class="hide">
+    <div class="panel"><h2>People &mdash; click a name for their log</h2><div id="people"></div></div>
+  </section>
+
+  <section id="p-users" class="hide">
+    <div class="panel"><h2>Users</h2><div class="body" id="users"></div></div>
+  </section>
+
+  <section id="p-tags" class="hide">
+    <div class="panel"><h2 id="tagsH">Tags</h2><div class="scroll" style="max-height:none"><table id="tTags"></table></div></div>
+  </section>
 </main>
+<div id="drawer" class="hide"></div>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -172,11 +254,16 @@ tr.gap td{background:#fff8e6}
    here is different: not "what does this cabinet need" but "is every cabinet
    actually being walked, and can we prove it".
 
-   Compliance is judged on two things kept apart on purpose:
+   Compliance is judged on three things kept apart on purpose:
      covered  -- was the cabinet visited at all, and how long ago
      proved   -- was it a tag tap at the cabinet, or typed in by hand
+     loaded   -- after a provisions count, was the tag tapped again once it was filled
    A high number of by-hand entries is not cheating on its own; it usually means
    a tag has stopped reading. Either way it is worth knowing.
+
+   The board also talks back to the phones: a check can be asked for on one
+   cabinet, a person can be moved to another duty, and the second-tap rule is
+   switched from here.
 --------------------------------------------------------------------------- */
 
 const FB = {
@@ -205,12 +292,26 @@ const ITEMS = [
   {k:'inflight', label:'Inflight Kits', lo:2, hi:3},
   {k:'earbud',   label:'Earbud Kits',   lo:2, hi:1},
 ];
+const SUPPLIES = [
+  {k:'towel',  label:'Paper Towels',  lo:12, hi:12},
+  {k:'tp',     label:'Toilet Paper',  lo:18, hi:18},
+  {k:'soap',   label:'Soap',          lo:6,  hi:6},
+  {k:'glove',  label:'Gloves',        lo:4,  hi:4, sub:'one box each of M, S, L, XL'},
+  {k:'facial', label:'Facials',       lo:4,  hi:6},
+  {k:'wypall', label:'WypAlls',       lo:1,  hi:1},
+  {k:'bottle', label:'Bottles',       lo:5,  hi:5},
+  {k:'bag',    label:'Inflight Bags', lo:0,  hi:3},
+];
+const DUTIES = [{k:'provisions', label:'Provisions'}, {k:'supplies', label:'Supplies'}, {k:'photo', label:'Photo check'}];
+const dutyList = k => String(k || 'provisions').split('+').filter(x => DUTIES.some(d => d.k === x));
+const dutyLabel = k => dutyList(k).map(x => DUTIES.find(d => d.k === x).label).join(' + ') || DUTIES[0].label;
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const pad = n => String(n).padStart(2, '0');
 const dayOf = t => { const d = new Date(t); return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()); };
 const hhmm = t => new Date(t).toTimeString().slice(0,5);
+const keyOf = s => String(s).replace(/[.#$\/\[\]]/g, '_');
 function dur(ms){
   if (ms == null || !isFinite(ms)) return '–';
   const m = Math.round(ms / 60000);
@@ -220,77 +321,132 @@ function dur(ms){
 const median = a => { if (!a.length) return null; const b = a.slice().sort((x,y)=>x-y), m = b.length>>1;
   return b.length % 2 ? b[m] : (b[m-1]+b[m])/2; };
 const needTotal = r => ITEMS.reduce((a,i) => a + ((r.need||{})[i.k]||0), 0);
+const supTotal = r => SUPPLIES.reduce((a,i) => a + ((r.sup||{})[i.k]||0), 0);
+const stepsOf = r => r.steps || ['provisions'];
+const dutyOf = r => r.duty || 'provisions';
 
 let DAY = dayOf(Date.now());
-let recs = [];            // records for the chosen day
+let recs = [];            // visits for the chosen day
+let reqs = {};            // checks asked for on one cabinet
+let cfg = { doubleTap: true, yellowMin: 30, redMin: 45 };
+let dutyNow = {};         // person -> the duty they are on
+let dutyLog = [];         // duty changes on the chosen day
+let tags = {};
+let photos = {};          // visit id -> picture, fetched when a cabinet is opened
 let demo = false;
 let db = null;
-let person = '';          // whose log is open on the board
+let person = '';          // whose log is open
+let openCab = '';         // which cabinet's drawer is open
+let page = 'cabinets';
 
 /* ---- demo day ---------------------------------------------------------------
    Deterministic, so the board looks the same on every reload: a hash of the gate
-   and round number stands in for the randomness. Three names, not real ones. */
+   and round number stands in for the randomness. Made-up names, not real ones. */
 function hash(s){ let h = 2166136261; for (let i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h>>>0)/4294967296; }
+const DEMO_PIC = 'data:image/svg+xml,' + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><rect width="400" height="300" fill="#e7eaf3"/>' +
+  '<g fill="none" stroke="#8a91a6" stroke-width="4"><rect x="110" y="30" width="180" height="240"/>' +
+  '<path d="M110 90h180M110 150h180M110 210h180"/></g>' +
+  '<text x="200" y="292" font-family="Segoe UI,Arial" font-size="13" fill="#5b6377" text-anchor="middle">demo photo</text></svg>');
 function demoDay(dayKey){
   const base = new Date(dayKey + 'T00:00:00').getTime();
   const out = [];
   const rounds = [
-    {at: 6.6,  by: 'Runner 1', shift: 'AM'},
-    {at: 10.2, by: 'Runner 1', shift: 'AM'},
-    {at: 14.6, by: 'Runner 2', shift: 'PM'},
-    {at: 18.4, by: 'Runner 3', shift: 'PM'},
+    {at: 6.6,  by: 'Runner 1', shift: 'AM', duty: 'provisions', skip: 0.86},
+    {at: 8.1,  by: 'Agent 4',  shift: 'AM', duty: 'supplies',   skip: 0.55},
+    {at: 10.2, by: 'Runner 1', shift: 'AM', duty: 'provisions', skip: 0.86},
+    {at: 12.0, by: 'Lead 5',   shift: 'AM', duty: 'photo',      skip: 0.22},
+    {at: 14.6, by: 'Runner 2', shift: 'PM', duty: 'provisions', skip: 0.86},
+    {at: 18.4, by: 'Runner 3', shift: 'PM', duty: 'provisions', skip: 0.86},
   ];
   rounds.forEach((r, ri) => {
     CABS.forEach((g, gi) => {
       const seed = hash(g + ':' + ri + ':' + dayKey);
-      if (seed > 0.86) return;                                   // missed on this round
+      if (seed > r.skip) return;                                 // missed on this round
       const t = base + (r.at * 3600 + gi * 150 + Math.floor(seed * 400)) * 1000;
       if (t > Date.now()) return;                                // never pretend the future happened
-      const need = {};
-      ITEMS.forEach((it, k) => {
-        const s2 = hash(g + it.k + ri);
-        need[it.k] = s2 > 0.72 ? (s2 > 0.93 ? (higher(g) ? it.hi : it.lo) : 1) : 0;
-      });
-      // some visits typed in by hand: that is what a tag which has stopped reading
-      // looks like, and spotting it is half the point of the board
       const rec = { id: g + ri, gate: g, t, s: t + Math.floor(40000 + seed * 160000),
-                    by: r.by, shift: r.shift, via: hash(g + 'via' + ri) > 0.9 ? 'hand' : 'tag',
-                    need, n: 0, flag: null };
-      rec.n = needTotal(rec);
+                    by: r.by, shift: r.shift, duty: r.duty, steps: [r.duty],
+                    // some visits typed in by hand: that is what a tag which has stopped reading
+                    // looks like, and spotting it is half the point of the board
+                    via: hash(g + 'via' + ri) > 0.9 ? 'hand' : 'tag', need: {}, sup: {}, n: 0, flag: null };
+      if (r.duty === 'provisions') ITEMS.forEach(it => {
+        const s2 = hash(g + it.k + ri);
+        rec.need[it.k] = s2 > 0.72 ? (s2 > 0.93 ? (higher(g) ? it.hi : it.lo) : 1) : 0;
+      });
+      if (r.duty === 'supplies') SUPPLIES.forEach(it => { const par = higher(g) ? it.hi : it.lo, s2 = hash(g + it.k + ri);
+        if (par && s2 > 0.7) rec.sup[it.k] = Math.max(1, Math.round(par * (s2 - 0.7) * 3)); });
+      if (r.duty === 'photo') { rec.photo = 1; rec.pdt = 8 + Math.floor(seed * 100) % 27; photos[rec.id] = { img: DEMO_PIC }; }
+      rec.n = needTotal(rec); rec.sn = supTotal(rec);
+      if (rec.n) {                                               // a count that still has to be loaded
+        rec.dbl = 1;
+        const f = rec.s + Math.floor((5 + hash(g + 'load' + ri) * 50) * 60000);
+        if (hash(g + 'open' + ri) < 0.93 && f < Date.now()) { rec.f = f; rec.fvia = hash(g + 'fv' + ri) > 0.92 ? 'hand' : 'tag'; rec.fby = r.by; }
+      }
       if (hash(g + 'flag' + ri) > 0.985) rec.flag = ["Won't open", 'Dead battery', 'Trash / bags inside'][ri % 3];
       out.push(rec);
     });
   });
+  const end = Math.min(Date.now(), base + 86399000);
+  reqs = {
+    d1: {id:'d1', gate:'B24', type:'photo', by:'Supervisor', t: end - 25*60000, exp: end + 3*3600000},
+    d2: {id:'d2', gate:'B41', type:'supplies', by:'Supervisor', t: end - 95*60000, exp: end + 2*3600000,
+         done: {by:'Agent 4', t: end - 60*60000}},
+  };
+  dutyNow = {}; rounds.forEach(r => dutyNow[keyOf(r.by)] = { who: r.by, duty: r.duty, t: base + r.at*3600000, by: r.by });
+  dutyLog = rounds.filter((r, i) => rounds.findIndex(x => x.by === r.by) === i)
+    .map(r => ({ who: r.by, duty: r.duty, from: null, t: base + (r.at - 0.1) * 3600000, by: r.by }))
+    .concat([{ who: 'Agent 4', duty: 'supplies', from: 'provisions', t: base + 8.05*3600000, by: 'Supervisor' }])
+    .filter(x => x.t < Date.now()).sort((a,b) => a.t - b.t);
+  tags = {}; CABS.forEach((g, i) => { if (hash(g + 'tag') < 0.9) tags['04_' + i] = { gate: g, serial: '04:a2:' + pad(i) + ':5c:90', t: base - 86400000 * 3, by: 'Supervisor' }; });
   return out.sort((a,b) => a.t - b.t);
 }
 
-/* ---- firebase ---------------------------------------------------------------- */
-let dayRef = null;
+/* ---- database ----------------------------------------------------------------- */
+let dayRef = null, logRef = null;
 function initFB(){
   if (typeof firebase === 'undefined') { setLive(false, 'no connection'); return; }
   try {
     firebase.initializeApp(FB);
     db = firebase.database();
     db.ref('.info/connected').on('value', s => setLive(!!s.val()));
+    db.ref(ROOT + '/req').on('value', s => { reqs = s.val() || {}; render(); });
+    db.ref(ROOT + '/cfg').on('value', s => { Object.assign(cfg, s.val() || {}); render(); });
+    db.ref(ROOT + '/duty').on('value', s => { dutyNow = s.val() || {}; render(); });
+    db.ref(ROOT + '/tags').on('value', s => { tags = s.val() || {}; render(); });
     listen();
   } catch(e) { setLive(false, 'no connection'); }
 }
 function listen(){
   if (!db || demo) return;
   if (dayRef) dayRef.off();
+  if (logRef) logRef.off();
   dayRef = db.ref(ROOT + '/taps/' + DAY);
   dayRef.on('value', s => { recs = Object.values(s.val() || {}).sort((a,b) => a.t - b.t); render(); });
+  logRef = db.ref(ROOT + '/dutyLog/' + DAY);
+  logRef.on('value', s => { dutyLog = Object.values(s.val() || {}).sort((a,b) => a.t - b.t); render(); });
+}
+// every change the board makes goes through here; on the demo it only changes the screen
+function put(path, val, local){
+  local();
+  if (!demo && db) db.ref(ROOT + '/' + path).set(val).catch(() => alert('That did not save. Check the connection and try again.'));
+  render();
 }
 function setLive(on, label){
   const el = $('#live');
   el.textContent = demo ? 'demo' : (label || (on ? 'live' : 'offline'));
   el.className = 'pill' + (on && !demo ? '' : ' off');
 }
+function me(){
+  let n = ''; try { n = localStorage.getItem('cb_name') || ''; } catch(_) {}
+  if (!n) { n = (prompt('Your name, so people can see who asked') || '').trim(); if (n) try { localStorage.setItem('cb_name', n); } catch(_) {} }
+  return n || 'Supervisor';
+}
 
 /* ---- the numbers -------------------------------------------------------------- */
 function view(){
-  const sh = $('#shift').value;
-  return sh ? recs.filter(r => r.shift === sh) : recs;
+  const sh = $('#shift').value, du = $('#dutyF').value;
+  return recs.filter(r => (!sh || r.shift === sh) && (!du || stepsOf(r).includes(du)));
 }
 // "now" on a past day means the end of that day, so history is not all red
 function asOf(){
@@ -307,8 +463,30 @@ function state(list, dueMs, now){
   const age = now - list[list.length-1].t;
   return age <= dueMs ? 'ok' : age <= dueMs * 2 ? 'due' : 'late';
 }
+// the load after a provisions count: done, or how long it has been left open
+function load(r, now){
+  if (!r.dbl) return null;
+  if (r.f) return { st: 'done', ms: r.f - (r.s || r.t) };
+  const ms = Math.max(0, now - (r.s || r.t)), m = ms / 60000;
+  return { st: m >= cfg.redMin ? 'red' : m >= cfg.yellowMin ? 'yellow' : 'open', ms };
+}
+function loadCell(r, now){
+  const l = load(r, now); if (!l) return '–';
+  return '<span class="ld ' + l.st + '">' + (l.st === 'done' ? 'filled in ' + dur(l.ms) + (r.fvia === 'hand' ? ' (by hand)' : '') + (r.short ? ', short' : '')
+                                                            : 'open ' + dur(l.ms)) + '</span>';
+}
+function needText(r){
+  const p = ITEMS.filter(i => (r.need||{})[i.k]).map(i => r.need[i.k] + ' ' + i.label)
+    .concat(SUPPLIES.filter(i => (r.sup||{})[i.k]).map(i => r.sup[i.k] + ' ' + i.label));
+  if (r.photo) p.push('photo' + (r.pdt != null ? ' ' + r.pdt + ' s after the tap' : ''));
+  return p.length ? p.join(' &middot; ') : '<span style="color:#1b7f3a">full</span>';
+}
+const reqLive = (r, now) => r && !r.done && (r.exp || 0) > now;
+const reqOnDay = r => r && dayOf(r.t) === DAY;
 
 function render(){
+  document.querySelectorAll('.yM').forEach(e => e.textContent = cfg.yellowMin);
+  document.querySelectorAll('.rM').forEach(e => e.textContent = cfg.redMin);
   const list = view(), gates = byGate(list), now = asOf(), dueMs = +$('#due').value * 3600000;
   const seen = CABS.filter(g => gates[g]);
   const states = {}; CABS.forEach(g => states[g] = state(gates[g], dueMs, now));
@@ -316,62 +494,90 @@ function render(){
   const never = CABS.filter(g => states[g] === 'never').length;
   const hand = list.filter(r => r.via === 'hand').length;
   const flags = list.filter(r => r.flag);
-  const turn = list.filter(r => r.s).map(r => r.s - r.t);
   const cover = Math.round(seen.length / CABS.length * 100);
   const proved = list.length ? Math.round((list.length - hand) / list.length * 100) : 0;
+  const loads = list.filter(r => r.dbl).map(r => ({ r, l: load(r, now) }));
+  const lDone = loads.filter(x => x.l.st === 'done'), lRed = loads.filter(x => x.l.st === 'red'), lYel = loads.filter(x => x.l.st === 'yellow');
+  const lPct = loads.length ? Math.round(lDone.length / loads.length * 100) : 0;
+  const live = Object.values(reqs).filter(r => reqLive(r, Date.now()));     // still waiting, whatever day is on screen
+
+  $('#strip').innerHTML =
+    '<div class="' + (live.length ? 'a' : '') + '"><b>' + live.length + '</b>check' + (live.length === 1 ? '' : 's') + ' asked for, not done yet</div>' +
+    '<div class="' + (lRed.length ? 'r' : '') + '"><b>' + lRed.length + '</b>load' + (lRed.length === 1 ? '' : 's') + ' open over ' + cfg.redMin + ' min</div>' +
+    '<div class="' + (lYel.length ? 'y' : '') + '"><b>' + lYel.length + '</b>open over ' + cfg.yellowMin + ' min</div>' +
+    '<div class="' + (never + late ? 'r' : '') + '"><b>' + (never + late) + '</b>cabinet' + (never + late === 1 ? '' : 's') + ' overdue or not visited</div>' +
+    '<div class="' + (flags.length ? 'a' : '') + '"><b>' + flags.length + '</b>problem' + (flags.length === 1 ? '' : 's') + ' flagged</div>';
 
   $('#kpi').innerHTML =
     card(cover + '%', 'cabinets covered', seen.length + ' of ' + CABS.length + ' visited', cover >= 90 ? 'good' : cover >= 70 ? 'warn' : 'bad') +
     card(String(list.length), 'visits logged', list.length ? hhmm(list[0].t) + ' to ' + hhmm(list[list.length-1].t) : 'nothing yet') +
     card(String(late + never), 'overdue now', 'not touched in ' + ($('#due').value * 2) + 'h or more', (late + never) ? ((late + never) > 6 ? 'bad' : 'warn') : 'good') +
     card(proved + '%', 'proved by tag', hand + ' typed in by hand', proved >= 90 ? 'good' : proved >= 70 ? 'warn' : 'bad') +
-    card(String(flags.length), 'problems flagged', flags.length ? 'needs a go-back' : 'none reported', flags.length ? 'warn' : 'good') +
-    card(dur(median(turn)), 'tap to send', 'median walk back');
+    card(loads.length ? lPct + '%' : '–', 'loads closed', loads.length ? lDone.length + ' of ' + loads.length + ' tapped again after loading' : 'no counts needing a load',
+         !loads.length ? '' : lPct >= 90 ? 'good' : lPct >= 70 ? 'warn' : 'bad') +
+    card(dur(median(lDone.map(x => x.l.ms))), 'count to filled', 'median time to load a cabinet');
 
   // the concourse
   $('#map').innerHTML = CABS.map(g => {
     const l = gates[g], st = states[g], flag = l && l.some(r => r.flag);
+    const lo = loads.filter(x => x.r.gate === g && x.l.st !== 'done').map(x => x.l.st);
+    const lc = lo.includes('red') ? ' lr' : lo.includes('yellow') ? ' ly' : lo.length ? ' lo' : '';
+    const rq = live.some(r => r.gate === g);
     const sub = l ? hhmm(l[l.length-1].t) : 'never';
-    return '<div class="cab ' + st + (flag ? ' flag' : '') + '" title="' + g + ' – ' +
+    return '<div class="cab ' + st + (flag ? ' flag' : '') + lc + (rq ? ' rq' : '') + '" data-g="' + g + '" title="' + g + ' – ' +
       (l ? l.length + ' visit' + (l.length>1?'s':'') + ', last ' + hhmm(l[l.length-1].t) + (l[l.length-1].by ? ' by ' + esc(l[l.length-1].by) : '')
          : 'no visit logged') + '">' +
       '<b>' + g.replace('B','') + '</b><span>' + sub + '</span></div>';
   }).join('');
 
   // by cabinet
-  let h = '<tr><th class="l">Cabinet</th><th>Visits</th><th>Last</th><th>By</th><th>Since</th><th>Needed</th><th>Problem</th></tr>';
+  let h = '<tr><th class="l">Cabinet</th><th>Visits</th><th>Last</th><th>By</th><th>Duty</th><th>Since</th><th>Needed</th><th>Load</th><th>Problem</th></tr>';
   CABS.forEach(g => {
     const l = gates[g];
-    if (!l) { h += '<tr class="never"><td class="l">' + g + '</td><td>0</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td></tr>'; return; }
+    if (!l) { h += '<tr class="never pick" data-g="' + g + '"><td class="l">' + g + '</td><td>0</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td></tr>'; return; }
     const last = l[l.length-1], st = states[g];
-    h += '<tr class="' + (st === 'late' ? 'late' : '') + '"><td class="l"><b>' + g + '</b></td>' +
+    const lastLoad = l.filter(r => r.dbl).pop();
+    h += '<tr class="pick ' + (st === 'late' ? 'late' : '') + '" data-g="' + g + '"><td class="l"><b>' + g + '</b></td>' +
       '<td>' + l.length + '</td><td>' + hhmm(last.t) + ' <span class="sh ' + last.shift.toLowerCase() + '">' + last.shift + '</span></td>' +
       '<td>' + esc(last.by || '–') + (last.via === 'hand' ? ' <span style="color:#e07800">by hand</span>' : '') + '</td>' +
+      '<td><span class="dt">' + dutyLabel(dutyOf(last)) + '</span></td>' +
       '<td>' + dur(now - last.t) + '</td>' +
-      '<td>' + l.reduce((a,r) => a + needTotal(r), 0) + '</td>' +
+      '<td>' + l.reduce((a,r) => a + needTotal(r) + supTotal(r), 0) + '</td>' +
+      '<td>' + (lastLoad ? loadCell(lastLoad, now) : '–') + '</td>' +
       '<td>' + (l.filter(r=>r.flag).map(r => '<span style="color:#b71c1c">' + esc(r.flag) + '</span>').join(', ') || '–') + '</td></tr>';
   });
   $('#tCab').innerHTML = h;
 
-  // needs attention: overdue first, then flagged
+  // needs attention: what someone has to act on, worst first
   const att = [];
-  CABS.filter(g => states[g] === 'never').forEach(g => att.push({g, why: 'No visit logged at all', red: true, when: ''}));
+  lRed.forEach(x => att.push({g: x.r.gate, why: 'Counted, never tapped again: open ' + dur(x.l.ms), cls: 'red', when: esc(x.r.by || '') + ' · ' + hhmm(x.r.t)}));
+  live.forEach(r => att.push({g: r.gate, why: dutyLabel(r.type) + ' asked for, waiting ' + dur(Date.now() - r.t), cls: 'amb', when: esc(r.by || '')}));
+  lYel.forEach(x => att.push({g: x.r.gate, why: 'Load open ' + dur(x.l.ms), cls: 'amb', when: esc(x.r.by || '') + ' · ' + hhmm(x.r.t)}));
+  // early in the day most of the concourse is unvisited: say so once, not fifty times
+  const nv = CABS.filter(g => states[g] === 'never');
+  if (nv.length > 8) att.push({g: '', n: nv.length, why: 'cabinets with no visit logged yet: ' + nv.map(g => g.slice(1)).join(', '), cls: 'red', when: ''});
+  else nv.forEach(g => att.push({g, why: 'No visit logged at all', cls: 'red', when: ''}));
   CABS.filter(g => states[g] === 'late').forEach(g => {
     const l = gates[g];
-    att.push({g, why: 'Not visited in ' + dur(now - l[l.length-1].t), red: true, when: 'last ' + hhmm(l[l.length-1].t)});
+    att.push({g, why: 'Not visited in ' + dur(now - l[l.length-1].t), cls: 'red', when: 'last ' + hhmm(l[l.length-1].t)});
   });
-  flags.slice().reverse().forEach(r => att.push({g: r.gate, why: r.flag, red: false, when: hhmm(r.t) + (r.by ? ' · ' + esc(r.by) : '')}));
+  flags.slice().reverse().forEach(r => att.push({g: r.gate, why: r.flag, cls: '', when: hhmm(r.t) + (r.by ? ' · ' + esc(r.by) : '')}));
   $('#att').innerHTML = att.length
-    ? att.slice(0, 40).map(a => '<div class="att"><b>' + a.g + '</b><div class="why' + (a.red ? ' red' : '') + '">' +
+    ? att.slice(0, 40).map(a => '<div class="att"' + (a.g ? ' data-g="' + a.g + '"' : ' style="cursor:default"') + '><b>' + (a.g || a.n) + '</b><div class="why ' + a.cls + '">' +
         esc(a.why) + '</div><div class="when">' + a.when + '</div></div>').join('')
-    : '<div class="none">Every cabinet is covered and nothing is flagged.</div>';
+    : '<div class="none">Every cabinet is covered, every load is closed and nothing is flagged.</div>';
 
-  // supplies
+  // needed
   const sh = ['AM','PM','OVN'];
   let ih = '<tr><th class="l">Item</th>' + sh.map(s => '<th>' + s + '</th>').join('') + '<th>Total</th></tr>';
   ITEMS.forEach(it => {
     const per = sh.map(s => list.filter(r => r.shift === s).reduce((a,r) => a + ((r.need||{})[it.k]||0), 0));
     ih += '<tr><td class="l"><b>' + it.label + '</b></td>' + per.map(v => '<td>' + (v || '–') + '</td>').join('') +
+          '<td><b>' + per.reduce((a,b)=>a+b,0) + '</b></td></tr>';
+  });
+  SUPPLIES.forEach(it => {
+    const per = sh.map(s => list.filter(r => r.shift === s).reduce((a,r) => a + ((r.sup||{})[it.k]||0), 0));
+    ih += '<tr><td class="l">' + it.label + '</td>' + per.map(v => '<td>' + (v || '–') + '</td>').join('') +
           '<td><b>' + per.reduce((a,b)=>a+b,0) + '</b></td></tr>';
   });
   $('#tItems').innerHTML = ih;
@@ -380,29 +586,113 @@ function render(){
   $('#proof').innerHTML =
     '<div style="font-size:12.5px">' + (list.length - hand) + ' of ' + list.length + ' visits were a tag tap at the cabinet.</div>' +
     '<div class="bar"><i class="' + (proved >= 90 ? '' : proved >= 70 ? 'warn' : 'bad') + '" style="width:' + proved + '%"></i></div>' +
-    '<div class="foot">Each person\u2019s count is in the People log below.</div>' +
+    '<div class="foot">Each person’s count is on the People page.</div>' +
     '<div class="foot">Lots of by-hand entries usually means a tag has stopped reading, not that someone skipped the walk. Check that cabinet’s tag.</div>';
 
-  renderPeople(list);
+  $('#rules').innerHTML =
+    '<label class="set">Provisions: tap again after loading<input type="checkbox" id="cfDbl"' + (cfg.doubleTap ? ' checked' : '') + '></label>' +
+    '<label class="set">A load turns yellow after<select id="cfY">' + [15,20,30,40].map(v => '<option' + (v === cfg.yellowMin ? ' selected' : '') + ' value="' + v + '">' + v + ' min</option>').join('') + '</select></label>' +
+    '<label class="set">and red, not compliant, after<select id="cfR">' + [45,60,90].map(v => '<option' + (v === cfg.redMin ? ' selected' : '') + ' value="' + v + '">' + v + ' min</option>').join('') + '</select></label>' +
+    '<div class="foot">Phones pick a change up straight away, no update needed. A cabinet counted as full owes no second tap. ' +
+    'A photo has to be taken within 40 seconds of the tag being read.</div>';
 
   $('#explain').innerHTML =
-    '<b>Covered</b> counts a cabinet as done if a runner logged it at any point in the day. ' +
+    '<b>Covered</b> counts a cabinet as done if anyone logged it at any point in the day. ' +
     '<b>Overdue</b> means nothing has been logged there for twice the chosen gap (' + ($('#due').value * 2) + ' hours). ' +
+    '<b>Loads closed</b> is the share of provisions counts that were tapped again once the cabinet was filled. ' +
     'On past days the clock stops at midnight, so history is judged the same way the day was lived. ' +
     'Zone 7 (B62 to B71) has no cabinets and is not counted.';
+
+  const pn = $('#pages a[data-p=cabinets]');
+  pn.innerHTML = 'Cabinets' + (lRed.length + live.length ? '<em>' + (lRed.length + live.length) + '</em>' : '');
+  renderPeople(list, now);
+  renderUsers();
+  renderTags();
+  if (openCab) drawCab();
   setLive(true);
 }
+
+/* ---- one cabinet ---------------------------------------------------------------- */
+function shiftEnd(t){
+  const d = new Date(t), h = d.getHours() + d.getMinutes() / 60, e = new Date(t);
+  e.setSeconds(0, 0);
+  const at = (hh, mm, plus) => { const x = new Date(e); x.setDate(x.getDate() + (plus || 0)); x.setHours(hh, mm); return x.getTime(); };
+  const ends = [at(5, 30), at(13, 30), at(22, 0), at(5, 30, 1), at(13, 30, 1)];
+  // asked for in the last hour of a shift, it carries into the next one
+  return ends.find(x => x - t > 3600000);
+}
+function ask(g, type){
+  const t = Date.now(), id = t.toString(36) + '-' + Math.random().toString(36).slice(2, 6);
+  const r = { id, gate: g, type, by: me(), t, exp: shiftEnd(t) };
+  put('req/' + id, r, () => { reqs[id] = r; });
+}
+function cancelReq(id){
+  if (!confirm('Take this request back?')) return;
+  put('req/' + id, null, () => { delete reqs[id]; });
+}
+function drawCab(){
+  const g = openCab, now = asOf(), list = recs.filter(r => r.gate === g).slice().reverse();
+  const rq = Object.values(reqs).filter(r => r && r.gate === g && (reqLive(r, Date.now()) || reqOnDay(r))).sort((a,b) => b.t - a.t);
+  const liveTypes = rq.filter(r => reqLive(r, Date.now())).map(r => r.type);
+  const tg = Object.values(tags).filter(x => x && x.gate === g);
+  let h = '<div class="dh"><b>' + g + '</b><span>' + (higher(g) ? 'higher gates' : 'lower gates') + ' &middot; ' +
+          (tg.length ? tg.length + ' tag' + (tg.length > 1 ? 's' : '') + ' set' : 'no tag yet') + '</span><button id="dX">Close</button></div><div class="db">';
+  h += '<h4>Ask for a check on ' + g + '</h4><div class="ask">' +
+       DUTIES.map(d => '<button data-ask="' + d.k + '"' + (liveTypes.includes(d.k) ? ' disabled' : '') + '>' + d.label + '</button>').join('') + '</div>' +
+       '<div class="foot">Whoever taps ' + g + ' next gets it on their screen, whatever they are on. It stays asked for until it is done or the shift ends.</div>';
+  if (rq.length) {
+    h += '<h4>Asked for</h4>';
+    rq.forEach(r => {
+      const lv = reqLive(r, Date.now());
+      h += '<div class="rqrow ' + (r.done ? 'dn' : lv ? '' : 'ex') + '"><b>' + dutyLabel(r.type) + '</b><span>' + esc(r.by || '') + ' at ' + hhmm(r.t) + ' &middot; ' +
+           (r.done ? 'done by ' + esc(r.done.by || '') + ' at ' + hhmm(r.done.t) + ', ' + dur(r.done.t - r.t) + ' later'
+                   : lv ? 'waiting ' + dur(Date.now() - r.t) : 'ran out, nobody got to it') + '</span>' +
+           (lv ? '<button class="act alt sm" data-cancel="' + r.id + '">Take back</button>' : '') + '</div>';
+    });
+  }
+  h += '<h4>' + DAY + ' &mdash; ' + list.length + ' visit' + (list.length === 1 ? '' : 's') + '</h4>';
+  if (!list.length) h += '<div class="none">Nobody has logged this cabinet on this day.</div>';
+  list.forEach(r => {
+    h += '<div class="vis"><div class="top"><b>' + hhmm(r.t) + '</b>' + esc(r.by || '(no name)') +
+         ' <span class="dt">' + dutyLabel(dutyOf(r)) + '</span>' + (r.via === 'hand' ? '<span style="color:#e07800">by hand</span>' : '') +
+         '<span class="sp sh ' + r.shift.toLowerCase() + '">' + r.shift + '</span></div>' +
+         '<div class="nd">' + needText(r) + '</div>' +
+         (r.dbl ? '<div class="nd">' + loadCell(r, now) + '</div>' : '') +
+         (r.flag ? '<div class="pb">' + esc(r.flag) + '</div>' : '') +
+         (r.photo ? (photos[r.id] ? '<img src="' + photos[r.id].img + '" alt="' + g + ' at ' + hhmm(r.t) + '">'
+                                  : '<div class="cap" data-ph="' + r.id + '">loading the photo…</div>') : '') + '</div>';
+  });
+  const d = $('#drawer');
+  const top = d.scrollTop;
+  d.innerHTML = h + '</div>'; d.classList.remove('hide'); d.scrollTop = top;
+  list.filter(r => r.photo && !photos[r.id]).forEach(r => {
+    if (!db) return;
+    photos[r.id] = null;
+    db.ref(ROOT + '/photos/' + DAY + '/' + r.id).once('value').then(s => {
+      photos[r.id] = s.val() || { img: '' };
+      if (openCab === g) drawCab();
+    }).catch(() => { delete photos[r.id]; });
+  });
+}
+$('#drawer').onclick = e => {
+  if (e.target.id === 'dX') { openCab = ''; $('#drawer').classList.add('hide'); return; }
+  const a = e.target.closest('[data-ask]'); if (a && !a.disabled) { ask(openCab, a.dataset.ask); return; }
+  const c = e.target.closest('[data-cancel]'); if (c) cancelReq(c.dataset.cancel);
+};
+function pickCab(e){
+  const el = e.target.closest('[data-g]'); if (!el) return;
+  openCab = el.dataset.g; $('#drawer').scrollTop = 0; drawCab();
+}
+$('#map').onclick = pickCab; $('#tCab').onclick = pickCab; $('#att').onclick = pickCab;
+
 /* ---- per-person log ---------------------------------------------------------------
    The walk between cabinets is measured from when the last count was SENT to when the
    next tag was tapped, so time spent counting is not counted as walking. Anything over
    20 minutes is marked: it may be a break, a callback or a trip to the cart, and the
    supervisor is the one who knows which. */
 const GAP_MS = 20 * 60000;
+const MOVES = ['provisions', 'supplies', 'photo', 'provisions+supplies', 'provisions+photo', 'supplies+photo', 'provisions+supplies+photo'];
 const secs = ms => { const s = Math.round(ms / 1000); return Math.floor(s / 60) + ':' + pad(s % 60); };
-function needText(r){
-  const p = ITEMS.filter(i => (r.need||{})[i.k]).map(i => r.need[i.k] + ' ' + i.label);
-  return p.length ? p.join(' &middot; ') : '<span style="color:#1b7f3a">full</span>';
-}
 function walks(l){
   const out = [];
   for (let i = 1; i < l.length; i++) out.push(l[i].t - (l[i-1].s || l[i-1].t));
@@ -413,47 +703,94 @@ function peopleOf(list){
   list.forEach(r => (by[r.by || '(no name)'] = by[r.by || '(no name)'] || []).push(r));
   return by;
 }
-function renderPeople(list){
+const lockedP = w => !!(dutyNow[keyOf(w)] && dutyNow[keyOf(w)].lock);
+const dutyOfPerson = (w, l) => (dutyNow[keyOf(w)] && dutyNow[keyOf(w)].duty) || dutyOf(l[l.length-1]);
+function moveTo(w, k, lock){
+  const t = Date.now(), by = me(), from = (dutyNow[keyOf(w)] || {}).duty || null;
+  const v = { who: w, duty: k, t, by, lock: !!lock };
+  put('duty/' + keyOf(w), v, () => { dutyNow[keyOf(w)] = v; });
+  const lg = { who: w, duty: k, from, t, by, lock: !!lock };
+  put('dutyLog/' + dayOf(t) + '/' + t.toString(36) + '-' + keyOf(w).slice(0, 12), lg, () => { if (dayOf(t) === DAY) dutyLog.push(lg); });
+}
+function renderPeople(list, now){
   const by = peopleOf(list), names = Object.keys(by).sort();
   if (person && !by[person]) person = '';
   if (!person && names.length) person = names[0];
   if (!names.length) { $('#people').innerHTML = '<div class="none">Nobody has logged a visit for this day.</div>'; return; }
 
-  let h = '<table><tr><th class="l">Person</th><th>Visits</th><th>First</th><th>Last</th><th>Cabinets</th>' +
-          '<th>By tag</th><th>Cabinet to cabinet</th><th>Gaps over 20 min</th><th>Problems</th></tr>';
+  let h = '<table><tr><th class="l">Person</th><th>On</th><th>Visits</th><th>First</th><th>Last</th><th>Cabinets</th>' +
+          '<th>By tag</th><th>Cabinet to cabinet</th><th>Gaps over 20 min</th><th>Loads closed</th><th>Left open</th><th>Problems</th></tr>';
   names.forEach(w => {
     const l = by[w], wk = walks(l);
     const short = wk.filter(x => x > 0 && x <= GAP_MS);
+    const ld = l.filter(r => r.dbl), op = ld.filter(r => !r.f);
+    const bad = op.filter(r => load(r, now).st === 'red').length;
     h += '<tr class="pick' + (w === person ? ' sel' : '') + '" data-w="' + esc(w) + '">' +
-      '<td class="l"><b>' + esc(w) + '</b></td><td>' + l.length + '</td>' +
+      '<td class="l"><b>' + esc(w) + '</b></td><td><span class="dt">' + dutyLabel(dutyOfPerson(w, l)) + (lockedP(w) ? ' &middot; locked' : '') + '</span></td><td>' + l.length + '</td>' +
       '<td>' + hhmm(l[0].t) + '</td><td>' + hhmm(l[l.length-1].t) + '</td>' +
       '<td>' + new Set(l.map(r => r.gate)).size + '</td>' +
       '<td>' + l.filter(r => r.via !== 'hand').length + '</td>' +
       '<td>' + (short.length ? secs(median(short)) : '–') + '</td>' +
       '<td>' + (wk.filter(x => x > GAP_MS).length || '–') + '</td>' +
+      '<td>' + (ld.length ? (ld.length - op.length) + ' of ' + ld.length : '–') + '</td>' +
+      '<td>' + (op.length ? '<span class="ld ' + (bad ? 'red' : 'yellow') + '">' + op.length + '</span>' : '–') + '</td>' +
       '<td>' + (l.filter(r => r.flag).length || '–') + '</td></tr>';
   });
   h += '</table>';
 
-  const l = by[person];
+  const l = by[person], cur = dutyOfPerson(person, l);
+  const sw = dutyLog.filter(x => x.who === person);
   h += '<div class="plog"><div class="ph"><h3>' + esc(person) + '</h3><span>' + l.length + ' visits, ' +
        hhmm(l[0].t) + ' to ' + hhmm(l[l.length-1].t) + '</span>' +
+       '<span class="sp">Move to</span><select id="pMove">' + MOVES.map(k => '<option value="' + k + '"' + (k === cur ? ' selected' : '') + '>' + dutyLabel(k) + '</option>').join('') +
+       (MOVES.includes(cur) ? '' : '<option selected value="' + esc(cur) + '">' + dutyLabel(cur) + '</option>') + '</select>' +
+       '<label style="display:flex;align-items:center;gap:5px;font-size:12px" title="They cannot change it on the phone until you untick this">' +
+       '<input type="checkbox" id="pLock"' + (lockedP(person) ? ' checked' : '') + '>Lock</label>' +
        '<button class="act alt" id="pCsv">CSV for ' + esc(person) + '</button></div>' +
-       '<div class="scroll"><table><tr><th>#</th><th>Tapped</th><th class="l">Cabinet</th><th>Shift</th><th>How</th>' +
-       '<th>Walk from last</th><th>Walk back</th><th class="l">Needed</th><th class="l">Problem</th></tr>';
+       (sw.length ? '<div class="foot" style="padding:8px 13px;margin:0" id="pSw"><b>Duty:</b> ' + sw.map(x => hhmm(x.t) + ' ' +
+          (x.from ? dutyLabel(x.from) + ' to ' : 'signed in on ') + dutyLabel(x.duty) + (x.by && x.by !== x.who ? ' (' + (x.lock ? 'locked' : 'moved') + ' by ' + esc(x.by) + ')' : '')).join(' &middot; ') + '</div>' : '') +
+       '<div class="scroll" style="max-height:none"><table><tr><th>#</th><th>Tapped</th><th class="l">Cabinet</th><th>Shift</th><th>Duty</th><th>How</th>' +
+       '<th>Walk from last</th><th>Walk back</th><th class="l">Needed</th><th>Load</th><th class="l">Problem</th></tr>';
   l.forEach((r, i) => {
     const walk = i ? r.t - (l[i-1].s || l[i-1].t) : null;
     const gap = walk != null && walk > GAP_MS;
     h += '<tr class="' + (gap ? 'gap' : '') + '"><td>' + (i + 1) + '</td><td>' + hhmm(r.t) + '</td>' +
       '<td class="l"><b>' + r.gate + '</b></td>' +
       '<td><span class="sh ' + r.shift.toLowerCase() + '">' + r.shift + '</span></td>' +
+      '<td><span class="dt">' + dutyLabel(dutyOf(r)) + '</span></td>' +
       '<td>' + (r.via === 'hand' ? '<span style="color:#e07800">by hand</span>' : 'tag') + '</td>' +
       '<td>' + (walk == null ? 'start' : walk < 0 ? '–' : gap ? dur(walk) + '<span class="gp">gap</span>' : secs(walk)) + '</td>' +
       '<td>' + (r.s ? secs(r.s - r.t) : '–') + '</td>' +
       '<td class="l">' + needText(r) + '</td>' +
+      '<td>' + loadCell(r, now) + '</td>' +
       '<td class="l" style="color:#b71c1c">' + esc(r.flag || '') + '</td></tr>';
   });
   $('#people').innerHTML = h + '</table></div></div>';
+}
+
+/* ---- users and tags ---------------------------------------------------------------- */
+function renderUsers(){
+  const ppl = Object.values(dutyNow).filter(x => x && x.who).sort((a,b) => a.who.localeCompare(b.who));
+  $('#users').innerHTML =
+    '<div class="foot" style="margin:0 0 12px;font-size:12.5px"><b>Accounts are the next step.</b> Today a person types their name on the phone. ' +
+    'When sign-in goes live this page is where a manager adds people by name and V number, hands out a temporary password, ' +
+    'resets one, and unlocks an account that was locked after too many wrong tries. ' +
+    'Until then this is everyone who has signed in on a phone, and what they said they were on.</div>' +
+    (ppl.length ? '<table><tr><th class="l">Name</th><th>On</th><th>Since</th><th class="l">Set by</th></tr>' +
+      ppl.map(x => '<tr><td class="l"><b>' + esc(x.who) + '</b></td><td><span class="dt">' + dutyLabel(x.duty) + '</span></td>' +
+        '<td>' + dayOf(x.t) + ' ' + hhmm(x.t) + '</td><td class="l">' + (x.by === x.who ? 'themselves' : esc(x.by || '') + (x.lock ? ', locked' : '')) + '</td></tr>').join('') + '</table>'
+      : '<div class="none">Nobody has signed in on a phone yet.</div>');
+}
+function renderTags(){
+  const by = {}; Object.values(tags).forEach(x => { if (x && x.gate) (by[x.gate] = by[x.gate] || []).push(x); });
+  const n = CABS.filter(g => by[g]).length;
+  $('#tagsH').textContent = 'Tags — ' + n + ' of ' + CABS.length + ' cabinets have one';
+  $('#tTags').innerHTML = '<tr><th class="l">Cabinet</th><th>Tags</th><th class="l">Serial</th><th>Set</th><th class="l">By</th></tr>' +
+    CABS.map(g => { const l = by[g];
+      return l ? '<tr><td class="l"><b>' + g + '</b></td><td>' + l.length + '</td><td class="l" style="font-family:Consolas,monospace;font-size:11.5px">' +
+                 l.map(x => esc(x.serial || '')).join('<br>') + '</td><td>' + l.map(x => x.t ? dayOf(x.t) : '–').join('<br>') + '</td><td class="l">' +
+                 l.map(x => esc(x.by || '–')).join('<br>') + '</td></tr>'
+               : '<tr class="never"><td class="l">' + g + '</td><td>0</td><td class="l">no tag yet</td><td>–</td><td class="l">–</td></tr>'; }).join('');
 }
 
 function card(big, label, sub, cls){
@@ -463,9 +800,12 @@ function card(big, label, sub, cls){
 /* ---- csv ---------------------------------------------------------------------- */
 function csv(who){
   const q = s => { s = String(s == null ? '' : s); return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s; };
-  const rows = [['day','cabinet','tapped','sent','shift','runner','via','problem', ...ITEMS.map(i=>i.label)].join(',')];
+  const rows = [['day','cabinet','tapped','sent','shift','person','duty','via','problem','filled','minutes_to_fill','filled_via','photo',
+                 ...ITEMS.map(i=>i.label), ...SUPPLIES.map(i=>i.label)].join(',')];
   view().filter(r => !who || (r.by || '(no name)') === who).forEach(r => rows.push([DAY, r.gate, new Date(r.t).toISOString(), r.s ? new Date(r.s).toISOString() : '',
-    r.shift, q(r.by), r.via, q(r.flag), ...ITEMS.map(i => (r.need||{})[i.k] || 0)].join(',')));
+    r.shift, q(r.by), dutyOf(r), r.via, q(r.flag), r.f ? new Date(r.f).toISOString() : (r.dbl ? 'open' : ''),
+    r.f ? Math.round((r.f - (r.s || r.t)) / 60000) : '', r.fvia || '', r.photo ? 'yes' : '',
+    ...ITEMS.map(i => (r.need||{})[i.k] || 0), ...SUPPLIES.map(i => (r.sup||{})[i.k] || 0)].join(',')));
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([rows.join('\n')], {type:'text/csv'}));
   a.download = 'cabinet-compliance-' + DAY + (who ? '-' + who.replace(/[^A-Za-z0-9]+/g, '-') : '') + '.csv';
@@ -474,24 +814,45 @@ function csv(who){
 
 /* ---- wiring -------------------------------------------------------------------- */
 function setDay(d){
-  DAY = d; $('#day').value = d;
-  if (demo) { recs = demoDay(DAY); render(); } else { recs = []; render(); listen(); }
+  DAY = d; $('#day').value = d; photos = {};
+  if (demo) { recs = demoDay(DAY); render(); } else { recs = []; dutyLog = []; render(); listen(); }
 }
 function shift(days){
   const d = new Date(DAY + 'T12:00:00');
   d.setDate(d.getDate() + days);
   setDay(dayOf(d.getTime()));
 }
+function showPage(){
+  const p = (location.hash || '').slice(1);
+  page = ['cabinets','people','users','tags'].includes(p) ? p : 'cabinets';
+  ['cabinets','people','users','tags'].forEach(x => $('#p-' + x).classList.toggle('hide', x !== page));
+  document.querySelectorAll('#pages a').forEach(a => a.classList.toggle('on', a.dataset.p === page));
+  if (page !== 'cabinets') { openCab = ''; $('#drawer').classList.add('hide'); }
+}
+window.onhashchange = showPage;
 $('#prev').onclick = () => shift(-1);
 $('#next').onclick = () => shift(1);
 $('#day').onchange = e => setDay(e.target.value);
 $('#shift').onchange = render;
+$('#dutyF').onchange = render;
 $('#due').onchange = render;
 $('#csv').onclick = () => csv();
 $('#people').onclick = e => {
   if (e.target.closest('#pCsv')) { csv(person); return; }
   const tr = e.target.closest('tr.pick');
   if (tr) { person = tr.dataset.w; render(); }
+};
+$('#people').onchange = e => {
+  if (e.target.id !== 'pMove' && e.target.id !== 'pLock') return;
+  const k = $('#pMove').value, lock = $('#pLock').checked;
+  if (!confirm((lock ? 'Set ' + person + ' to ' + dutyLabel(k) + ' and lock it? They cannot change it on the phone until you unlock it.'
+                     : 'Move ' + person + ' to ' + dutyLabel(k) + '? They can still switch on the phone.') +
+               '\n\nTheir phone switches over and it is logged.')) { render(); return; }
+  moveTo(person, k, lock);
+};
+$('#rules').onchange = () => {
+  const v = { doubleTap: $('#cfDbl').checked, yellowMin: +$('#cfY').value, redMin: +$('#cfR').value };
+  put('cfg', v, () => { cfg = v; });
 };
 $('#demoOff').onclick = () => { location.search = ''; };
 
@@ -512,6 +873,7 @@ const BOARD_PIN = '7161';
 demo = /(\?|&)demo=1/.test(location.search);
 $('#demoBar').hidden = !demo;
 $('#day').value = DAY;
+showPage();
 if (demo) { recs = demoDay(DAY); render(); setLive(false); }
 else { render(); initFB(); }
 setInterval(() => { if (!demo) render(); }, 60000);        // keep "since" times honest
