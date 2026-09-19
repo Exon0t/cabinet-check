@@ -80,6 +80,21 @@ main{padding:14px 18px 40px;max-width:1500px;margin:0 auto}
 .cab.late{background:#fdecec;border-color:#e0a0a0} .cab.late b{color:var(--red)}
 .cab.never{background:#f2f3f7;border-color:var(--line)} .cab.never b{color:#a3a9b8}
 .cab.flag{box-shadow:inset 0 -3px 0 var(--red)}
+.cab.oos{background:repeating-linear-gradient(135deg,#eceef4,#eceef4 5px,#dfe2ec 5px,#dfe2ec 10px)!important;border-color:#b9bfd0!important}
+.cab.oos b{color:#6d7488!important;text-decoration:line-through}
+.cab.use{outline:2px dashed var(--amber);outline-offset:-3px}
+.svrow{display:flex;gap:11px;padding:10px 13px;border-bottom:1px solid #eceff6;align-items:baseline;cursor:pointer}
+.svrow:hover{background:#f4f6fc}
+.svrow b{font-size:15px;color:var(--navy);min-width:52px}
+.svrow .w{flex:1}.svrow .w small{display:block;color:var(--mut);font-size:11.5px;margin-top:1px}
+.tagp{font-size:9.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;border-radius:10px;padding:1px 7px;border:1px solid}
+.tagp.out{color:var(--red);border-color:#e0a0a0;background:#fdecec}.tagp.use{color:var(--amber);border-color:#e8c86a;background:#fff8e6}
+.tagp.new{color:var(--navy);border-color:#b9c0e6;background:#eef1fb}
+.svbox{border:1.5px solid var(--line);border-radius:10px;padding:10px 11px}
+.svbox textarea{width:100%;border:1.5px solid var(--line);border-radius:8px;padding:7px;font:inherit;min-height:52px;margin:6px 0;resize:vertical}
+.svbox .bt{display:flex;gap:6px;flex-wrap:wrap}
+.svbox .bt button{flex:1;white-space:nowrap}
+.act.grn{background:var(--green)}.act.redb{background:#fff;color:var(--red);border:1.5px solid var(--red)}
 .cab.lo{border-top:4px solid var(--green)} .cab.ly{border-top:4px solid #e0b000} .cab.lr{border-top:4px solid var(--red)}
 .cab.rq::after{content:'';position:absolute;top:3px;right:3px;width:9px;height:9px;border-radius:50%;background:var(--amber)}
 .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:11px;font-size:11.5px;color:var(--mut)}
@@ -194,10 +209,13 @@ tr.gap td{background:#fff8e6}
     <label for="due">Due every</label>
     <select id="due"><option value="2">2 h</option><option value="3" selected>3 h</option><option value="4">4 h</option></select>
     <button class="act alt" id="csv">CSV</button>
+    <label for="meName">You</label>
+    <input id="meName" placeholder="your name" style="width:110px" autocomplete="off">
   </div>
 </header>
 <nav class="pages" id="pages">
   <a href="#cabinets" data-p="cabinets">Cabinets</a>
+  <a href="#service" data-p="service">Service</a>
   <a href="#people" data-p="people">People</a>
   <a href="#users" data-p="users">Users</a>
   <a href="#tags" data-p="tags">Tags</a>
@@ -225,6 +243,8 @@ tr.gap td{background:#fff8e6}
             <span><i style="border-top:4px solid #b71c1c"></i>load open over <span class="rM">45</span> min</span>
             <span><i style="border-radius:50%;background:#e07800;border-color:#e07800"></i>check asked for</span>
             <span><i style="box-shadow:inset 0 -3px 0 #b71c1c"></i>problem flagged</span>
+            <span><i style="background:repeating-linear-gradient(135deg,#eceef4,#eceef4 3px,#cfd3e0 3px,#cfd3e0 6px)"></i>out of service</span>
+            <span><i style="outline:2px dashed #e07800;outline-offset:-2px"></i>usable, needs a fix</span>
           </div>
         </div></div>
         <div class="panel"><h2>By cabinet</h2><div class="scroll"><table id="tCab"></table></div></div>
@@ -238,6 +258,19 @@ tr.gap td{background:#fff8e6}
       </div>
     </div>
     <div class="foot" id="explain"></div>
+  </section>
+
+  <section id="p-service" class="hide">
+    <div class="cols">
+      <div>
+        <div class="panel"><h2>New reports &mdash; look at the photo, then decide</h2><div id="svNew"></div></div>
+        <div class="panel"><h2>Out of service &mdash; off the walk, not counted as overdue</h2><div id="svOut"></div></div>
+        <div class="panel"><h2>Still usable, needs a fix &mdash; your note shows on every phone that taps it</h2><div id="svUse"></div></div>
+      </div>
+      <div><div class="panel"><h2>What was done</h2><div class="body" id="svLog"></div></div></div>
+    </div>
+    <div class="foot">Agents can only report: fixed choices and a photo. Only a manager takes a cabinet out of service or puts it back.
+      On the phone, open the Service tab and tap the cabinet's tag to mark it fixed; the scan shows you were standing at it.</div>
   </section>
 
   <section id="p-people" class="hide">
@@ -347,6 +380,9 @@ let cfg = { doubleTap: true, yellowMin: 30, redMin: 45 };
 let dutyNow = {};         // person -> the duty they are on
 let dutyLog = [];         // duty changes on the chosen day
 let tags = {};
+let svc = {};             // cabinet -> {state:'out'|'usable', note, by, t}
+let reports = {};         // problems agents reported, open until a manager closes them
+let svcLog = [];
 let photos = {};          // visit id -> picture, fetched when a cabinet is opened
 let demo = false;
 let db = null;
@@ -413,6 +449,12 @@ function demoDay(dayKey){
     .map(r => ({ who: r.by, duty: r.duty, from: null, t: base + (r.at - 0.1) * 3600000, by: r.by }))
     .concat([{ who: 'Agent 4', duty: 'supplies', from: 'provisions', t: base + 8.05*3600000, by: 'Supervisor' }])
     .filter(x => x.t < Date.now()).sort((a,b) => a.t - b.t);
+  svc = { B37: {gate:'B37', state:'out', note:"Won't open, dead battery. Waiting on a part.", by:'Supervisor', t: base - 2*86400000, via:'tag'},
+          B36a: {gate:'B36a', state:'usable', note:'Screen is off, keypad still works. Code as normal.', by:'Supervisor', t: base - 86400000, via:'tag'} };
+  reports = { p1: {id:'p1', gate:'B52', flags:['Knob spinning', "Won't close"], by:'Runner 1', t: end - 40*60000, day: dayKey, photo: 1} };
+  photos['p1_p'] = { img: DEMO_PIC };
+  svcLog = [{gate:'B36a', action:'usable', note:'Screen is off, keypad still works. Code as normal.', by:'Supervisor', t: base - 86400000, via:'tag'},
+            {gate:'B37', action:'out', note:"Won't open, dead battery. Waiting on a part.", by:'Supervisor', t: base - 2*86400000, via:'tag'}];
   tags = {}; CABS.forEach((g, i) => { if (hash(g + 'tag') < 0.9) tags['04_' + i] = { gate: g, serial: '04:a2:' + pad(i) + ':5c:90', t: base - 86400000 * 3, by: 'Supervisor' }; });
   return out.sort((a,b) => a.t - b.t);
 }
@@ -429,6 +471,9 @@ function initFB(){
     db.ref(ROOT + '/cfg').on('value', s => { Object.assign(cfg, s.val() || {}); render(); });
     db.ref(ROOT + '/duty').on('value', s => { dutyNow = s.val() || {}; render(); });
     db.ref(ROOT + '/tags').on('value', s => { tags = s.val() || {}; render(); });
+    db.ref(ROOT + '/svc').on('value', s => { svc = s.val() || {}; render(); });
+    db.ref(ROOT + '/reports').on('value', s => { reports = s.val() || {}; render(); });
+    db.ref(ROOT + '/svcLog').limitToLast(40).on('value', s => { svcLog = Object.values(s.val() || {}).sort((a,b) => b.t - a.t); render(); });
     listen();
   } catch(e) { setLive(false, 'no connection'); }
 }
@@ -452,11 +497,10 @@ function setLive(on, label){
   el.textContent = demo ? 'demo' : (label || (on ? 'live' : 'offline'));
   el.className = 'pill' + (on && !demo ? '' : ' off');
 }
-function me(){
-  let n = ''; try { n = localStorage.getItem('cb_name') || ''; } catch(_) {}
-  if (!n) { n = (prompt('Your name, so people can see who asked') || '').trim(); if (n) try { localStorage.setItem('cb_name', n); } catch(_) {} }
-  return n || 'Supervisor';
-}
+// who is asking: typed once in the header, no pop-up (browsers block those after a few)
+function me(){ return $('#meName').value.trim() || 'Supervisor'; }
+try { $('#meName').value = localStorage.getItem('cb_name') || ''; } catch(_) {}
+$('#meName').onchange = () => { try { localStorage.setItem('cb_name', $('#meName').value.trim()); } catch(_) {} };
 
 /* ---- the numbers -------------------------------------------------------------- */
 function view(){
@@ -503,13 +547,15 @@ function render(){
   document.querySelectorAll('.yM').forEach(e => e.textContent = cfg.yellowMin);
   document.querySelectorAll('.rM').forEach(e => e.textContent = cfg.redMin);
   const list = view(), gates = byGate(list), now = asOf(), dueMs = +$('#due').value * 3600000;
-  const seen = CABS.filter(g => gates[g]);
-  const states = {}; CABS.forEach(g => states[g] = state(gates[g], dueMs, now));
-  const late = CABS.filter(g => states[g] === 'late').length;
-  const never = CABS.filter(g => states[g] === 'never').length;
+  const isOut = g => !!(svc[g] && svc[g].state === 'out');
+  const WALK = CABS.filter(g => !isOut(g));            // an out-of-service cabinet is not anyone's miss
+  const seen = WALK.filter(g => gates[g]);
+  const states = {}; CABS.forEach(g => states[g] = isOut(g) ? 'oos' : state(gates[g], dueMs, now));
+  const late = WALK.filter(g => states[g] === 'late').length;
+  const never = WALK.filter(g => states[g] === 'never').length;
   const hand = list.filter(r => r.via === 'hand').length;
   const flags = list.filter(r => r.flag);
-  const cover = Math.round(seen.length / CABS.length * 100);
+  const cover = Math.round(seen.length / WALK.length * 100);
   const proved = list.length ? Math.round((list.length - hand) / list.length * 100) : 0;
   const loads = list.filter(r => r.dbl).map(r => ({ r, l: load(r, now) }));
   const lDone = loads.filter(x => x.l.st === 'done'), lRed = loads.filter(x => x.l.st === 'red'), lYel = loads.filter(x => x.l.st === 'yellow');
@@ -525,7 +571,7 @@ function render(){
 
   renderCrew();
   $('#kpi').innerHTML =
-    card(cover + '%', 'cabinets covered', seen.length + ' of ' + CABS.length + ' visited', cover >= 90 ? 'good' : cover >= 70 ? 'warn' : 'bad') +
+    card(cover + '%', 'cabinets covered', seen.length + ' of ' + WALK.length + ' visited' + (WALK.length < CABS.length ? ', ' + (CABS.length - WALK.length) + ' out of service' : ''), cover >= 90 ? 'good' : cover >= 70 ? 'warn' : 'bad') +
     card(String(list.length), 'visits logged', list.length ? hhmm(list[0].t) + ' to ' + hhmm(list[list.length-1].t) : 'nothing yet') +
     card(String(late + never), 'overdue now', 'not touched in ' + ($('#due').value * 2) + 'h or more', (late + never) ? ((late + never) > 6 ? 'bad' : 'warn') : 'good') +
     card(proved + '%', 'proved by tag', hand + ' typed in by hand', proved >= 90 ? 'good' : proved >= 70 ? 'warn' : 'bad') +
@@ -539,8 +585,9 @@ function render(){
     const lo = loads.filter(x => x.r.gate === g && x.l.st !== 'done').map(x => x.l.st);
     const lc = lo.includes('red') ? ' lr' : lo.includes('yellow') ? ' ly' : lo.length ? ' lo' : '';
     const rq = live.some(r => r.gate === g);
-    const sub = l ? hhmm(l[l.length-1].t) : 'never';
-    return '<div class="cab ' + st + (flag ? ' flag' : '') + lc + (rq ? ' rq' : '') + '" data-g="' + g + '" title="' + g + ' – ' +
+    const sub = st === 'oos' ? 'out' : l ? hhmm(l[l.length-1].t) : 'never';
+    return '<div class="cab ' + st + (flag ? ' flag' : '') + lc + (rq ? ' rq' : '') + (svc[g] && svc[g].state === 'usable' ? ' use' : '') + '" data-g="' + g + '" title="' + g + ' – ' +
+      (svc[g] ? (st === 'oos' ? 'OUT OF SERVICE: ' : 'Still usable: ') + esc(svc[g].note || '') + ' – ' : '') +
       (l ? l.length + ' visit' + (l.length>1?'s':'') + ', last ' + hhmm(l[l.length-1].t) + (l[l.length-1].by ? ' by ' + esc(l[l.length-1].by) : '')
          : 'no visit logged') + '">' +
       '<b>' + g.replace('B','') + '</b><span>' + sub + '</span></div>';
@@ -550,7 +597,7 @@ function render(){
   let h = '<tr><th class="l">Cabinet</th><th>Visits</th><th>Last</th><th>By</th><th>Duty</th><th>Since</th><th>Needed</th><th>Load</th><th>Problem</th></tr>';
   CABS.forEach(g => {
     const l = gates[g];
-    if (!l) { h += '<tr class="never pick" data-g="' + g + '"><td class="l">' + g + '</td><td>0</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td></tr>'; return; }
+    if (!l) { h += '<tr class="never pick" data-g="' + g + '"><td class="l">' + g + (isOut(g) ? ' <span class="tagp out">out of service</span>' : '') + '</td><td>0</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td></tr>'; return; }
     const last = l[l.length-1], st = states[g];
     const lastLoad = l.filter(r => r.dbl).pop();
     h += '<tr class="pick ' + (st === 'late' ? 'late' : '') + '" data-g="' + g + '"><td class="l"><b>' + g + '</b></td>' +
@@ -570,6 +617,8 @@ function render(){
   live.forEach(r => att.push({g: r.gate, why: dutyLabel(r.type) + ' asked for, waiting ' + dur(Date.now() - r.t), cls: 'amb', when: esc(r.by || '')}));
   lYel.forEach(x => att.push({g: x.r.gate, why: 'Load open ' + dur(x.l.ms), cls: 'amb', when: esc(x.r.by || '') + ' · ' + hhmm(x.r.t)}));
   // early in the day most of the concourse is unvisited: say so once, not fifty times
+  const fresh = Object.values(reports).filter(x => x && !x.closed);
+  fresh.forEach(x => att.push({g: x.gate, why: 'Reported: ' + x.flags.join(', ') + (x.photo ? ' (photo)' : ''), cls: 'amb', when: esc(x.by || '') + ' · ' + hhmm(x.t)}));
   const nv = CABS.filter(g => states[g] === 'never');
   if (nv.length > 8) att.push({g: '', n: nv.length, why: 'cabinets with no visit logged yet: ' + nv.map(g => g.slice(1)).join(', '), cls: 'red', when: ''});
   else nv.forEach(g => att.push({g, why: 'No visit logged at all', cls: 'red', when: ''}));
@@ -619,6 +668,9 @@ function render(){
     'On past days the clock stops at midnight, so history is judged the same way the day was lived. ' +
     'Zone 7 (B62 to B71) has no cabinets and is not counted.';
 
+  const sn = $('#pages a[data-p=service]');
+  sn.innerHTML = 'Service' + (fresh.length ? '<em>' + fresh.length + '</em>' : '');
+  renderService();
   const pn = $('#pages a[data-p=cabinets]');
   pn.innerHTML = 'Cabinets' + (lRed.length + live.length ? '<em>' + (lRed.length + live.length) + '</em>' : '');
   renderPeople(list, now);
@@ -682,6 +734,22 @@ function drawCab(){
   const tg = Object.values(tags).filter(x => x && x.gate === g);
   let h = '<div class="dh"><b>' + g + '</b><span>' + (higher(g) ? 'higher gates' : 'lower gates') + ' &middot; ' +
           (tg.length ? tg.length + ' tag' + (tg.length > 1 ? 's' : '') + ' set' : 'no tag yet') + '</span><button id="dX">Close</button></div><div class="db">';
+  const sv = svc[g] || (svcDraft === g ? { state: '', note: '', by: '', t: Date.now(), draft: 1 } : null), rp = Object.values(reports).filter(x => x && !x.closed && x.gate === g).sort((a,b) => b.t - a.t);
+  if (sv || rp.length) {
+    h += '<h4>Service</h4><div class="svbox">' +
+         (sv && !sv.draft ? '<span class="tagp ' + (sv.state === 'out' ? 'out">out of service' : 'use">still usable') + '</span> <span style="color:#5b6377;font-size:11.5px">' +
+               esc(sv.by || '') + ', ' + dayOf(sv.t) + (sv.via === 'tag' ? ', at the cabinet' : '') + '</span>' : '');
+    rp.forEach(x => {
+      h += '<div style="margin-top:7px"><b style="color:#b71c1c">' + esc(x.flags.join(', ')) + '</b> <span style="color:#5b6377;font-size:11.5px">' +
+           esc(x.by || '') + ', ' + dayOf(x.t) + ' ' + hhmm(x.t) + '</span>' +
+           (x.photo ? (photos[x.id + '_p'] ? '<img style="display:block;width:100%;border-radius:8px;margin-top:6px;border:1px solid #d7dbe8" src="' + photos[x.id + '_p'].img + '" alt="">'
+                                           : '<div class="cap">loading the photo…</div>') : '') + '</div>';
+    });
+    h += '<textarea id="svNote" placeholder="Note for whoever taps it next: Screen is off, keypad still works">' + esc((sv && sv.note) || '') + '</textarea>' +
+         '<div class="bt"><button class="act alt sm" data-sv="usable">Still usable</button>' +
+         '<button class="act redb sm" data-sv="out">Out of service</button>' +
+         (sv && !sv.draft ? '<button class="act grn sm" data-sv="fixed">Fixed</button>' : '<button class="act alt sm" data-sv="dismiss">Not a problem</button>') + '</div></div>';
+  } else h += '<h4>Service</h4><button class="act alt sm" id="svStart">Take ' + g + ' out of service, or leave a note</button>';
   h += '<h4>Ask for a check on ' + g + '</h4><div class="ask">' +
        DUTIES.map(d => '<button data-ask="' + d.k + '"' + (liveTypes.includes(d.k) ? ' disabled' : '') + '>' + d.label + '</button>').join('') + '</div>' +
        '<div class="foot">Whoever taps ' + g + ' next gets it on their screen, whatever they are on. It stays asked for until it is done or the shift ends.</div>';
@@ -710,6 +778,14 @@ function drawCab(){
   const d = $('#drawer');
   const top = d.scrollTop;
   d.innerHTML = h + '</div>'; d.classList.remove('hide'); d.scrollTop = top;
+  rp.filter(x => x.photo && photos[x.id + '_p'] === undefined).forEach(x => {
+    if (!db) return;
+    photos[x.id + '_p'] = null;
+    db.ref(ROOT + '/photos/' + x.day + '/' + x.id + '_p').once('value').then(sn2 => {
+      photos[x.id + '_p'] = sn2.val() || { img: '' };
+      if (openCab === g) drawCab();
+    }).catch(() => { delete photos[x.id + '_p']; });
+  });
   list.filter(r => r.photo && !photos[r.id]).forEach(r => {
     if (!db) return;
     photos[r.id] = null;
@@ -720,21 +796,75 @@ function drawCab(){
   });
 }
 $('#drawer').onclick = e => {
-  if (e.target.id === 'dX') { openCab = ''; $('#drawer').classList.add('hide'); return; }
+  if (e.target.id === 'dX') { svcDraft = ''; openCab = ''; $('#drawer').classList.add('hide'); return; }
+  if (e.target.id === 'svStart') { svcDraft = openCab; drawCab(); return; }
+  const v = e.target.closest('[data-sv]'); if (v) { setSvc(openCab, v.dataset.sv); return; }
   const a = e.target.closest('[data-ask]'); if (a && !a.disabled) { ask(openCab, a.dataset.ask); return; }
   const c = e.target.closest('[data-cancel]'); if (c) cancelReq(c.dataset.cancel);
 };
+let svcDraft = '';
+function setSvc(g, state){
+  const note = ($('#svNote') ? $('#svNote').value : '').trim(), t = Date.now(), by = me();
+  if ((state === 'usable' || state === 'out') && !note) { $('#svNote').focus(); $('#svNote').placeholder = 'Leave a note first, so people know what to do'; return; }
+  svcDraft = '';
+  if (state === 'fixed' || state === 'dismiss') put('svc/' + g, null, () => { delete svc[g]; });
+  else { const v = { gate: g, state, note, by, t, via: 'board' }; put('svc/' + g, v, () => { svc[g] = v; }); }
+  const lg = { gate: g, action: state, note, by, t, via: 'board' };
+  put('svcLog/' + t.toString(36) + '-' + g, lg, () => { svcLog.unshift(lg); });
+  Object.values(reports).filter(x => x && !x.closed && x.gate === g).forEach(x => {
+    const c = { by, t, action: state }; put('reports/' + x.id + '/closed', c, () => { x.closed = c; });
+  });
+}
+function renderService(){
+  const ord = g => CABS.indexOf(g), live = Object.values(svc).filter(x => x && x.state);
+  const row = (g, tag, main, sub) => '<div class="svrow" data-g="' + g + '"><b>' + g + '</b><div class="w">' + main + '<small>' + sub + '</small></div>' + tag + '</div>';
+  const fresh = Object.values(reports).filter(x => x && !x.closed).sort((a,b) => b.t - a.t);
+  $('#svNew').innerHTML = fresh.map(x => row(x.gate, '<span class="tagp new">' + (x.photo ? 'photo' : 'no photo') + '</span>',
+      '<span style="color:#b71c1c;font-weight:600">' + esc(x.flags.join(', ')) + '</span>', esc(x.by || '') + ', ' + dayOf(x.t) + ' ' + hhmm(x.t))).join('')
+    || '<div class="none">Nothing new has been reported.</div>';
+  const grp = st => live.filter(x => x.state === st).sort((a,b) => ord(a.gate) - ord(b.gate))
+    .map(x => row(x.gate, '<span class="tagp ' + (st === 'out' ? 'out">out' : 'use">usable') + '</span>', esc(x.note || 'No note'),
+      esc(x.by || '') + ', ' + dayOf(x.t) + (x.via === 'tag' ? ', set at the cabinet' : ''))).join('');
+  $('#svOut').innerHTML = grp('out') || '<div class="none">Every cabinet is in service.</div>';
+  $('#svUse').innerHTML = grp('usable') || '<div class="none">None.</div>';
+  const word = { fixed: 'fixed, back in service', out: 'taken out of service', usable: 'marked still usable', dismiss: 'report cleared, not a problem' };
+  $('#svLog').innerHTML = svcLog.slice(0, 30).map(x => '<div class="att" data-g="' + x.gate + '"><b>' + x.gate + '</b><div class="why">' + (word[x.action] || x.action) +
+      (x.note ? '<br><span style="color:#5b6377">' + esc(x.note) + '</span>' : '') + '</div><div class="when">' + esc(x.by || '') + '<br>' + dayOf(x.t).slice(5) + ' ' + hhmm(x.t) +
+      '<br>' + (x.via === 'tag' ? 'at the cabinet' : x.via === 'board' ? 'from the board' : 'by hand') + '</div></div>').join('')
+    || '<div class="none">Nothing yet.</div>';
+}
 function pickCab(e){
   const el = e.target.closest('[data-g]'); if (!el) return;
   openCab = el.dataset.g; $('#drawer').scrollTop = 0; drawCab();
 }
 $('#map').onclick = pickCab; $('#tCab').onclick = pickCab; $('#att').onclick = pickCab;
+['#svNew', '#svOut', '#svUse', '#svLog'].forEach(q => $(q).onclick = pickCab);
 
 /* ---- per-person log ---------------------------------------------------------------
    The walk between cabinets is measured from when the last count was SENT to when the
    next tag was tapped, so time spent counting is not counted as walking. Anything over
    20 minutes is marked: it may be a break, a callback or a trip to the cart, and the
    supervisor is the one who knows which. */
+/* Two checks that are about honesty, not speed. Neither is proof of anything; they say
+   "go and look".
+   Too fast: the next tap came sooner than anyone could walk it. Gate numbers run down the
+   concourse about 18 m apart, so 4 seconds a gate is a dead run; under that, over six gates
+   or more, means the tag was not where the cabinet is, or the phone clock is off.
+   Full, then low: counted full, and the next person there within 3 hours needed three or
+   more. Once is a busy bank of flights. A habit is someone dodging the second tap. */
+const gateNo = g => parseInt(g.slice(1), 10);
+function tooFast(prev, r){
+  const dn = Math.abs(gateNo(r.gate) - gateNo(prev.gate)), dt = r.t - (prev.s && prev.s < r.t ? prev.s : prev.t);
+  return dn >= 6 && dt >= 0 && dt < dn * 4000;
+}
+function fullThenLow(w){
+  const mine = recs.filter(r => (r.by || '(no name)') === w && stepsOf(r).includes('provisions') && !needTotal(r) && !r.flag);
+  const hits = mine.filter(r => {
+    const nx = recs.find(x => x.gate === r.gate && x.t > r.t && x.t - r.t < 3 * 3600000 && stepsOf(x).includes('provisions') && (x.by || '(no name)') !== w);
+    return nx && needTotal(nx) >= 3;
+  });
+  return { full: mine.length, hits };
+}
 const GAP_MS = 20 * 60000;
 const MOVES = ['provisions', 'supplies', 'photo', 'provisions+supplies', 'provisions+photo', 'supplies+photo', 'provisions+supplies+photo'];
 const secs = ms => { const s = Math.round(ms / 1000); return Math.floor(s / 60) + ':' + pad(s % 60); };
@@ -764,12 +894,14 @@ function renderPeople(list, now){
   if (!names.length) { $('#people').innerHTML = '<div class="none">Nobody has logged a visit for this day.</div>'; return; }
 
   let h = '<table><tr><th class="l">Person</th><th>On</th><th>Visits</th><th>First</th><th>Last</th><th>Cabinets</th>' +
-          '<th>By tag</th><th>Cabinet to cabinet</th><th>Gaps over 20 min</th><th>Loads closed</th><th>Left open</th><th>Problems</th></tr>';
+          '<th>By tag</th><th>Cabinet to cabinet</th><th>Gaps over 20 min</th><th>Loads closed</th><th>Left open</th>' +
+          '<th title="Next tap came sooner than anyone could walk it">Too fast</th><th title="Counted full, next person within 3 h needed 3 or more">Full, then low</th><th>Problems</th></tr>';
   names.forEach(w => {
     const l = by[w], wk = walks(l);
     const short = wk.filter(x => x > 0 && x <= GAP_MS);
     const ld = l.filter(r => r.dbl), op = ld.filter(r => !r.f);
     const bad = op.filter(r => load(r, now).st === 'red').length;
+    const tf = l.filter((r, i) => i && tooFast(l[i-1], r)).length, fl = fullThenLow(w);
     h += '<tr class="pick' + (w === person ? ' sel' : '') + '" data-w="' + esc(w) + '">' +
       '<td class="l"><b>' + esc(w) + '</b></td><td><span class="dt">' + dutyLabel(dutyOfPerson(w, l)) + (lockedP(w) ? ' &middot; locked' : '') + '</span></td><td>' + l.length + '</td>' +
       '<td>' + hhmm(l[0].t) + '</td><td>' + hhmm(l[l.length-1].t) + '</td>' +
@@ -779,6 +911,8 @@ function renderPeople(list, now){
       '<td>' + (wk.filter(x => x > GAP_MS).length || '–') + '</td>' +
       '<td>' + (ld.length ? (ld.length - op.length) + ' of ' + ld.length : '–') + '</td>' +
       '<td>' + (op.length ? '<span class="ld ' + (bad ? 'red' : 'yellow') + '">' + op.length + '</span>' : '–') + '</td>' +
+      '<td>' + (tf ? '<span class="ld red">' + tf + '</span>' : '–') + '</td>' +
+      '<td>' + (fl.hits.length ? '<span class="ld ' + (fl.hits.length >= 3 ? 'red' : 'yellow') + '">' + fl.hits.length + ' of ' + fl.full + '</span>' : fl.full ? '0 of ' + fl.full : '–') + '</td>' +
       '<td>' + (l.filter(r => r.flag).length || '–') + '</td></tr>';
   });
   h += '</table>';
@@ -796,21 +930,27 @@ function renderPeople(list, now){
           (x.from ? dutyLabel(x.from) + ' to ' : 'signed in on ') + dutyLabel(x.duty) + (x.by && x.by !== x.who ? ' (' + (x.lock ? 'locked' : 'moved') + ' by ' + esc(x.by) + ')' : '')).join(' &middot; ') + '</div>' : '') +
        '<div class="scroll" style="max-height:none"><table><tr><th>#</th><th>Tapped</th><th class="l">Cabinet</th><th>Shift</th><th>Duty</th><th>How</th>' +
        '<th>Walk from last</th><th>Walk back</th><th class="l">Needed</th><th>Load</th><th class="l">Problem</th></tr>';
+  const lowSet = new Set(fullThenLow(person).hits);
   l.forEach((r, i) => {
     const walk = i ? r.t - (l[i-1].s || l[i-1].t) : null;
-    const gap = walk != null && walk > GAP_MS;
+    const gap = walk != null && walk > GAP_MS, fast = i > 0 && tooFast(l[i-1], r);
+    const low = lowSet.has(r);
     h += '<tr class="' + (gap ? 'gap' : '') + '"><td>' + (i + 1) + '</td><td>' + hhmm(r.t) + '</td>' +
       '<td class="l"><b>' + r.gate + '</b></td>' +
       '<td><span class="sh ' + r.shift.toLowerCase() + '">' + r.shift + '</span></td>' +
       '<td><span class="dt">' + dutyLabel(dutyOf(r)) + '</span></td>' +
       '<td>' + (r.via === 'hand' ? '<span style="color:#e07800">by hand</span>' : 'tag') + '</td>' +
-      '<td>' + (walk == null ? 'start' : walk < 0 ? '–' : gap ? dur(walk) + '<span class="gp">gap</span>' : secs(walk)) + '</td>' +
+      '<td>' + (walk == null ? 'start' : walk < 0 ? '–' : gap ? dur(walk) + '<span class="gp">gap</span>' : secs(walk)) +
+        (fast ? '<span class="gp" style="color:#b71c1c;border-color:#e0a0a0">too fast from ' + l[i-1].gate + '</span>' : '') + '</td>' +
       '<td>' + (r.s ? secs(r.s - r.t) : '–') + '</td>' +
-      '<td class="l">' + needText(r) + '</td>' +
+      '<td class="l">' + needText(r) + (low ? '<span class="gp" style="color:#b71c1c;border-color:#e0a0a0">next person found it low</span>' : '') + '</td>' +
       '<td>' + loadCell(r, now) + '</td>' +
       '<td class="l" style="color:#b71c1c">' + esc(r.flag || '') + '</td></tr>';
   });
-  $('#people').innerHTML = h + '</table></div></div>';
+  $('#people').innerHTML = h + '</table></div></div>' +
+    '<div class="foot" style="padding:9px 13px"><b>Too fast</b>: the next tap came sooner than anyone could walk it (six gates or more at under 4 seconds a gate). ' +
+    'Usually a tag that is not on its cabinet. <b>Full, then low</b>: counted full, and the next person there within 3 hours needed three or more. ' +
+    'Once is a busy bank of flights; a habit is worth a conversation. Neither one is proof, they tell you where to look, and a photo check on that cabinet settles it.</div>';
 }
 
 /* ---- users and tags ---------------------------------------------------------------- */
@@ -873,10 +1013,10 @@ function shift(days){
 }
 function showPage(){
   const p = (location.hash || '').slice(1);
-  page = ['cabinets','people','users','tags'].includes(p) ? p : 'cabinets';
-  ['cabinets','people','users','tags'].forEach(x => $('#p-' + x).classList.toggle('hide', x !== page));
+  page = ['cabinets','service','people','users','tags'].includes(p) ? p : 'cabinets';
+  ['cabinets','service','people','users','tags'].forEach(x => $('#p-' + x).classList.toggle('hide', x !== page));
   document.querySelectorAll('#pages a').forEach(a => a.classList.toggle('on', a.dataset.p === page));
-  if (page !== 'cabinets') { openCab = ''; $('#drawer').classList.add('hide'); }
+  if (page !== 'cabinets' && page !== 'service') { openCab = ''; $('#drawer').classList.add('hide'); }
 }
 window.onhashchange = showPage;
 $('#prev').onclick = () => shift(-1);
@@ -893,18 +1033,11 @@ $('#people').onclick = e => {
 };
 $('#people').onchange = e => {
   if (e.target.id !== 'pMove' && e.target.id !== 'pLock') return;
-  const k = $('#pMove').value, lock = $('#pLock').checked;
-  if (!confirm((lock ? 'Set ' + person + ' to ' + dutyLabel(k) + ' and lock it? They cannot change it on the phone until you unlock it.'
-                     : 'Move ' + person + ' to ' + dutyLabel(k) + '? They can still switch on the phone.') +
-               '\n\nTheir phone switches over and it is logged.')) { render(); return; }
-  moveTo(person, k, lock);
+  moveTo(person, $('#pMove').value, $('#pLock').checked);
 };
 $('#users').onchange = e => {
   const tr = e.target.closest('tr[data-w]'); if (!tr) return;
-  const w = tr.dataset.w, k = tr.querySelector('.uMove').value, lock = tr.querySelector('.uLock').checked;
-  if (!confirm((lock ? 'Set ' + w + ' to ' + dutyLabel(k) + ' and lock it? They cannot change it on the phone until you unlock it.'
-                     : 'Set ' + w + ' to ' + dutyLabel(k) + ', unlocked? They can switch on the phone.'))) { render(); return; }
-  moveTo(w, k, lock);
+  moveTo(tr.dataset.w, tr.querySelector('.uMove').value, tr.querySelector('.uLock').checked);
 };
 $('#rules').onchange = () => {
   const v = { doubleTap: $('#cfDbl').checked, yellowMin: +$('#cfY').value, redMin: +$('#cfR').value };
