@@ -332,7 +332,9 @@ const CABS = (() => {
   for (const n of nums) { const g = 'B' + n; if (DUAL.includes(g)) out.push(g + 'a', g + 'b'); else out.push(g); }
   return out;
 })();
-const higher = g => parseInt(g.slice(1), 10) >= 46;
+// Every cabinet is stocked the same way now (the old lower-gate layout). If a group of
+// gates ever differs again, this is the one line to change, and hi/lo in the lists below.
+const higher = g => false;
 const ITEMS = [
   {k:'blanket',  label:'Blankets',      lo:2, hi:2},
   {k:'lav',      label:'Lav Kits',      lo:2, hi:2},
@@ -740,7 +742,7 @@ function drawCab(){
   const rq = Object.values(reqs).filter(r => r && r.gate === g && (reqLive(r, Date.now()) || reqOnDay(r))).sort((a,b) => b.t - a.t);
   const liveTypes = rq.filter(r => reqLive(r, Date.now())).map(r => r.type);
   const tg = Object.values(tags).filter(x => x && x.gate === g);
-  let h = '<div class="dh"><b>' + g + '</b><span>' + (higher(g) ? 'higher gates' : 'lower gates') + ' &middot; ' +
+  let h = '<div class="dh"><b>' + g + '</b><span>' +
           (tg.length ? tg.length + ' tag' + (tg.length > 1 ? 's' : '') + ' set' : 'no tag yet') + '</span><button id="dX">Close</button></div><div class="db">';
   const sv = svc[g] || (svcDraft === g ? { state: '', note: '', by: '', t: Date.now(), draft: 1 } : null), rp = Object.values(reports).filter(x => x && !x.closed && x.gate === g).sort((a,b) => b.t - a.t);
   if (sv || rp.length) {
