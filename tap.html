@@ -192,7 +192,7 @@ th.am{color:var(--am)}th.pm{color:var(--pm)}th.ovn{color:var(--ovn)}
 
 // Goes up by one with every change to this file. A phone swaps its copy for a
 // published one only when the published number is higher.
-const BUILD = 5;
+const BUILD = 6;
 
 /* ---------------------------------------------------------------------------
    The guard-tour idea. Nobody can follow a runner to every cabinet, so the
@@ -275,8 +275,13 @@ const SOUND = {
   filled:     [[523, .12], [784, .3]],
   no:         [[180, .38]],
 };
+// Inside the app the notes are played by Android itself. Web audio in the app's
+// browser view takes a fast audio path that reboots the Sonim XP9900 outright, so
+// it is never touched there. An older APK without playTones simply stays silent.
 let actx = null;
+const IN_APP = !!window.Android;
 function tone(seq){
+  if (IN_APP) { try { if (window.Android.playTones) window.Android.playTones(JSON.stringify(seq)); } catch(_) {} return; }
   try {
     actx = actx || new (window.AudioContext || window.webkitAudioContext)();
     if (actx.state === 'suspended') actx.resume();
@@ -300,7 +305,7 @@ function soundFor(steps, asked){
   tone(seq);
 }
 // a browser will not play anything until the screen has been touched once
-document.addEventListener('touchstart', () => { try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch(_) {} }, { once: true, passive: true });
+if (!IN_APP) document.addEventListener('touchstart', () => { try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch(_) {} }, { once: true, passive: true });
 const PHOTO_SECS = 40;       // from the tag read to the camera: no walking off first
 const RETAP_MS = 60000;      // a second tap sooner than this is a fumble, not a load
 const FLAGS = ["Won't open", 'Needs a key', 'Dead battery', 'Trash / bags inside', 'Missing shelf', 'Other'];
