@@ -673,7 +673,6 @@ function ask(g, type){
   put('req/' + id, r, () => { reqs[id] = r; });
 }
 function cancelReq(id){
-  if (!confirm('Take this request back?')) return;
   put('req/' + id, null, () => { delete reqs[id]; });
 }
 function drawCab(){
