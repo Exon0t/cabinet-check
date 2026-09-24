@@ -182,15 +182,30 @@ tr.gap td{background:#fff8e6}
 #gate input{width:100%;padding:10px;border:1.5px solid var(--line);border-radius:8px;font-size:18px;
   text-align:center;margin-bottom:10px;letter-spacing:4px}
 #gate button{width:100%;padding:10px}
+#gate input{margin-bottom:8px}
+.ubtn{background:#fff;color:var(--navy);border:1.5px solid var(--navy);border-radius:7px;padding:3px 8px;cursor:pointer;font-size:11.5px;margin:1px 2px}
+.ubtn.red{color:var(--red);border-color:var(--red)} .ubtn.grn{color:var(--green);border-color:var(--green)}
+.utag{font-size:9.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;border-radius:10px;padding:1px 7px;border:1px solid;white-space:nowrap}
+.utag.wait{color:var(--amber);border-color:#e8c86a;background:#fff8e6}.utag.lock{color:var(--red);border-color:#e0a0a0;background:#fdecec}
+.utag.off{color:#6d7488;border-color:#b9bfd0;background:#eceef4}.utag.tmp{color:var(--navy);border-color:#b9c0e6;background:#eef1fb}
+.utag.mgr{color:#fff;background:var(--navy);border-color:var(--navy)}
+.temp{font-family:Consolas,monospace;font-size:16px;font-weight:700;background:#fff8e6;border:1.5px solid #e8c86a;border-radius:8px;padding:6px 10px;display:inline-block;letter-spacing:1px}
+.uform{display:grid;grid-template-columns:1fr 1fr 1.6fr auto auto;gap:7px;align-items:end;margin-bottom:10px}
+.uform label{font-size:10.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:3px}
+.uform input,.uform select{width:100%;border:1.5px solid var(--line);border-radius:7px;padding:6px 8px;background:#fff}
+.uform textarea{width:100%;border:1.5px solid var(--line);border-radius:7px;padding:6px 8px;font:inherit;min-height:60px}
+.made{background:#f6f7fb;border:1px solid var(--line);border-radius:9px;padding:9px 12px;margin:8px 0;font-size:12.5px;line-height:1.7}
 #gMsg{color:var(--red);margin-top:8px;min-height:16px;font-weight:600}
 </style></head><body>
 
 <div id="gate"><form id="gForm">
   <h1>CABINET COMPLIANCE</h1>
-  <p>Supervisors only. Enter the PIN.</p>
-  <input id="gPin" type="password" inputmode="numeric" autocomplete="off" placeholder="PIN">
-  <button class="act" type="submit">Open</button>
+  <p>Managers sign in with their UGE e-mail or V number.</p>
+  <input id="gUser" type="text" autocomplete="username" placeholder="first.last@unitedgroundexpress.com" style="letter-spacing:0;font-size:15px">
+  <input id="gPass" type="password" autocomplete="current-password" placeholder="password" style="letter-spacing:0;font-size:15px">
+  <button class="act" type="submit" id="gGo">Sign in</button>
   <div id="gMsg"></div>
+  <div style="font-size:11.5px;color:#5b6377;margin-top:12px;line-height:1.5">Forgot your password? Use <b>Forgot password</b> on the phone app, or ask another manager to reset it.</div>
 </form></div>
 
 <header>
@@ -209,8 +224,8 @@ tr.gap td{background:#fff8e6}
     <label for="due">Due every</label>
     <select id="due"><option value="2">2 h</option><option value="3" selected>3 h</option><option value="4">4 h</option></select>
     <button class="act alt" id="csv">CSV</button>
-    <label for="meName">You</label>
-    <input id="meName" placeholder="your name" style="width:110px" autocomplete="off">
+    <span id="meName" style="font-size:12px;color:#c5cbe8"></span>
+    <button class="act alt" id="signOut" style="padding:4px 9px">Sign out</button>
   </div>
 </header>
 <nav class="pages" id="pages">
@@ -291,8 +306,6 @@ tr.gap td{background:#fff8e6}
 </main>
 <div id="drawer" class="hide"></div>
 
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script>
 "use strict";
 
@@ -313,16 +326,10 @@ tr.gap td{background:#fff8e6}
    switched from here.
 --------------------------------------------------------------------------- */
 
-const FB = {
-  apiKey:"AIzaSyD1gtIw23ffOKA8ANz9w-obR3ElGi_ie3k",
-  authDomain:"cabinet-checker-a23cd.firebaseapp.com",
-  databaseURL:"https://cabinet-checker-a23cd-default-rtdb.firebaseio.com",
-  projectId:"cabinet-checker-a23cd",
-  storageBucket:"cabinet-checker-a23cd.firebasestorage.app",
-  messagingSenderId:"941784062745",
-  appId:"1:941784062745:web:396cf982746e98e1924388"
-};
-const ROOT = 'nfc';
+// The server. The board only works for a signed-in manager; the database's own rules
+// decide what a manager may do, so nothing here is a secret.
+const SB = { url: 'https://xdgdampdptvtnxtyabms.supabase.co', key: 'sb_publishable_bjEwVO0zp_XkUhY7G9Db_A_sSlELl44' };
+const UGE = '@unitedgroundexpress.com';
 
 const DUAL = ['B32','B36','B38','B42'];
 const CABS = (() => {
@@ -391,7 +398,13 @@ let reports = {};         // problems agents reported, open until a manager clos
 let svcLog = [];
 let photos = {};          // visit id -> picture, fetched when a cabinet is opened
 let demo = false;
-let db = null;
+demo = /(\?|&)demo=1/.test(location.search);
+let users = [];           // every account, for the Users page (managers only)
+let sess = null, meP = null;
+try { sess = JSON.parse(localStorage.getItem('cb_sess') || 'null'); meP = JSON.parse(localStorage.getItem('cb_me') || 'null'); } catch(_) {}
+const signedIn = () => !!(sess && sess.access_token && meP && meP.id);
+function saveSess(){ try { if (sess) localStorage.setItem('cb_sess', JSON.stringify(sess)); else localStorage.removeItem('cb_sess');
+                           if (meP) localStorage.setItem('cb_me', JSON.stringify(meP)); else localStorage.removeItem('cb_me'); } catch(_) {} }
 let person = '';          // whose log is open
 let openCab = '';         // which cabinet's drawer is open
 let page = 'cabinets';
@@ -423,7 +436,7 @@ function demoDay(dayKey){
       const t = base + (r.at * 3600 + gi * 150 + Math.floor(seed * 400)) * 1000;
       if (t > Date.now()) return;                                // never pretend the future happened
       const rec = { id: g + ri, gate: g, t, s: t + Math.floor(40000 + seed * 160000),
-                    by: r.by, shift: r.shift, duty: r.duty, steps: [r.duty],
+                    by: r.by, uid: keyOf(r.by), shift: r.shift, duty: r.duty, steps: [r.duty],
                     // some visits typed in by hand: that is what a tag which has stopped reading
                     // looks like, and spotting it is half the point of the board
                     via: hash(g + 'via' + ri) > 0.9 ? 'hand' : 'tag', need: {}, sup: {}, n: 0, flag: null };
@@ -450,7 +463,10 @@ function demoDay(dayKey){
     d2: {id:'d2', gate:'B41', type:'supplies', by:'Supervisor', t: end - 95*60000, exp: end + 2*3600000,
          done: {by:'Agent 4', t: end - 60*60000}},
   };
-  dutyNow = {}; rounds.forEach(r => dutyNow[keyOf(r.by)] = { who: r.by, duty: r.duty, t: base + r.at*3600000, by: r.by });
+  dutyNow = {}; rounds.forEach(r => dutyNow[keyOf(r.by)] = { uid: keyOf(r.by), who: r.by, duty: r.duty, t: base + r.at*3600000, by: r.by });
+  users = [...new Set(rounds.map(r => r.by))].map((n, i) => ({ id: keyOf(n), vnum: 'V10000' + i, name: n, email: n.toLowerCase().replace(' ', '.') + UGE,
+    role: 'agent', active: true, approved: i !== 2, must_change: i === 1, failed: 0, locked_at: i === 3 ? 'x' : null, last_login: null, created_at: '' }))
+    .concat([{ id: 'sup', vnum: 'V181741', name: 'Supervisor', email: 'supervisor' + UGE, role: 'manager', active: true, approved: true, must_change: false, failed: 0, locked_at: null, last_login: null, created_at: '' }]);
   dutyLog = rounds.filter((r, i) => rounds.findIndex(x => x.by === r.by) === i)
     .map(r => ({ who: r.by, duty: r.duty, from: null, t: base + (r.at - 0.1) * 3600000, by: r.by }))
     .concat([{ who: 'Agent 4', duty: 'supplies', from: 'provisions', t: base + 8.05*3600000, by: 'Supervisor' }])
@@ -465,48 +481,109 @@ function demoDay(dayKey){
   return out.sort((a,b) => a.t - b.t);
 }
 
-/* ---- database ----------------------------------------------------------------- */
-let dayRef = null, logRef = null;
-function initFB(){
-  if (typeof firebase === 'undefined') { setLive(false, 'no connection'); return; }
-  try {
-    firebase.initializeApp(FB);
-    db = firebase.database();
-    db.ref('.info/connected').on('value', s => setLive(!!s.val()));
-    db.ref(ROOT + '/req').on('value', s => { reqs = s.val() || {}; render(); });
-    db.ref(ROOT + '/cfg').on('value', s => { Object.assign(cfg, s.val() || {}); render(); });
-    db.ref(ROOT + '/duty').on('value', s => { dutyNow = s.val() || {}; render(); });
-    db.ref(ROOT + '/tags').on('value', s => { tags = s.val() || {}; render(); });
-    db.ref(ROOT + '/svc').on('value', s => { svc = s.val() || {}; render(); });
-    db.ref(ROOT + '/reports').on('value', s => { reports = s.val() || {}; render(); });
-    db.ref(ROOT + '/svcLog').limitToLast(40).on('value', s => { svcLog = Object.values(s.val() || {}).sort((a,b) => b.t - a.t); render(); });
-    listen();
-  } catch(e) { setLive(false, 'no connection'); }
+/* ---- the server ------------------------------------------------------------------ */
+async function api(path, opt){
+  opt = opt || {};
+  if (!opt.noauth && sess && sess.expires_at && sess.expires_at * 1000 - Date.now() < 90000) await refresh();
+  const h = Object.assign({ apikey: SB.key, 'Content-Type': 'application/json' }, opt.headers || {});
+  if (!opt.noauth && sess) h.Authorization = 'Bearer ' + sess.access_token;
+  const r = await fetch(SB.url + path, { method: opt.method || (opt.body !== undefined ? 'POST' : 'GET'), headers: h,
+                                          body: opt.body !== undefined ? JSON.stringify(opt.body) : undefined });
+  if (r.status === 401 && !opt.noauth && !opt.retried) {
+    if (await refresh()) return api(path, Object.assign({}, opt, { retried: true }));
+    throw Object.assign(new Error('signed out'), { status: 401 });
+  }
+  if (opt.blob) { if (!r.ok) throw Object.assign(new Error('HTTP ' + r.status), { status: r.status }); return await r.blob(); }
+  const txt = await r.text();
+  let v = null; try { v = txt ? JSON.parse(txt) : null; } catch(_) { v = txt; }
+  if (!r.ok) { const e = new Error((v && (v.error || v.message || v.msg)) || ('HTTP ' + r.status)); e.status = r.status; throw e; }
+  return v;
 }
-function listen(){
-  if (!db || demo) return;
-  if (dayRef) dayRef.off();
-  if (logRef) logRef.off();
-  dayRef = db.ref(ROOT + '/taps/' + DAY);
-  dayRef.on('value', s => { recs = Object.values(s.val() || {}).sort((a,b) => a.t - b.t); render(); });
-  logRef = db.ref(ROOT + '/dutyLog/' + DAY);
-  logRef.on('value', s => { dutyLog = Object.values(s.val() || {}).sort((a,b) => a.t - b.t); render(); });
+let refreshing = null;
+function refresh(){
+  if (!sess || !sess.refresh_token) return Promise.resolve(false);
+  if (refreshing) return refreshing;
+  refreshing = (async () => {
+    try { const v = await api('/auth/v1/token?grant_type=refresh_token', { body: { refresh_token: sess.refresh_token }, noauth: true });
+          sess = { access_token: v.access_token, refresh_token: v.refresh_token, expires_at: v.expires_at }; saveSess(); return true; }
+    catch(e) { if (e.status === 400 || e.status === 401 || e.status === 403) { signOut(); return false; } return true; }
+    finally { refreshing = null; }
+  })();
+  return refreshing;
 }
+function signOut(){
+  sess = null; meP = null; saveSess();
+  location.reload();
+}
+const runOp = o =>
+  o.kind === 'upsert' ? api('/rest/v1/' + o.table, { body: o.row, headers: { Prefer: 'resolution=merge-duplicates,return=minimal' } }) :
+  o.kind === 'insert' ? api('/rest/v1/' + o.table, { body: o.row, headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' } }) :
+  o.kind === 'patch'  ? api('/rest/v1/' + o.table + '?' + o.match, { method: 'PATCH', body: o.row, headers: { Prefer: 'return=minimal' } }) :
+  o.kind === 'delete' ? api('/rest/v1/' + o.table + '?' + o.match, { method: 'DELETE', headers: { Prefer: 'return=minimal' } }) :
+  Promise.reject(new Error('bad op'));
 // every change the board makes goes through here; on the demo it only changes the screen
-function put(path, val, local){
+function send(o, local){
   local();
-  if (!demo && db) db.ref(ROOT + '/' + path).set(val).catch(() => alert('That did not save. Check the connection and try again.'));
+  if (!demo) runOp(o).then(() => setTimeout(() => poll(true), 400))
+                     .catch(e => alert('That did not save' + (e.message ? ': ' + e.message : '') + '. Try again.'));
   render();
+}
+const admin = op => api('/functions/v1/api', { body: Object.assign({ action: 'admin' }, op) });
+
+let lastPoll = 0, polling = false, pollErr = '';
+async function poll(force){
+  if (demo || !signedIn() || polling) return;
+  if (!force && Date.now() - lastPoll < 15000) return;
+  polling = true;
+  try {
+    const [vis, rq, cf, dt, dl, tg, sv, rp, lg, pf] = await Promise.all([
+      api('/rest/v1/visits?select=data&day=eq.' + DAY),
+      api('/rest/v1/reqs?select=id,data,done&order=t.desc&limit=200'),
+      api('/rest/v1/cfg?select=data&id=eq.1'),
+      api('/rest/v1/duty?select=user_id,lock,data'),
+      api('/rest/v1/duty_log?select=data&day=eq.' + DAY),
+      api('/rest/v1/tags?select=serial,gate,data'),
+      api('/rest/v1/svc?select=gate,data'),
+      api('/rest/v1/reports?select=id,data,closed&order=t.desc&limit=300'),
+      api('/rest/v1/svc_log?select=data&order=t.desc&limit=40'),
+      api('/rest/v1/profiles?select=id,vnum,name,email,role,active,approved,must_change,failed,locked_at,last_login,created_at&order=name'),
+    ]);
+    recs = (vis || []).map(x => x.data).filter(Boolean).sort((a,b) => a.t - b.t);
+    reqs = {}; (rq || []).forEach(x => { reqs[x.id] = Object.assign({}, x.data, { id: x.id }, x.done ? { done: x.done } : {}); });
+    if (cf && cf[0]) Object.assign(cfg, cf[0].data || {});
+    dutyNow = {}; (dt || []).forEach(x => { dutyNow[x.user_id] = Object.assign({}, x.data, { lock: !!x.lock, uid: x.user_id }); });
+    dutyLog = (dl || []).map(x => x.data).filter(Boolean).sort((a,b) => a.t - b.t);
+    tags = {}; (tg || []).forEach(x => { tags[x.serial] = Object.assign({ gate: x.gate, serial: x.serial }, x.data || {}); });
+    svc = {}; (sv || []).forEach(x => { if (x.data) svc[x.gate] = x.data; });
+    reports = {}; (rp || []).forEach(x => { reports[x.id] = Object.assign({}, x.data, { id: x.id }, x.closed ? { closed: x.closed } : {}); });
+    svcLog = (lg || []).map(x => x.data).filter(Boolean);
+    users = pf || [];
+    const mine = users.find(u => u.id === meP.id); if (mine) { Object.assign(meP, mine); saveSess(); }
+    lastPoll = Date.now(); pollErr = '';
+    render();
+  } catch(e) {
+    pollErr = e.status === 401 ? '' : (e.message || 'no connection');
+    setLive(false, pollErr ? 'no connection' : '');
+  } finally { polling = false; }
 }
 function setLive(on, label){
   const el = $('#live');
-  el.textContent = demo ? 'demo' : (label || (on ? 'live' : 'offline'));
+  el.textContent = demo ? 'demo' : (label || (on ? 'live · ' + hhmm(lastPoll || Date.now()) : 'offline'));
   el.className = 'pill' + (on && !demo ? '' : ' off');
 }
-// who is asking: typed once in the header, no pop-up (browsers block those after a few)
-function me(){ return $('#meName').value.trim() || 'Supervisor'; }
-try { $('#meName').value = localStorage.getItem('cb_name') || ''; } catch(_) {}
-$('#meName').onchange = () => { try { localStorage.setItem('cb_name', $('#meName').value.trim()); } catch(_) {} };
+// who is asking: the signed-in manager
+function me(){ return demo ? 'Supervisor' : (meP && meP.name) || 'Supervisor'; }
+$('#signOut').onclick = () => { if (demo) { location.search = ''; return; } signOut(); };
+
+// a picture from the private store, fetched once and kept as a local URL
+function fetchPhoto(key, path){
+  if (photos[key] !== undefined) return;
+  photos[key] = null;
+  if (demo) { photos[key] = { img: DEMO_PIC }; return; }
+  api('/storage/v1/object/authenticated/photos/' + path, { blob: true })
+    .then(b => { photos[key] = { img: URL.createObjectURL(b) }; if (openCab) drawCab(); })
+    .catch(() => { photos[key] = { img: '' }; if (openCab) drawCab(); });
+}
 
 /* ---- the numbers -------------------------------------------------------------- */
 function view(){
@@ -687,7 +764,7 @@ function render(){
   renderUsers();
   renderTags();
   if (openCab) drawCab();
-  setLive(true);
+  if (!demo && signedIn()) setLive(!pollErr);
 }
 
 /* ---- who is on what, right now ------------------------------------------------------
@@ -700,7 +777,7 @@ function crewNow(){
   Object.values(dutyNow).forEach(x => { if (x && x.who && x.duty && shiftKey(x.t) === sk) on[x.who] = x.duty; });
   if (DAY === dayOf(now) || demo) recs.forEach(r => {
     if (!r.by || shiftKey(r.t) !== sk) return;
-    const d = dutyNow[keyOf(r.by)];
+    const d = dutyNow[r.uid];
     if (!on[r.by]) on[r.by] = d && d.lock ? d.duty : dutyOf(r);
   });
   return on;
@@ -732,10 +809,10 @@ function shiftEnd(t){
 function ask(g, type){
   const t = Date.now(), id = t.toString(36) + '-' + Math.random().toString(36).slice(2, 6);
   const r = { id, gate: g, type, by: me(), t, exp: shiftEnd(t) };
-  put('req/' + id, r, () => { reqs[id] = r; });
+  send({ kind: 'insert', table: 'reqs', row: { id, gate: g, t, data: r } }, () => { reqs[id] = r; });
 }
 function cancelReq(id){
-  put('req/' + id, null, () => { delete reqs[id]; });
+  send({ kind: 'delete', table: 'reqs', match: 'id=eq.' + encodeURIComponent(id) }, () => { delete reqs[id]; });
 }
 function drawCab(){
   const g = openCab, now = asOf(), list = recs.filter(r => r.gate === g).slice().reverse();
@@ -790,30 +867,9 @@ function drawCab(){
   const d = $('#drawer');
   const top = d.scrollTop;
   d.innerHTML = h + '</div>'; d.classList.remove('hide'); d.scrollTop = top;
-  rp.filter(x => x.photo && photos[x.id + '_p'] === undefined).forEach(x => {
-    if (!db) return;
-    photos[x.id + '_p'] = null;
-    db.ref(ROOT + '/photos/' + x.day + '/' + x.id + '_p').once('value').then(sn2 => {
-      photos[x.id + '_p'] = sn2.val() || { img: '' };
-      if (openCab === g) drawCab();
-    }).catch(() => { delete photos[x.id + '_p']; });
-  });
-  list.filter(r => r.hphoto && photos[r.id + 'h_p'] === undefined).forEach(r => {
-    if (!db) return;
-    photos[r.id + 'h_p'] = null;
-    db.ref(ROOT + '/photos/' + DAY + '/' + r.id + 'h_p').once('value').then(s3 => {
-      photos[r.id + 'h_p'] = s3.val() || { img: '' };
-      if (openCab === g) drawCab();
-    }).catch(() => { delete photos[r.id + 'h_p']; });
-  });
-  list.filter(r => r.photo && !photos[r.id]).forEach(r => {
-    if (!db) return;
-    photos[r.id] = null;
-    db.ref(ROOT + '/photos/' + DAY + '/' + r.id).once('value').then(s => {
-      photos[r.id] = s.val() || { img: '' };
-      if (openCab === g) drawCab();
-    }).catch(() => { delete photos[r.id]; });
-  });
+  rp.filter(x => x.photo).forEach(x => fetchPhoto(x.id + '_p', (x.day || DAY) + '/' + x.id + '_p.jpg'));
+  list.filter(r => r.hphoto).forEach(r => fetchPhoto(r.id + 'h_p', DAY + '/' + r.id + 'h_p.jpg'));
+  list.filter(r => r.photo).forEach(r => fetchPhoto(r.id, DAY + '/' + r.id + '.jpg'));
 }
 $('#drawer').onclick = e => {
   if (e.target.id === 'dX') { svcDraft = ''; openCab = ''; $('#drawer').classList.add('hide'); return; }
@@ -827,12 +883,13 @@ function setSvc(g, state){
   const note = ($('#svNote') ? $('#svNote').value : '').trim(), t = Date.now(), by = me();
   if ((state === 'usable' || state === 'out') && !note) { $('#svNote').focus(); $('#svNote').placeholder = 'Leave a note first, so people know what to do'; return; }
   svcDraft = '';
-  if (state === 'fixed' || state === 'dismiss') put('svc/' + g, null, () => { delete svc[g]; });
-  else { const v = { gate: g, state, note, by, t, via: 'board' }; put('svc/' + g, v, () => { svc[g] = v; }); }
+  if (state === 'fixed' || state === 'dismiss') send({ kind: 'delete', table: 'svc', match: 'gate=eq.' + encodeURIComponent(g) }, () => { delete svc[g]; });
+  else { const v = { gate: g, state, note, by, t, via: 'board' }; send({ kind: 'upsert', table: 'svc', row: { gate: g, data: v } }, () => { svc[g] = v; }); }
   const lg = { gate: g, action: state, note, by, t, via: 'board' };
-  put('svcLog/' + t.toString(36) + '-' + g, lg, () => { svcLog.unshift(lg); });
+  send({ kind: 'insert', table: 'svc_log', row: { id: t.toString(36) + '-' + g, t, data: lg } }, () => { svcLog.unshift(lg); });
   Object.values(reports).filter(x => x && !x.closed && x.gate === g).forEach(x => {
-    const c = { by, t, action: state }; put('reports/' + x.id + '/closed', c, () => { x.closed = c; });
+    const c = { by, t, action: state };
+    send({ kind: 'patch', table: 'reports', match: 'id=eq.' + encodeURIComponent(x.id), row: { closed: c } }, () => { x.closed = c; });
   });
 }
 function renderService(){
@@ -898,14 +955,23 @@ function peopleOf(list){
   list.forEach(r => (by[r.by || '(no name)'] = by[r.by || '(no name)'] || []).push(r));
   return by;
 }
-const lockedP = w => !!(dutyNow[keyOf(w)] && dutyNow[keyOf(w)].lock);
-const dutyOfPerson = (w, l) => (dutyNow[keyOf(w)] && dutyNow[keyOf(w)].duty) || dutyOf(l[l.length-1]);
-function moveTo(w, k, lock){
-  const t = Date.now(), by = me(), from = (dutyNow[keyOf(w)] || {}).duty || null;
+// which account a name on the board belongs to: from their visits, or the account list
+function uidOf(w){
+  const r = recs.find(x => x.by === w && x.uid); if (r) return r.uid;
+  const d = Object.values(dutyNow).find(x => x.who === w); if (d) return d.uid;
+  const u = users.find(x => x.name === w); return u ? u.id : (demo ? keyOf(w) : '');
+}
+const lockedP = w => { const d = dutyNow[uidOf(w)]; return !!(d && d.lock); };
+const dutyOfPerson = (w, l) => { const d = dutyNow[uidOf(w)]; return (d && d.duty) || dutyOf(l[l.length-1]); };
+function moveTo(w, k, lock, uid){
+  uid = uid || uidOf(w);
+  if (!uid) { alert('No account found for ' + w + ' yet.'); return; }
+  const t = Date.now(), by = me(), from = (dutyNow[uid] || {}).duty || null;
   const v = { who: w, duty: k, t, by, lock: !!lock };
-  put('duty/' + keyOf(w), v, () => { dutyNow[keyOf(w)] = v; });
+  send({ kind: 'upsert', table: 'duty', row: { user_id: uid, lock: !!lock, data: v } }, () => { dutyNow[uid] = Object.assign({ uid }, v); });
   const lg = { who: w, duty: k, from, t, by, lock: !!lock };
-  put('dutyLog/' + dayOf(t) + '/' + t.toString(36) + '-' + keyOf(w).slice(0, 12), lg, () => { if (dayOf(t) === DAY) dutyLog.push(lg); });
+  send({ kind: 'insert', table: 'duty_log', row: { id: t.toString(36) + '-' + uid.slice(0, 8), day: dayOf(t), user_id: uid, t, data: lg } },
+       () => { if (dayOf(t) === DAY) dutyLog.push(lg); });
 }
 function renderPeople(list, now){
   const by = peopleOf(list), names = Object.keys(by).sort();
@@ -974,22 +1040,83 @@ function renderPeople(list, now){
 }
 
 /* ---- users and tags ---------------------------------------------------------------- */
+let uMsg = '';       // what the last account action said, shown above the table
 function renderUsers(){
-  const ppl = Object.values(dutyNow).filter(x => x && x.who).sort((a,b) => a.who.localeCompare(b.who));
-  $('#users').innerHTML =
-    '<div class="foot" style="margin:0 0 12px;font-size:12.5px"><b>Accounts are the next step.</b> Today a person types their name on the phone. ' +
-    'When sign-in goes live this page is where a manager adds people by name and V number, hands out a temporary password, ' +
-    'resets one, and unlocks an account that was locked after too many wrong tries. ' +
-    'Until then this is everyone who has signed in on a phone. <b>Set a duty and tick Lock</b> for the people whose job does not change, ' +
-    'your runners for one: they never see the choice again, and it stays that way until you untick it.</div>' +
-    (ppl.length ? '<table><tr><th class="l">Name</th><th>On</th><th>Set to</th><th>Lock</th><th>Since</th><th class="l">Set by</th></tr>' +
-      ppl.map(x => '<tr data-w="' + esc(x.who) + '"><td class="l"><b>' + esc(x.who) + '</b></td><td><span class="dt">' + dutyLabel(x.duty) + '</span></td>' +
+  const roleTag = u => u.role === 'manager' ? '<span class="utag mgr">manager</span>' : '';
+  const stTag = u => !u.active ? '<span class="utag off">switched off</span>' : u.locked_at ? '<span class="utag lock">locked</span>'
+                    : !u.approved ? '<span class="utag wait">waiting for approval</span>' : u.must_change ? '<span class="utag tmp">temporary password</span>' : '';
+  const waiting = users.filter(u => u.active && !u.approved).length;
+  let h = '<div class="foot" style="margin:0 0 10px;font-size:12.5px">People can <b>create their own account</b> in the app with a UGE e-mail; it shows here as ' +
+    '<span class="utag wait">waiting for approval</span> until you approve it. Or <b>add someone by hand</b> below: they get a temporary password to sign in with once.</div>' +
+    '<div class="uform"><div><label>Name</label><input id="uName" placeholder="First Last"></div>' +
+    '<div><label>V number</label><input id="uV" placeholder="V123456"></div>' +
+    '<div><label>UGE e-mail (optional, for resets by e-mail)</label><input id="uEmail" placeholder="first.last' + UGE + '"></div>' +
+    '<div><label>Role</label><select id="uRole"><option value="agent">Agent</option><option value="manager">Manager</option></select></div>' +
+    '<div><button class="act" id="uAdd">Add person</button></div></div>' +
+    '<details style="margin-bottom:10px"><summary style="cursor:pointer;color:var(--navy);font-weight:600">Add a whole list at once</summary>' +
+    '<div class="foot">One person per line: <b>V number, Name, e-mail</b> (e-mail optional). Everyone gets a temporary password.</div>' +
+    '<div class="uform" style="grid-template-columns:1fr auto"><div><textarea id="uBulk" placeholder="V123456, First Last, first.last' + UGE + '"></textarea></div>' +
+    '<div><button class="act" id="uBulkGo">Add them all</button></div></div></details>' +
+    (uMsg ? '<div class="made" id="uMade">' + uMsg + '</div>' : '');
+  if (!users.length) { $('#users').innerHTML = h + '<div class="none">' + (demo ? 'Demo.' : 'Loading accounts…') + '</div>'; return; }
+  h += '<table><tr><th class="l">Name</th><th>V number</th><th class="l">E-mail</th><th>Status</th><th>On</th><th>Set to</th><th>Lock</th><th>Last sign-in</th><th class="l">Actions</th></tr>' +
+    users.slice().sort((a, b) => (b.active && !b.approved) - (a.active && !a.approved) || a.name.localeCompare(b.name)).map(u => {
+      const d = dutyNow[u.id] || {}, cur = d.duty || 'provisions';
+      return '<tr data-uid="' + u.id + '" data-w="' + esc(u.name) + '"' + (!u.active ? ' style="color:#a3a9b8"' : '') + '><td class="l"><b>' + esc(u.name) + '</b> ' + roleTag(u) + '</td>' +
+        '<td>' + esc(u.vnum || '') + '</td><td class="l" style="font-size:11.5px">' + esc(u.email || '–') + '</td><td>' + stTag(u) + '</td>' +
+        '<td>' + (d.duty ? '<span class="dt">' + dutyLabel(d.duty) + '</span>' : '–') + '</td>' +
         '<td><select class="uMove" style="border:1.5px solid var(--line);border-radius:7px;padding:3px 6px;background:#fff">' +
-          MOVES.concat(MOVES.includes(x.duty) ? [] : [x.duty]).map(k => '<option value="' + esc(k) + '"' + (k === x.duty ? ' selected' : '') + '>' + dutyLabel(k) + '</option>').join('') + '</select></td>' +
-        '<td><input type="checkbox" class="uLock" style="width:17px;height:17px"' + (x.lock ? ' checked' : '') + '></td>' +
-        '<td>' + dayOf(x.t) + ' ' + hhmm(x.t) + '</td><td class="l">' + (x.by === x.who ? 'themselves' : esc(x.by || '') + (x.lock ? ', locked' : '')) + '</td></tr>').join('') + '</table>'
-      : '<div class="none">Nobody has signed in on a phone yet.</div>');
+          MOVES.concat(MOVES.includes(cur) ? [] : [cur]).map(k => '<option value="' + esc(k) + '"' + (k === cur ? ' selected' : '') + '>' + dutyLabel(k) + '</option>').join('') + '</select></td>' +
+        '<td><input type="checkbox" class="uLock" style="width:17px;height:17px"' + (d.lock ? ' checked' : '') + '></td>' +
+        '<td style="font-size:11.5px">' + (u.last_login ? dayOf(new Date(u.last_login).getTime()) + ' ' + hhmm(new Date(u.last_login).getTime()) : 'never') + '</td>' +
+        '<td class="l">' +
+          (u.active && !u.approved ? '<button class="ubtn grn" data-op="approve">Approve</button>' : '') +
+          (u.locked_at ? '<button class="ubtn grn" data-op="unlock">Unlock</button>' : '') +
+          '<button class="ubtn" data-op="reset" title="A new temporary password, shown to you">Reset</button>' +
+          (u.email ? '<button class="ubtn" data-op="email_reset" title="A reset link to their UGE inbox">E-mail reset</button>' : '') +
+          '<button class="ubtn" data-op="role">' + (u.role === 'manager' ? 'Make agent' : 'Make manager') + '</button>' +
+          '<button class="ubtn" data-op="email">' + (u.email ? 'Change e-mail' : 'Add e-mail') + '</button>' +
+          (u.id !== (meP && meP.id) ? '<button class="ubtn' + (u.active ? ' red' : '') + '" data-op="active">' + (u.active ? 'Switch off' : 'Switch on') + '</button>' : '') +
+        '</td></tr>';
+    }).join('') + '</table>' +
+    '<div class="foot"><b>Reset</b> gives a temporary password you hand to the person; they pick their own at the next sign-in. <b>Unlock</b> clears the five-wrong-tries lock. ' +
+    '<b>Switch off</b> is for someone who has left: they cannot sign in and anything open on their phone stops saving. ' + (waiting ? '<b>' + waiting + ' waiting for approval.</b>' : '') + '</div>';
+  $('#users').innerHTML = h;
 }
+async function userAction(op, u, extra){
+  if (demo) { uMsg = 'Demo: nothing is saved.'; renderUsers(); return; }
+  try {
+    const r = await admin(Object.assign({ op, id: u && u.id }, extra || {}));
+    if (op === 'reset') uMsg = '<b>' + esc(u.name) + '</b> — temporary password: <span class="temp">' + esc(r.temp) + '</span> ' +
+                                '<span style="color:#5b6377">Hand it to them. They will be asked to pick their own.</span>';
+    else if (op === 'email_reset') uMsg = 'A reset link is on its way to <b>' + esc(r.email) + '</b>. It may show an external sender warning.';
+    else if (op === 'create' || op === 'bulk') {
+      uMsg = r.made.map(m => m.error ? '<span style="color:#b71c1c">' + esc(m.vnum || '') + ' ' + esc(m.name || '') + ': ' + esc(m.error) + '</span>'
+                                    : '<b>' + esc(m.name) + '</b> (' + esc(m.vnum) + ') — temporary password: <span class="temp">' + esc(m.temp) + '</span>').join('<br>') +
+             '<br><span style="color:#5b6377">Write these down now: they are not shown again. Each person picks their own password at the first sign-in.</span>';
+    }
+    else uMsg = 'Done.';
+    if (op === 'create') { $('#uName').value = ''; $('#uV').value = ''; $('#uEmail').value = ''; }
+  } catch(e) { uMsg = '<span style="color:#b71c1c">' + esc(e.message || 'That did not work.') + '</span>'; }
+  renderUsers();
+  poll(true);
+}
+$('#users').onclick = e => {
+  if (e.target.id === 'uAdd') { userAction('create', null, { name: $('#uName').value, vnum: $('#uV').value, email: $('#uEmail').value, role: $('#uRole').value }); return; }
+  if (e.target.id === 'uBulkGo') {
+    const rows = $('#uBulk').value.split('\n').map(l => l.split(/[,\t;]/).map(x => x.trim())).filter(p => p[0])
+      .map(p => ({ vnum: p[0], name: p[1] || '', email: p[2] || '' }));
+    if (!rows.length) return;
+    userAction('bulk', null, { rows }); return;
+  }
+  const b = e.target.closest('button[data-op]'); if (!b) return;
+  const tr = b.closest('tr[data-uid]'), u = users.find(x => x.id === tr.dataset.uid); if (!u) return;
+  const op = b.dataset.op;
+  if (op === 'role') { userAction('role', u, { role: u.role === 'manager' ? 'agent' : 'manager' }); return; }
+  if (op === 'active') { if (u.active && !confirm('Switch off ' + u.name + '? They will not be able to sign in.')) return; userAction('active', u, { active: !u.active }); return; }
+  if (op === 'email') { const em = prompt('UGE e-mail for ' + u.name, u.email || ''); if (em == null) return; userAction('email', u, { email: em.trim() }); return; }
+  userAction(op, u);
+};
 function renderTags(){
   const by = {}; Object.values(tags).forEach(x => { if (x && x.gate) (by[x.gate] = by[x.gate] || []).push(x); });
   const n = CABS.filter(g => by[g]).length;
@@ -1024,7 +1151,7 @@ function csv(who){
 /* ---- wiring -------------------------------------------------------------------- */
 function setDay(d){
   DAY = d; $('#day').value = d; photos = {};
-  if (demo) { recs = demoDay(DAY); render(); } else { recs = []; dutyLog = []; render(); listen(); }
+  if (demo) { recs = demoDay(DAY); render(); } else { recs = []; dutyLog = []; render(); lastPoll = 0; poll(true); }
 }
 function shift(days){
   const d = new Date(DAY + 'T12:00:00');
@@ -1056,35 +1183,48 @@ $('#people').onchange = e => {
   moveTo(person, $('#pMove').value, $('#pLock').checked);
 };
 $('#users').onchange = e => {
-  const tr = e.target.closest('tr[data-w]'); if (!tr) return;
-  moveTo(tr.dataset.w, tr.querySelector('.uMove').value, tr.querySelector('.uLock').checked);
+  const tr = e.target.closest('tr[data-uid]'); if (!tr) return;
+  moveTo(tr.dataset.w, tr.querySelector('.uMove').value, tr.querySelector('.uLock').checked, tr.dataset.uid);
 };
 $('#rules').onchange = () => {
   const v = { doubleTap: $('#cfDbl').checked, yellowMin: +$('#cfY').value, redMin: +$('#cfR').value };
-  put('cfg', v, () => { cfg = v; });
+  send({ kind: 'patch', table: 'cfg', match: 'id=eq.1', row: { data: v } }, () => { cfg = v; });
 };
 $('#demoOff').onclick = () => { location.search = ''; };
 
-// A soft lock. The PIN is in this page's source, so it keeps casual visitors out,
-// not a determined one; the real protection has to be the database rules.
-const BOARD_PIN = '7161';
+// The sign-in. Managers only: an agent's account gets in nowhere on the board.
 (function gate(){
   const g = $('#gate');
-  try { if (sessionStorage.getItem('cb_ok') === '1') { g.remove(); return; } } catch(_) {}
-  $('#gPin').focus();
-  $('#gForm').onsubmit = e => {
+  if (demo) { g.remove(); return; }
+  if (signedIn()) { g.remove(); return; }
+  $('#gUser').focus();
+  $('#gForm').onsubmit = async e => {
     e.preventDefault();
-    if ($('#gPin').value.trim() === BOARD_PIN) { try { sessionStorage.setItem('cb_ok', '1'); } catch(_) {} g.remove(); }
-    else { $('#gMsg').textContent = 'Wrong PIN'; $('#gPin').value = ''; }
+    const u = $('#gUser').value.trim(), p = $('#gPass').value;
+    if (!u || !p) { $('#gMsg').textContent = 'Type your e-mail or V number, and your password.'; return; }
+    $('#gGo').disabled = true; $('#gGo').textContent = 'One moment…'; $('#gMsg').textContent = '';
+    try {
+      const v = await api('/functions/v1/api', { body: { action: 'login', vnum: u, password: p }, noauth: true });
+      if (v.profile.role !== 'manager') { $('#gMsg').textContent = 'The board is for managers. Your account is an agent account.'; }
+      else if (!v.profile.approved) { $('#gMsg').textContent = 'Your account is waiting for another manager to approve it.'; }
+      else if (v.profile.must_change) { $('#gMsg').textContent = 'You are on a temporary password. Sign in on the phone app first to pick your own.'; }
+      else { sess = v.session; meP = v.profile; saveSess(); g.remove(); start(); return; }
+    } catch(e2) { $('#gMsg').textContent = e2.status ? e2.message : 'No connection.'; }
+    $('#gGo').disabled = false; $('#gGo').textContent = 'Sign in';
   };
 })();
 
-demo = /(\?|&)demo=1/.test(location.search);
 $('#demoBar').hidden = !demo;
 $('#day').value = DAY;
 showPage();
-if (demo) { recs = demoDay(DAY); render(); setLive(false); }
-else { render(); initFB(); }
+function start(){
+  $('#meName').textContent = me();
+  render(); poll(true);
+  setInterval(() => poll(), 20000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(true); });
+}
+if (demo) { recs = demoDay(DAY); $('#meName').textContent = 'demo'; $('#signOut').textContent = 'Real data'; render(); setLive(false); }
+else if (signedIn()) start();
 setInterval(() => { if (!demo) render(); }, 60000);        // keep "since" times honest
 </script>
 </body></html>

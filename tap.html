@@ -204,14 +204,12 @@ textarea.inp{min-height:74px;font-size:15px;resize:vertical}
 
 <div class="toast hide" id="toast"></div>
 
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script>
 "use strict";
 
 // Goes up by one with every change to this file. A phone swaps its copy for a
 // published one only when the published number is higher.
-const BUILD = 11;
+const BUILD = 12;
 
 /* ---------------------------------------------------------------------------
    The guard-tour idea. Nobody can follow a runner to every cabinet, so the
@@ -227,17 +225,10 @@ const BUILD = 11;
    to the next cabinet.
 --------------------------------------------------------------------------- */
 
-const FB = {
-  apiKey:"AIzaSyD1gtIw23ffOKA8ANz9w-obR3ElGi_ie3k",
-  authDomain:"cabinet-checker-a23cd.firebaseapp.com",
-  databaseURL:"https://cabinet-checker-a23cd-default-rtdb.firebaseio.com",
-  projectId:"cabinet-checker-a23cd",
-  storageBucket:"cabinet-checker-a23cd.firebasestorage.app",
-  messagingSenderId:"941784062745",
-  appId:"1:941784062745:web:396cf982746e98e1924388"
-};
-// everything this app writes lives under here, apart from the other cabinet apps
-const ROOT = 'nfc';
+// The server. Nothing can be read or written without a signed-in person, and what
+// each person may do is decided by the database's own rules, not by this page.
+const SB = { url: 'https://xdgdampdptvtnxtyabms.supabase.co', key: 'sb_publishable_bjEwVO0zp_XkUhY7G9Db_A_sSlELl44' };
+const UGE = '@unitedgroundexpress.com';
 
 // Same cabinet list as the fill check. The four wide-body gates have two bridges.
 const DUAL = ['B32','B36','B38','B42'];
@@ -377,7 +368,7 @@ let who = localStorage.getItem('ct_who') || '';
 let mine = {};          // records made on this phone today
 let server = {};        // records for today from the database
 let tagMap = {};        // tag serial -> {gate, serial}
-let db = null, online = false, fbTried = false;
+let online = navigator.onLine !== false;
 // Inside the APK the phone's own NFC reader does the reading and talks to this
 // page through window.Android. In a browser it is Web NFC.
 const NATIVE = !!(window.Android && window.Android.nfcStatus);
@@ -385,7 +376,7 @@ const nativeNfc = () => { const s = String(window.Android.nfcStatus()); return s
 let nfc = NATIVE ? nativeNfc() : ('NDEFReader' in window ? 'off' : 'none'), nfcErr = '', reader = null;
 let cur = null;         // the open count
 let duty = null;        // {duty, t, by} for this shift
-try { duty = JSON.parse(localStorage.getItem('ct_duty') || 'null'); } catch(_) { duty = null; }
+// loaded once the signed-in person is known, below
 let cfg = { doubleTap: true, yellowMin: 30, redMin: 45 };     // the board can change these
 try { Object.assign(cfg, JSON.parse(localStorage.getItem('ct_cfg') || '{}')); } catch(_) {}
 let reqs = {};          // checks a supervisor asked for on one cabinet
@@ -399,12 +390,8 @@ let clockT = null;
 let setup = null;       // {g, wrote, serial, ctl} while writing a tag
 let lastSerial = '', lastSerialAt = 0, quietUntil = 0;
 
-// Programming tags is a supervisor job, so the Tags tab stays hidden until the PIN
-// is entered: five taps on the title. Change ADMIN_PIN here if it gets around.
-const ADMIN_PIN = '7161';                  // B7 to B61
-const ADMIN_MINS = 60;
-const adminValid = () => Date.now() - (+localStorage.getItem('ct_admin') || 0) < ADMIN_MINS * 60000;
-let admin = adminValid();
+// Managers get the Today, Service and Tags tabs. That comes from their account, not a PIN.
+let admin = false;
 let lockNew = false;                       // write the next tags read-only
 let protNew = true;                        // and give them the app's password
 
@@ -419,110 +406,201 @@ const saveTags = () => { try { localStorage.setItem('ct_tags', JSON.stringify(ta
 const getQ = () => { try { return JSON.parse(localStorage.getItem('ct_q') || '[]'); } catch(_) { return []; } };
 const setQ = q => { try { localStorage.setItem('ct_q', JSON.stringify(q)); } catch(_) {} };
 function queue(rec){ const q = getQ().filter(x => x.id !== rec.id); q.push(rec); setQ(q); paintSync(); }
-// everything that is not a visit: photos, duty changes, requests answered
+// everything that is not a visit: photos, duty changes, requests answered, service notes
 const getQ2 = () => { try { return JSON.parse(localStorage.getItem('ct_q2') || '[]'); } catch(_) { return []; } };
 const setQ2 = q => { try { localStorage.setItem('ct_q2', JSON.stringify(q)); return true; } catch(_) { return false; } };
-function queue2(path, val){
-  const q = getQ2().filter(x => x.path !== path);
-  q.push({ path, val });
+function op(o){
+  const q = getQ2().filter(x => x.key !== o.key);
+  q.push(o);
   if (!setQ2(q)) toast('Phone storage is full. Get a signal so the photos can send.');
   paintSync();
 }
-const timed = p => Promise.race([p, new Promise((_, no) => setTimeout(() => no(new Error('timeout')), 20000))]);
+const upsert = (table, row, key) => op({ kind: 'upsert', table, row, key: key || (table + ':' + JSON.stringify(row).slice(0, 80)) });
+const insert = (table, row, key) => op({ kind: 'insert', table, row, key: key || (table + ':' + (row.id || JSON.stringify(row).slice(0, 80))) });
+const patch  = (table, match, row, key) => op({ kind: 'patch', table, match, row, key: key || (table + '?' + match) });
+const del    = (table, match) => op({ kind: 'delete', table, match, key: 'del:' + table + '?' + match });
+const rpc    = (fn, args, key) => op({ kind: 'rpc', fn, args, key: key || (fn + ':' + JSON.stringify(args).slice(0, 80)) });
+const photo  = (path, img) => op({ kind: 'photo', path, img, key: 'photo:' + path });
+
+/* ---- sign-in and the server ------------------------------------------------------ */
+let sess = null, me = null;
+try { sess = JSON.parse(localStorage.getItem('ct_sess') || 'null'); me = JSON.parse(localStorage.getItem('ct_me') || 'null'); } catch(_) {}
+function saveSess(){
+  try {
+    if (sess) localStorage.setItem('ct_sess', JSON.stringify(sess)); else localStorage.removeItem('ct_sess');
+    if (me) localStorage.setItem('ct_me', JSON.stringify(me)); else localStorage.removeItem('ct_me');
+  } catch(_) {}
+}
+const signedIn = () => !!(sess && sess.access_token && me && me.id);
+if (signedIn()) { who = me.name || who; try { duty = JSON.parse(localStorage.getItem('ct_duty_' + me.id) || 'null'); } catch(_) { duty = null; } }
+
+// one call to the server; the session is renewed first if it is about to run out
+async function api(path, opt){
+  opt = opt || {};
+  if (!opt.noauth && sess && sess.expires_at && sess.expires_at * 1000 - Date.now() < 90000) await refresh();
+  const h = Object.assign({ apikey: SB.key }, opt.raw === undefined ? { 'Content-Type': 'application/json' } : {}, opt.headers || {});
+  if (!opt.noauth && sess) h.Authorization = 'Bearer ' + sess.access_token;
+  const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), opt.timeout || 20000);
+  let r;
+  try {
+    r = await fetch(SB.url + path, { method: opt.method || (opt.body !== undefined || opt.raw !== undefined ? 'POST' : 'GET'), headers: h,
+          body: opt.raw !== undefined ? opt.raw : (opt.body !== undefined ? JSON.stringify(opt.body) : undefined), signal: ctl.signal });
+  } catch(e) { clearTimeout(tm); online = false; paintSync(); throw e; }
+  clearTimeout(tm);
+  online = true;
+  if (r.status === 401 && !opt.noauth && !opt.retried) {
+    if (await refresh()) return api(path, Object.assign({}, opt, { retried: true }));
+    throw Object.assign(new Error('signed out'), { status: 401 });
+  }
+  if (opt.blob) { if (!r.ok) throw Object.assign(new Error('HTTP ' + r.status), { status: r.status }); return await r.blob(); }
+  const txt = await r.text();
+  let v = null; try { v = txt ? JSON.parse(txt) : null; } catch(_) { v = txt; }
+  if (!r.ok) {
+    const e = new Error((v && (v.error || v.message || v.msg || v.error_description)) || ('HTTP ' + r.status));
+    e.status = r.status; e.body = v; throw e;
+  }
+  return v;
+}
+let refreshing = null;
+function refresh(){
+  if (!sess || !sess.refresh_token) return Promise.resolve(false);
+  if (refreshing) return refreshing;
+  refreshing = (async () => {
+    try {
+      const v = await api('/auth/v1/token?grant_type=refresh_token', { body: { refresh_token: sess.refresh_token }, noauth: true });
+      sess = { access_token: v.access_token, refresh_token: v.refresh_token, expires_at: v.expires_at }; saveSess();
+      return true;
+    } catch(e) {
+      if (e.status === 400 || e.status === 401 || e.status === 403) { signOut('Your sign-in ran out. Sign in again.'); return false; }
+      return true;                                   // no signal: keep what we have and try later
+    } finally { refreshing = null; }
+  })();
+  return refreshing;
+}
+async function login(user, password){
+  const v = await api('/functions/v1/api', { body: { action: 'login', vnum: user, password }, noauth: true });
+  sess = v.session; me = v.profile; who = me.name; saveSess();
+  try { localStorage.setItem('ct_who', who); } catch(_) {}
+  duty = null; try { duty = JSON.parse(localStorage.getItem('ct_duty_' + me.id) || 'null'); } catch(_) {}
+  lastPoll = 0;
+}
+function signOut(msg){
+  const left = getQ().length + getQ2().length;
+  sess = null; me = null; who = ''; duty = null; admin = false; server = {};
+  saveSess(); try { localStorage.removeItem('ct_who'); } catch(_) {}
+  closeOv(); const st = $('#start'); if (st) st.remove();
+  if (msg) toast(msg);
+  if (left) toast(left + ' thing' + (left > 1 ? 's' : '') + ' not sent yet. They go when this person signs in again with a signal.');
+  render();
+}
+const saveDuty = () => { try { if (me) localStorage.setItem('ct_duty_' + me.id, JSON.stringify(duty)); } catch(_) {} };
+
+// ---- reading: the phone asks for the day's state every half minute and on every resume
+let lastPoll = 0, polling = false;
+async function poll(force){
+  if (!signedIn() || polling) return;
+  if (!force && Date.now() - lastPoll < 20000) return;
+  polling = true;
+  try {
+    const prof = await api('/rest/v1/profiles?select=id,vnum,name,email,role,active,approved,must_change&id=eq.' + me.id);
+    if (prof && prof[0]) { const was = me.approved; Object.assign(me, prof[0]); who = me.name; saveSess();
+                           if (!was && me.approved) { const st = $('#start'); if (st) st.remove(); toast('Your account is approved', true); } }
+    if (!me.approved || me.must_change) { lastPoll = Date.now(); return; }
+    const [vis, rq, cf, sv, rp, dt, tg] = await Promise.all([
+      api('/rest/v1/visits?select=data&day=eq.' + DAY),
+      api('/rest/v1/reqs?select=id,data,done&done=is.null'),
+      api('/rest/v1/cfg?select=data&id=eq.1'),
+      api('/rest/v1/svc?select=data'),
+      api('/rest/v1/reports?select=data&closed=is.null'),
+      api('/rest/v1/duty?select=lock,data&user_id=eq.' + me.id),
+      api('/rest/v1/tags?select=serial,gate,data'),
+    ]);
+    server = {}; (vis || []).forEach(x => { if (x.data && x.data.id) server[x.data.id] = x.data; });
+    const nr = {}; (rq || []).forEach(x => { const d = Object.assign({}, x.data, { id: x.id }); if (x.done) d.done = x.done; nr[x.id] = d; });
+    for (const k in reqs) if (reqs[k].done && nr[k] && !nr[k].done) nr[k].done = reqs[k].done;   // answered here, not sent yet
+    reqs = nr; try { localStorage.setItem('ct_req', JSON.stringify(reqs)); } catch(_) {}
+    if (cf && cf[0]) { Object.assign(cfg, cf[0].data || {}); try { localStorage.setItem('ct_cfg', JSON.stringify(cfg)); } catch(_) {} }
+    svc = {}; (sv || []).forEach(x => { if (x.data && x.data.gate) svc[x.data.gate] = x.data; });
+    try { localStorage.setItem('ct_svc', JSON.stringify(svc)); } catch(_) {}
+    const nrp = {}; (rp || []).forEach(x => { if (x.data && x.data.id) nrp[x.data.id] = x.data; });
+    for (const k in reports) if (reports[k].closed && nrp[k]) nrp[k].closed = reports[k].closed;
+    reports = nrp;
+    if (dt && dt[0]) dutyFromServer(dt[0]);
+    const tm = {}; (tg || []).forEach(x => { tm[keyOf(x.serial)] = Object.assign({ gate: x.gate, serial: x.serial }, x.data || {}); });
+    for (const k in tagMap) if (tagMap[k].local && !tm[k]) tm[k] = tagMap[k];
+    tagMap = tm; saveTags();
+    lastPoll = Date.now();
+    render();
+  } catch(e) {
+    if (e.status === 401) return;
+  } finally { polling = false; paintSync(); }
+}
+// A supervisor can move someone to another duty from the board, mid job, or lock it.
+function dutyFromServer(row){
+  const v = Object.assign({}, row.data || {}); v.lock = !!row.lock;
+  if (!v.duty) return;
+  if (v.by === who && !v.lock) return;
+  if (duty && v.t <= duty.t && !!v.lock === !!duty.lock) return;
+  if (!v.lock && shiftKey(v.t) !== shiftKey(Date.now())) return;     // an old move from another shift
+  const changed = !dutyValid() || v.duty !== duty.duty || !!v.lock !== !!duty.lock;
+  duty = { duty: v.duty, t: v.t, by: v.by, lock: v.lock };
+  saveDuty();
+  if (changed) {
+    toast((v.lock ? 'You are set to ' : 'Your duty was changed to ') + dutyLabel(v.duty) + ' by ' + esc(v.by));
+    if (navigator.vibrate) navigator.vibrate([60, 60, 60]);
+    const st = $('#start'); if (st) { st.remove(); if (!ready()) showStart(); }
+  }
+}
+
+// ---- writing: everything waits on the phone until it can be sent, in order
+function dataUrlToBlob(u){
+  const i = u.indexOf(','), bin = atob(u.slice(i + 1)), a = new Uint8Array(bin.length);
+  for (let k = 0; k < bin.length; k++) a[k] = bin.charCodeAt(k);
+  return new Blob([a], { type: 'image/jpeg' });
+}
+async function runOp(o){
+  const min = { Prefer: 'return=minimal' };
+  if (o.kind === 'upsert') return api('/rest/v1/' + o.table, { body: o.row, headers: { Prefer: 'resolution=merge-duplicates,return=minimal' } });
+  if (o.kind === 'insert') return api('/rest/v1/' + o.table, { body: o.row, headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' } });
+  if (o.kind === 'patch')  return api('/rest/v1/' + o.table + '?' + o.match, { method: 'PATCH', body: o.row, headers: min });
+  if (o.kind === 'delete') return api('/rest/v1/' + o.table + '?' + o.match, { method: 'DELETE', headers: min });
+  if (o.kind === 'rpc')    return api('/rest/v1/rpc/' + o.fn, { body: o.args });
+  if (o.kind === 'photo')  return api('/storage/v1/object/photos/' + o.path, { raw: dataUrlToBlob(o.img), headers: { 'Content-Type': 'image/jpeg', 'x-upsert': 'true' }, timeout: 45000 });
+}
+// a write the server refused on purpose (no right to do it) is dropped, not retried forever
+const refused = e => e && (e.status === 400 || e.status === 403 || e.status === 404 || e.status === 409 || e.status === 422);
 let flushing = false;
 async function flush(){
-  if (!db || !online || flushing) return;
+  if (!signedIn() || !online || flushing || !me.approved) return;
   const q = getQ(), q2 = getQ2(); if (!q.length && !q2.length) return;
   flushing = true;
   const left2 = [];
   for (const w of q2){
-    try { await timed(db.ref(ROOT + '/' + w.path).set(w.val)); } catch(_) { left2.push(w); }
+    try { await runOp(w); }
+    catch(e) { if (e.status === 401) { left2.push(w); break; } if (!refused(e)) left2.push(w); }
   }
-  setQ2(left2.concat(getQ2().filter(x => !q2.some(y => y.path === x.path))));
+  setQ2(left2.concat(getQ2().filter(x => !q2.some(y => y.key === x.key))));
   const left = [];
   for (const rec of q){
-    try { await Promise.race([db.ref(ROOT + '/taps/' + rec.day + '/' + rec.id).set(rec),
-                              new Promise((_, no) => setTimeout(() => no(new Error('timeout')), 12000))]); }
-    catch(_) { left.push(rec); }
+    try {
+      if (rec.uid && rec.uid !== me.id) {
+        // someone else's count, closed on this phone: only the fill may be written
+        if (rec.f && rec.fuid === me.id) await runOp({ kind: 'rpc', fn: 'close_visit', args: { p_id: rec.id,
+            p_patch: { f: rec.f, fvia: rec.fvia, fby: rec.fby, fwhy: rec.fwhy || null, short: rec.short || null } } });
+        else { left.push(rec); continue; }
+      } else await runOp({ kind: 'upsert', table: 'visits', row: { id: rec.id, day: rec.day, gate: rec.gate, t: rec.t, data: rec } });
+    } catch(e) { if (e.status === 401) { left.push(rec); break; } if (!refused(e)) left.push(rec); }
   }
   setQ(left.concat(getQ().filter(x => !q.some(y => y.id === x.id))));
   flushing = false;
   paintSync(); render();
+  if (q.length) poll(true);
 }
 
 function recs(){ return Object.values(Object.assign({}, server, mine)).sort((a,b) => a.t - b.t); }
-
-/* ---- firebase -------------------------------------------------------------- */
-let dayRef = null;
-function initFB(){
-  fbTried = true;
-  if (typeof firebase === 'undefined') { paintSync(); return; }
-  try {
-    firebase.initializeApp(FB);
-    db = firebase.database();
-    db.ref('.info/connected').on('value', s => { online = !!s.val(); paintSync(); if (online) flush(); });
-    db.ref(ROOT + '/tags').on('value', s => {
-      const v = s.val() || {};
-      for (const k in tagMap) if (tagMap[k].local && !v[k]) v[k] = tagMap[k];
-      tagMap = v; saveTags(); render();
-    });
-    db.ref(ROOT + '/cfg').on('value', s => {
-      Object.assign(cfg, s.val() || {});
-      try { localStorage.setItem('ct_cfg', JSON.stringify(cfg)); } catch(_) {}
-      render();
-    });
-    db.ref(ROOT + '/req').on('value', s => {
-      const v = s.val() || {};
-      // a request answered on this phone stays answered until the send gets through
-      for (const k in reqs) if (reqs[k].done && v[k] && !v[k].done) v[k].done = reqs[k].done;
-      reqs = v;
-      try { localStorage.setItem('ct_req', JSON.stringify(reqs)); } catch(_) {}
-      render();
-    });
-    db.ref(ROOT + '/svc').on('value', s => {
-      svc = s.val() || {};
-      try { localStorage.setItem('ct_svc', JSON.stringify(svc)); } catch(_) {}
-      render();
-    });
-    db.ref(ROOT + '/reports').on('value', s => {
-      const v = s.val() || {};
-      for (const k in reports) if (reports[k].closed && v[k] && !v[k].closed) v[k].closed = reports[k].closed;
-      reports = v; render();
-    });
-    listenDay(); listenDuty();
-  } catch(e) { db = null; paintSync(); }
-}
-// A supervisor can move someone to another duty from the board, mid job.
-let dutyRef = null;
-function listenDuty(){
-  if (dutyRef) { dutyRef.off(); dutyRef = null; }
-  if (!db || !who) return;
-  dutyRef = db.ref(ROOT + '/duty/' + keyOf(who));
-  dutyRef.on('value', s => {
-    const v = s.val();
-    if (!v || !v.duty || v.by === who) return;
-    if (duty && v.t <= duty.t) return;
-    if (!v.lock && shiftKey(v.t) !== shiftKey(Date.now())) return;     // an old move from another shift
-    const changed = !dutyValid() || v.duty !== duty.duty || !!v.lock !== !!duty.lock;
-    duty = { duty: v.duty, t: v.t, by: v.by, lock: !!v.lock };
-    localStorage.setItem('ct_duty', JSON.stringify(duty));
-    if (changed) {
-      toast((v.lock ? 'You are set to ' : 'Your duty was changed to ') + dutyLabel(v.duty) + ' by ' + esc(v.by));
-      if (navigator.vibrate) navigator.vibrate([60, 60, 60]);
-      const st = $('#start'); if (st) { st.remove(); if (!ready()) showStart(); }
-    }
-    render();
-  });
-}
-function listenDay(){
-  if (!db) return;
-  if (dayRef) dayRef.off();
-  dayRef = db.ref(ROOT + '/taps/' + DAY);
-  dayRef.on('value', s => { server = s.val() || {}; render(); });
-}
 function paintSync(){
   const el = $('#sync'), q = getQ().length + getQ2().length;
-  if (!db) { el.textContent = fbTried ? (q ? 'not connected · ' + q : 'not connected') : '…'; el.className = 'sync off'; return; }
+  if (!signedIn()) { el.textContent = 'signed out'; el.className = 'sync off'; return; }
   el.textContent = online ? (q ? q + ' sending' : 'saved') : (q ? 'offline · ' + q : 'offline');
   el.className = 'sync' + (online ? '' : ' off');
 }
@@ -600,7 +678,7 @@ if (NATIVE) {
   };
   // a newer copy of these screens has been downloaded: switch to it between cabinets
   window.__nativeUpdate = () => { updateReady = true; render(); };
-  window.__nativeResume = () => { const was = nfc; nfc = nativeNfc(); if (nfc !== was) render(); };
+  window.__nativeResume = () => { const was = nfc; nfc = nativeNfc(); if (nfc !== was) render(); poll(true); flush(); };
 }
 
 /* ---- the count ---------------------------------------------------------------- */
@@ -615,23 +693,122 @@ function lastVisit(g, before){
 // a duty a manager has locked stays until the manager lifts it; anything else lasts the shift
 const dutyValid = () => !!(duty && duty.duty && (duty.lock || shiftKey(duty.t) === shiftKey(Date.now())));
 const dutyLocked = () => dutyValid() && !!duty.lock;
-const ready = () => !!who && dutyValid();
+const ready = () => signedIn() && !!me.approved && !me.must_change && dutyValid();
 function setDuty(k, by){
   const from = dutyValid() ? duty.duty : null, t = Date.now();
   duty = { duty: k, t, by: by || who };
-  localStorage.setItem('ct_duty', JSON.stringify(duty));
-  queue2('duty/' + keyOf(who), { who, duty: k, t, by: by || who });
+  saveDuty();
+  upsert('duty', { user_id: me.id, data: { who, duty: k, t, by: by || who } }, 'duty');
   if (from !== k)
-    queue2('dutyLog/' + dayOf(t) + '/' + t.toString(36) + '-' + keyOf(who).slice(0, 12), { who, duty: k, from, t, by: by || who });
+    insert('duty_log', { id: t.toString(36) + '-' + me.id.slice(0, 8), day: dayOf(t), user_id: me.id, t, data: { who, duty: k, from, t, by: by || who } });
   flush();
 }
+const field = (id, ph, type, extra) => '<input class="inp" id="' + id + '" type="' + (type || 'text') + '" placeholder="' + ph + '" autocomplete="off" autocapitalize="none" ' + (extra || '') + '>';
+function sheet(h){ const old = $('#start'); if (old) old.remove(); document.body.insertAdjacentHTML('beforeend', '<div class="ov" id="start"><div class="pane">' + h + '</div></div>'); }
+const msg = (t, bad) => { const m = $('#stMsg'); if (m) { m.innerHTML = t; m.style.color = bad ? '#b71c1c' : '#1b7f3a'; } };
+const busy = (id, on, label) => { const b = $(id); if (b) { b.disabled = on; b.textContent = on ? 'One moment…' : label; } };
+
 function showStart(){
-  const old = $('#start'); if (old) old.remove();
-  let h = '<div class="ov" id="start"><div class="pane">' +
-    '<div class="ph"><b style="font-size:26px">' + (!who ? 'Sign in' : ready() ? 'Hi ' + esc(who) : 'Still ' + esc(who) + '?') + '</b>' +
-    (ready() ? '<button class="x" id="stX">Close</button>' : who ? '<button class="x" id="stNot" style="color:#b71c1c;font-weight:700">Not me</button>' : '') + '</div>' +
-    '<div class="q">Your name</div>' +
-    '<input class="inp" id="stName" autocomplete="off" autocapitalize="words" placeholder="First and last name" value="' + esc(who) + '">' +
+  if (!signedIn()) return showLogin();
+  if (me.must_change) return showSetPassword();
+  if (!me.approved) return showWait();
+  showDuty();
+}
+function showLogin(mode){
+  mode = mode || 'in';
+  let h = '<div class="ph"><b style="font-size:26px">' + (mode === 'in' ? 'Sign in' : mode === 'new' ? 'Create your account' : 'Forgot password') + '</b></div>';
+  if (mode === 'in')
+    h += '<div class="q">UGE e-mail or V number</div>' + field('lUser', 'first.last' + UGE, 'text', 'inputmode="email"') +
+         '<div class="q">Password</div>' + field('lPass', 'password', 'password') +
+         '<button class="big" id="lGo">Sign in</button>' +
+         '<div class="row2"><button id="lNew">Create an account</button><button id="lForgot">Forgot password</button></div>';
+  else if (mode === 'new')
+    h += '<div class="note" style="padding-top:0">Use your UGE e-mail. A link goes to that inbox to confirm it is you, then a supervisor approves the account.</div>' +
+         '<div class="q">UGE e-mail</div>' + field('nEmail', 'first.last' + UGE, 'text', 'inputmode="email"') +
+         '<div class="q">Pick a password (6 or more)</div>' + field('nPass', 'password', 'password') +
+         '<div class="q">Same password again</div>' + field('nPass2', 'password', 'password') +
+         '<button class="big" id="nGo">Create account</button><button class="alt" id="lBack">Back to sign in</button>';
+  else
+    h += '<div class="note" style="padding-top:0">A reset link goes to your UGE inbox. No e-mail on your account? A supervisor can reset it for you.</div>' +
+         '<div class="q">UGE e-mail</div>' + field('fEmail', 'first.last' + UGE, 'text', 'inputmode="email"') +
+         '<button class="big" id="fGo">Send the link</button><button class="alt" id="lBack">Back to sign in</button>';
+  h += '<div class="pmeta" id="stMsg" style="min-height:18px;margin-top:8px;font-weight:600"></div>' +
+       '<div class="note" style="text-align:center">Cabinet Tap, screens version ' + BUILD + '</div>';
+  sheet(h);
+  const first = $('#lUser') || $('#nEmail') || $('#fEmail'); if (first) first.focus();
+  if ($('#lNew')) $('#lNew').onclick = () => showLogin('new');
+  if ($('#lForgot')) $('#lForgot').onclick = () => showLogin('forgot');
+  if ($('#lBack')) $('#lBack').onclick = () => showLogin('in');
+  if ($('#lPass')) $('#lPass').onkeydown = e => { if (e.key === 'Enter') $('#lGo').click(); };
+  if ($('#lGo')) $('#lGo').onclick = async () => {
+    const u = $('#lUser').value.trim(), p = $('#lPass').value;
+    if (!u || !p) { msg('Type your e-mail or V number, and your password.', true); return; }
+    busy('#lGo', true, 'Sign in');
+    try { await login(u, p); $('#start').remove(); toast('Hi ' + esc(who), true); render(); poll(true); flush(); }
+    catch(e) { busy('#lGo', false, 'Sign in'); msg(e.status ? esc(e.message) : 'No signal. Sign in needs a connection.', true); }
+  };
+  if ($('#nGo')) $('#nGo').onclick = async () => {
+    const em = $('#nEmail').value.trim().toLowerCase(), p = $('#nPass').value;
+    if (!em.endsWith(UGE) || em.length <= UGE.length) { msg('Use your ' + UGE + ' address.', true); return; }
+    if (p.length < 6) { msg('The password needs 6 or more characters.', true); return; }
+    if (p !== $('#nPass2').value) { msg('The two passwords are not the same.', true); return; }
+    busy('#nGo', true, 'Create account');
+    try {
+      await api('/auth/v1/signup', { body: { email: em, password: p }, noauth: true });
+      sheet('<div class="hold"><b>Check your e-mail</b>We sent a link to<br><b style="font-size:15px">' + esc(em) + '</b>' +
+            'Open it and tap the link. Then come back here and sign in.<div class="pmeta">It comes from Cabinet Tap and may show an external sender warning. That is expected.</div></div>' +
+            '<button class="big" id="lBack">Back to sign in</button>');
+      $('#lBack').onclick = () => showLogin('in');
+    } catch(e) { busy('#nGo', false, 'Create account'); msg(e.status ? esc(e.message) : 'No signal. Try again when you have one.', true); }
+  };
+  if ($('#fGo')) $('#fGo').onclick = async () => {
+    const em = $('#fEmail').value.trim().toLowerCase();
+    if (!em.endsWith(UGE)) { msg('Use your ' + UGE + ' address.', true); return; }
+    busy('#fGo', true, 'Send the link');
+    try { await api('/functions/v1/api', { body: { action: 'forgot', email: em }, noauth: true });
+          msg('If that address has an account, a reset link is on its way to it.'); busy('#fGo', false, 'Send the link'); }
+    catch(e) { busy('#fGo', false, 'Send the link'); msg(e.status ? esc(e.message) : 'No signal. Try again when you have one.', true); }
+  };
+}
+function showSetPassword(recovery){
+  sheet('<div class="ph"><b style="font-size:24px">' + (recovery ? 'New password' : 'Pick your own password') + '</b></div>' +
+        '<div class="note" style="padding-top:0">' + (recovery ? 'Choose the password you will sign in with from now on.'
+                                                              : 'The one you were given was temporary. Choose your own: 6 or more characters, not your V number.') + '</div>' +
+        '<div class="q">New password</div>' + field('pPass', 'password', 'password') +
+        '<div class="q">Same password again</div>' + field('pPass2', 'password', 'password') +
+        '<button class="big" id="pGo">Save password</button>' +
+        (recovery ? '' : '<button class="alt" id="pOut">Sign out</button>') +
+        '<div class="pmeta" id="stMsg" style="min-height:18px;margin-top:8px;font-weight:600"></div>');
+  $('#pPass').focus();
+  if ($('#pOut')) $('#pOut').onclick = () => signOut();
+  $('#pGo').onclick = async () => {
+    const p = $('#pPass').value;
+    if (p.length < 6) { msg('6 or more characters.', true); return; }
+    if (p !== $('#pPass2').value) { msg('The two passwords are not the same.', true); return; }
+    busy('#pGo', true, 'Save password');
+    try {
+      await api('/functions/v1/api', { body: { action: 'set_password', password: p } });
+      if (recovery) {
+        sheet('<div class="hold"><b style="color:#1b7f3a">Password saved</b>' + (NATIVE ? 'Sign in with it now.' : 'Open the Cabinet Tap app and sign in with it.') + '</div>' +
+              '<button class="big" id="lBack">Sign in</button>');
+        sess = null; me = null; saveSess();
+        $('#lBack').onclick = () => showLogin('in');
+        return;
+      }
+      me.must_change = false; saveSess(); $('#start').remove(); toast('Password saved', true); render(); poll(true);
+    } catch(e) { busy('#pGo', false, 'Save password'); msg(e.status ? esc(e.message) : 'No signal. Try again when you have one.', true); }
+  };
+}
+function showWait(){
+  sheet('<div class="hold"><b>Nearly there</b>Hi ' + esc(who) + '. Your account is waiting for a supervisor to approve it.' +
+        '<div class="pmeta">This screen updates by itself once that is done. Ask a supervisor if it takes long.</div></div>' +
+        '<button class="alt" id="wOut">Sign out</button>');
+  $('#wOut').onclick = () => signOut();
+}
+function showDuty(){
+  let h = '<div class="ph"><b style="font-size:26px">' + (ready() ? 'Hi ' + esc(who) : 'Still ' + esc(who) + '?') + '</b>' +
+    (ready() ? '<button class="x" id="stX">Close</button>' : '<button class="x" id="stOut" style="color:#b71c1c;font-weight:700">Not me \u2014 sign out</button>') + '</div>' +
+    '<div class="pmeta">' + esc(me.email || me.vnum || '') + (admin ? ' &middot; manager' : '') + '</div>' +
     '<div class="q" style="margin-bottom:8px">What are you on today?</div>' +
     (dutyLocked() ? '<div class="card warn">Set by ' + esc(duty.by) + '. Ask a supervisor if it needs to change.</div>'
                   : '<div class="note" style="padding-top:0">Pick every one you are doing. One tap on a cabinet then asks for all of them. ' +
@@ -640,27 +817,26 @@ function showStart(){
     DUTIES.map(d => '<button class="duty' + (duty && duty.duty && dutyList(duty.duty).includes(d.k) ? ' on' : '') + '" data-d="' + d.k + '"><b>' +
       d.label + '</b><span>' + d.sub + '</span></button>').join('') +
     '<button class="big" id="stGo" style="margin-top:6px">' + (dutyLocked() ? 'OK' : 'Start') + '</button>' +
+    (ready() ? '<button class="alt" id="stOut2">Sign out</button>' : '') +
     '<div class="note">Picked the wrong one, or moved mid shift? Tap your name at the top to switch. ' +
-    'Switches are saved with the time.</div><div class="note" style="text-align:center">Cabinet Tap, screens version ' + BUILD + '</div></div></div>';
-  document.body.insertAdjacentHTML('beforeend', h);
+    'Switches are saved with the time.</div><div class="note" style="text-align:center">Cabinet Tap, screens version ' + BUILD + '</div>';
+  sheet(h);
   if ($('#stX')) $('#stX').onclick = () => $('#start').remove();
-  if ($('#stNot')) $('#stNot').onclick = () => {
-    who = ''; duty = null;
-    localStorage.removeItem('ct_who'); localStorage.removeItem('ct_duty');
-    listenDuty(); showStart(); $('#stName').focus();
+  const out = () => {
+    const left = getQ().length + getQ2().length;
+    if (left && !confirm(left + ' thing' + (left > 1 ? 's' : '') + ' not sent yet. Sign out anyway? They go the next time you sign in with a signal.')) return;
+    signOut();
   };
+  if ($('#stOut')) $('#stOut').onclick = out;
+  if ($('#stOut2')) $('#stOut2').onclick = out;
   $('#start').querySelectorAll('.duty').forEach(b => b.onclick = () => {
     if (dutyLocked()) { tone(SOUND[b.dataset.d]); return; }
     if (b.classList.toggle('on')) tone(SOUND[b.dataset.d]);
   });
   $('#stGo').onclick = () => {
-    const name = $('#stName').value.trim().replace(/\s+/g, ' ');
-    if (!name) { toast('Type your name first'); $('#stName').focus(); return; }
     const picked = DUTIES.filter(d => $('#start .duty[data-d=' + d.k + ']').classList.contains('on')).map(d => d.k).join('+');
     if (!picked) { toast('Pick what you are on today'); return; }
-    const renamed = name !== who;
-    if (renamed) { who = name; localStorage.setItem('ct_who', who); listenDuty(); }
-    if (dutyLocked() && !renamed) { $('#start').remove(); render(); return; }
+    if (dutyLocked()) { $('#start').remove(); render(); return; }
     setDuty(picked);
     $('#start').remove();
     toast(dutyLabel(picked) + ' it is', true);
@@ -668,6 +844,26 @@ function showStart(){
     if (pendingTap) { const p = pendingTap; pendingTap = null; onGate(p.g, p.via, p.serial, p.t); }
   };
 }
+// A link from a confirmation or reset e-mail lands here with the session in the address.
+function authLink(){
+  const m = location.hash.match(/access_token=([^&]+)/); if (!m) return false;
+  const q = new URLSearchParams(location.hash.slice(1));
+  const type = q.get('type') || '';
+  history.replaceState(null, '', location.pathname);
+  if (type === 'recovery' || type === 'invite') {
+    sess = { access_token: q.get('access_token'), refresh_token: q.get('refresh_token'), expires_at: Math.floor(Date.now() / 1000) + (+q.get('expires_in') || 3600) };
+    me = { id: 'recovery', name: '', approved: true };
+    showSetPassword(true);
+    return true;
+  }
+  sess = null; me = null; saveSess();
+  sheet('<div class="hold"><b style="color:#1b7f3a">E-mail confirmed</b>' + (NATIVE ? 'Sign in now.' : 'Open the Cabinet Tap app and sign in.') +
+        '<div class="pmeta">A supervisor still has to approve the account before it can be used.</div></div><button class="big" id="lBack">Sign in</button>');
+  $('#lBack').onclick = () => showLogin('in');
+  return true;
+}
+if (location.hash.indexOf('error=') >= 0) { const q = new URLSearchParams(location.hash.slice(1)); history.replaceState(null, '', location.pathname);
+  setTimeout(() => toast(q.get('error_description') || 'That link did not work. Ask for a new one.'), 300); }
 
 /* ---- the visit -------------------------------------------------------------------
    A tap on a cabinet is one of two things. If a provisions count is still waiting to
@@ -745,14 +941,14 @@ function askHand(g, then){
 }
 // the tag problem goes to the supervisor once, not on every visit until it is replaced
 function reportTag(id, g, why, day, t, img){
-  queue2('photos/' + day + '/' + id + '_p', { gate: g, t, by: who, img });
+  photo(day + '/' + id + '_p.jpg', img);
   if (Object.values(reports).some(x => x && !x.closed && x.gate === g && x.kind === 'tag')) return;
   const rp = { id, gate: g, flags: [why], by: who, t, day, photo: 1, kind: 'tag' };
-  reports[id] = rp; queue2('reports/' + id, rp);
+  reports[id] = rp; insert('reports', { id, gate: g, t, data: rp });
 }
 function closeVisit(o, via, t){
   if (cur) sendCount();
-  const r = Object.assign({}, o, { f: t, fvia: via, fby: who });
+  const r = Object.assign({}, o, { f: t, fvia: via, fby: who, fuid: me.id });
   if (via === 'hand' && handInfo) { r.fwhy = handInfo.why; reportTag(r.id + 'f', r.gate, handInfo.why, r.day, t, handInfo.img); }
   storeRec(r); queue(r); flush();
   if (navigator.vibrate) navigator.vibrate([40, 40, 120]);
@@ -791,7 +987,7 @@ function openCount(g, via, tag, t){
   const rq = reqsFor(g), steps = dutyList(duty.duty);
   rq.forEach(r => { if (!steps.includes(r.type)) steps.push(r.type); });
   cur = { id: t.toString(36) + '-' + Math.random().toString(36).slice(2, 6), day: dayOf(t), gate: g, t,
-          via, tag: tag || null, by: who, shift: shiftOf(t), duty: duty.duty, steps,
+          via, tag: tag || null, by: who, uid: me.id, shift: shiftOf(t), duty: duty.duty, steps,
           reqs: rq.map(r => r.id), need: {}, sup: {}, flag: null, flags: [], fimg: null, img: null, pt0: t };
   if (via === 'hand' && handInfo) { cur.handWhy = handInfo.why; cur.himg = handInfo.img; }
   ITEMS.forEach(i => cur.need[i.k] = 0);
@@ -974,22 +1170,22 @@ function sendCount(){
   r.n = needTotal(r);
   r.sn = supTotal(r);
   const img = r.img; delete r.img; delete r.pt0;
-  if (img) { r.photo = 1; queue2('photos/' + r.day + '/' + r.id, { gate: r.gate, t: r.pt || r.s, by: r.by, img }); }
+  if (img) { r.photo = 1; photo(r.day + '/' + r.id + '.jpg', img); }
   else if (r.steps.includes('photo') && !r.flag) r.flag = 'No photo taken';
   const himg = r.himg; delete r.himg;
   if (himg) { r.hphoto = 1; reportTag(r.id + 'h', r.gate, r.handWhy, r.day, r.t, himg); }
   const fimg = r.fimg; delete r.fimg;
-  if (fimg) { r.fphoto = 1; queue2('photos/' + r.day + '/' + r.id + '_p', { gate: r.gate, t: r.s, by: r.by, img: fimg }); }
+  if (fimg) { r.fphoto = 1; photo(r.day + '/' + r.id + '_p.jpg', fimg); }
   if (r.flags && r.flags.length) {
     const rp = { id: r.id, gate: r.gate, flags: r.flags, by: r.by, t: r.s, day: r.day, photo: fimg ? 1 : 0 };
-    reports[r.id] = rp; queue2('reports/' + r.id, rp);
+    reports[r.id] = rp; insert('reports', { id: r.id, gate: r.gate, t: r.s, data: rp });
   }
   // the load is still owed: the visit stays open until the tag is tapped again
   r.dbl = cfg.doubleTap && r.steps.includes('provisions') && r.n > 0 ? 1 : 0;
   r.reqs.forEach(id => {
     const q = reqs[id]; if (!q || (q.type === 'photo' && !img)) return;
     q.done = { by: r.by, t: r.s, tap: r.id, day: r.day };
-    queue2('req/' + id + '/done', q.done);
+    rpc('req_done', { p_id: id, p_done: q.done }, 'req:' + id);
   });
   try { localStorage.setItem('ct_req', JSON.stringify(reqs)); } catch(_) {}
   if (r.day === DAY) { mine[r.id] = r; saveMine(); }
@@ -1073,7 +1269,7 @@ async function openSetup(g, mode){
 function forgetSerial(serial){
   const k = keyOf(serial);
   delete tagMap[k]; saveTags();
-  if (db) { try { db.ref(ROOT + '/tags/' + k).remove(); } catch(_) {} }
+  del('tags', 'serial=eq.' + encodeURIComponent(serial)); flush();
 }
 function forgetCabinet(g){
   Object.values(tagMap).filter(x => x && x.gate === g && x.serial).forEach(x => forgetSerial(x.serial));
@@ -1081,7 +1277,7 @@ function forgetCabinet(g){
 function saveSerial(serial, g){
   tagMap[keyOf(serial)] = { gate: g, serial, t: Date.now(), by: who || '', local: 1 };
   saveTags();
-  if (db) { try { db.ref(ROOT + '/tags/' + keyOf(serial)).set({ gate: g, serial, t: Date.now(), by: who || '' }); } catch(_) {} }
+  upsert('tags', { serial, gate: g, data: { t: Date.now(), by: who || '' } }, 'tag:' + serial); flush();
 }
 function setupSaw(serial, gateOnTag, gateOnRecord){
   if (!setup) return;
@@ -1153,11 +1349,11 @@ function showLink(g){
 /* ---- render -------------------------------------------------------------------- */
 function render(){
   const d = dayOf(Date.now());
-  if (d !== DAY) { DAY = d; server = {}; loadMine(); listenDay(); }
-  $('#who').textContent = who ? who + (dutyValid() ? ' \u00b7 ' + dutyLabel(duty.duty) : '') : 'sign in';
+  if (d !== DAY) { DAY = d; server = {}; loadMine(); lastPoll = 0; poll(true); }
+  admin = !!(signedIn() && me.role === 'manager' && me.approved);
+  $('#who').textContent = signedIn() ? who + (dutyValid() ? ' \u00b7 ' + dutyLabel(duty.duty) : '') : 'sign in';
   if (updateReady && !cur && !setup && !$('#ov')) { updateReady = false; location.reload(); return; }
   if (!ready() && !cur && !setup && !$('#start')) showStart();
-  if (admin && !adminValid()) admin = false;
   // Today is everyone's numbers side by side, so it is a manager's screen. An agent sees
   // their own cabinets on Walk and nothing about anyone else.
   $('#navTags').hidden = !admin; $('#navSvc').hidden = !admin; $('#navToday').hidden = !admin;
@@ -1367,7 +1563,7 @@ function openService(g, via){
   reps.forEach(x => {
     h += '<div class="rep"><b>' + esc(x.flags.join(', ')) + '</b><small>' + esc(x.by || '') + ', ' + dayOf(x.t) + ' ' + hhmm(x.t) + '</small>' +
          (x.photo ? (svcPhotos[x.id] ? '<img class="thumb" style="max-height:none" src="' + svcPhotos[x.id] + '" alt="">'
-                                     : '<small data-ph="' + x.id + '">' + (db && online ? 'loading the photo\u2026' : 'The photo shows when there is a signal.') + '</small>') : '') + '</div>';
+                                     : '<small data-ph="' + x.id + '">' + (online ? 'loading the photo\u2026' : 'The photo shows when there is a signal.') + '</small>') : '') + '</div>';
   });
   h += '<div class="q">Note for whoever taps it next</div>' +
        '<textarea class="inp" id="vNote" placeholder="Screen is off, keypad still works">' + esc((sv && sv.note) || '') + '</textarea>' +
@@ -1387,21 +1583,20 @@ function openService(g, via){
     setSvc(g, b.dataset.st, via);
   });
   reps.filter(x => x.photo && !svcPhotos[x.id]).forEach(x => {
-    if (!db || !online) return;
-    db.ref(ROOT + '/photos/' + x.day + '/' + x.id + '_p').once('value').then(sn => {
-      const v = sn.val(); if (!v || !v.img) return;
-      svcPhotos[x.id] = v.img;
+    if (!online) return;
+    api('/storage/v1/object/authenticated/photos/' + x.day + '/' + x.id + '_p.jpg', { blob: true }).then(b => {
+      svcPhotos[x.id] = URL.createObjectURL(b);
       const el = document.querySelector('[data-ph="' + x.id + '"]');
-      if (el) el.outerHTML = '<img class="thumb" style="max-height:none" src="' + v.img + '" alt="">';
+      if (el) el.outerHTML = '<img class="thumb" style="max-height:none" src="' + svcPhotos[x.id] + '" alt="">';
     }).catch(() => {});
   });
 }
 function setSvc(g, state, via){
   const t = Date.now(), note = $('#vNote') ? $('#vNote').value.trim() : '', by = who || 'manager';
-  if (state === 'fixed' || state === 'dismiss') { delete svc[g]; queue2('svc/' + g, null); }
-  else { svc[g] = { gate: g, state, note, by, t, via: via === 'tag' ? 'tag' : 'hand' }; queue2('svc/' + g, svc[g]); }
-  queue2('svcLog/' + t.toString(36) + '-' + g, { gate: g, action: state, note, by, t, via: via === 'tag' ? 'tag' : 'hand' });
-  openReports(g).forEach(x => { x.closed = { by, t, action: state }; queue2('reports/' + x.id + '/closed', x.closed); });
+  if (state === 'fixed' || state === 'dismiss') { delete svc[g]; del('svc', 'gate=eq.' + encodeURIComponent(g)); }
+  else { svc[g] = { gate: g, state, note, by, t, via: via === 'tag' ? 'tag' : 'hand' }; upsert('svc', { gate: g, data: svc[g] }, 'svc:' + g); }
+  insert('svc_log', { id: t.toString(36) + '-' + g, t, data: { gate: g, action: state, note, by, t, via: via === 'tag' ? 'tag' : 'hand' } });
+  openReports(g).forEach(x => { x.closed = { by, t, action: state }; patch('reports', 'id=eq.' + encodeURIComponent(x.id), { closed: x.closed }); });
   try { localStorage.setItem('ct_svc', JSON.stringify(svc)); } catch(_) {}
   flush(); closeOv();
   quietUntil = Date.now() + 1500;
@@ -1429,8 +1624,7 @@ function renderTags(){
        '<input type="checkbox" id="tLock" style="width:22px;height:22px;flex:none"' + (lockNew ? ' checked' : '') + '>' +
        '<span><b>Read-only \u2014 permanent.</b> The sticker can never be erased or moved to another cabinet ' +
        'afterwards. Password protection is the safer choice.</span></label>' +
-       '<button class="alt" id="tOff">Lock admin mode</button>' +
-       '<div class="note">Admin stays unlocked for ' + ADMIN_MINS + ' minutes. Five taps on the title unlocks it again.</div>';
+       '<div class="note">Only managers see this tab. Tags written here are saved to the server.</div>';
   $('#tab-tags').innerHTML = h;
 }
 
@@ -1466,26 +1660,6 @@ document.querySelector('nav').onclick = e => {
   const b = e.target.closest('button'); if (!b) return;
   showTab(b.dataset.t);
 };
-function setAdmin(on){
-  admin = on;
-  if (on) localStorage.setItem('ct_admin', String(Date.now())); else localStorage.removeItem('ct_admin');
-  render();
-  showTab(on ? 'tags' : 'walk');
-  toast(on ? 'Admin mode on' : 'Admin locked', on);
-}
-// five taps on the title, then the PIN, and the Tags tab appears
-let titleTaps = [];
-document.querySelector('header h1').onclick = () => {
-  const now = Date.now();
-  titleTaps = titleTaps.filter(t => now - t < 3000);
-  titleTaps.push(now);
-  if (titleTaps.length < 5) return;
-  titleTaps = [];
-  if (admin) { setAdmin(false); return; }
-  const v = prompt('Admin PIN');
-  if (v === null) return;
-  if (v.trim() === ADMIN_PIN) setAdmin(true); else toast('Wrong PIN');
-};
 $('#who').onclick = showStart;
 $('#tab-walk').onclick = e => {
   const o = e.target.closest('[data-o]'); if (o) { openActions(o.dataset.o); return; }
@@ -1513,7 +1687,6 @@ $('#tab-tags').onclick = e => {
     lockNew = e.target.checked; if (lockNew) protNew = false; renderTags(); return;
   }
   if (e.target.id === 'tProt') { protNew = e.target.checked; if (protNew) lockNew = false; renderTags(); return; }
-  if (e.target.closest('#tOff')) { setAdmin(false); return; }
   if (e.target.closest('#tCheck')) { openSetup('', 'check'); return; }
   if (e.target.closest('#tErase')) { openSetup('', 'erase'); return; }
   const b = e.target.closest('button[data-g]');
@@ -1540,10 +1713,13 @@ function tagActions(g){
 }
 
 loadMine();
-render();
-initFB();
+if (!authLink()) render();
+poll(true); flush();
 setInterval(flush, 15000);
+setInterval(() => poll(), 30000);
 setInterval(render, 60000);
+window.addEventListener('online', () => { online = true; paintSync(); flush(); poll(true); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { poll(true); flush(); } });
 
 // A tag read while the app was closed opens the page with ?c=B24. Log it, then
 // strip the link so a reload does not log the same visit again.
