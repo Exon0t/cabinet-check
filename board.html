@@ -1192,6 +1192,25 @@ $('#rules').onchange = () => {
 };
 $('#demoOff').onclick = () => { location.search = ''; };
 
+// A temporary password is good for one thing: choosing your own, right here.
+function askNewPassword(g){
+  g.innerHTML = '<form id="pForm"><h1>PICK YOUR OWN PASSWORD</h1><p>The one you were given was temporary. Choose yours: 6 or more characters, not your V number.</p>' +
+    '<input id="pPass" type="password" autocomplete="new-password" placeholder="new password" style="letter-spacing:0;font-size:15px">' +
+    '<input id="pPass2" type="password" autocomplete="new-password" placeholder="same password again" style="letter-spacing:0;font-size:15px">' +
+    '<button class="act" type="submit" id="pGo">Save password</button><div id="gMsg"></div></form>';
+  $('#pPass').focus();
+  $('#pForm').onsubmit = async e => {
+    e.preventDefault();
+    const p1 = $('#pPass').value;
+    if (p1.length < 6) { $('#gMsg').textContent = '6 or more characters.'; return; }
+    if (p1 !== $('#pPass2').value) { $('#gMsg').textContent = 'The two passwords are not the same.'; return; }
+    $('#pGo').disabled = true; $('#pGo').textContent = 'One moment…';
+    try {
+      await api('/functions/v1/api', { body: { action: 'set_password', password: p1 } });
+      meP.must_change = false; saveSess(); g.remove(); start();
+    } catch(e2) { $('#gMsg').textContent = e2.message || 'That did not work.'; $('#pGo').disabled = false; $('#pGo').textContent = 'Save password'; }
+  };
+}
 // The sign-in. Managers only: an agent's account gets in nowhere on the board.
 (function gate(){
   const g = $('#gate');
@@ -1207,7 +1226,7 @@ $('#demoOff').onclick = () => { location.search = ''; };
       const v = await api('/functions/v1/api', { body: { action: 'login', vnum: u, password: p }, noauth: true });
       if (v.profile.role !== 'manager') { $('#gMsg').textContent = 'The board is for managers. Your account is an agent account.'; }
       else if (!v.profile.approved) { $('#gMsg').textContent = 'Your account is waiting for another manager to approve it.'; }
-      else if (v.profile.must_change) { $('#gMsg').textContent = 'You are on a temporary password. Sign in on the phone app first to pick your own.'; }
+      else if (v.profile.must_change) { sess = v.session; meP = v.profile; askNewPassword(g); return; }
       else { sess = v.session; meP = v.profile; saveSess(); g.remove(); start(); return; }
     } catch(e2) { $('#gMsg').textContent = e2.status ? e2.message : 'No connection.'; }
     $('#gGo').disabled = false; $('#gGo').textContent = 'Sign in';
