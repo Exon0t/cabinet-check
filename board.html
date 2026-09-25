@@ -192,11 +192,12 @@ tr.gap td{background:#fff8e6}
 #tour .hole{position:absolute;border-radius:10px;box-shadow:0 0 0 200vmax rgba(14,18,38,.6);border:2px solid #fff;pointer-events:none;transition:left .2s,top .2s,width .2s,height .2s}
 #tour.full .hole{display:none}
 #tour .tcard{position:absolute;width:400px;max-width:calc(100vw - 32px);background:#fff;border-radius:12px;padding:16px 18px 12px;
-  box-shadow:0 12px 40px rgba(0,0,0,.35);font-size:13.5px;line-height:1.45;color:#1b2030}
+  box-shadow:0 12px 40px rgba(0,0,0,.35);font-size:13.5px;line-height:1.45;color:#1b2030;max-height:calc(100vh - 32px);overflow-y:auto;box-sizing:border-box}
 #tour .tcard h3{margin:0 0 6px;font-size:17px;color:var(--navy)}
-#tour .tcard img{display:block;width:100%;max-height:320px;object-fit:contain;border-radius:8px;border:1px solid var(--line);margin:10px 0 2px;background:#f6f7fb}
+#tour .tcard img{display:block;width:100%;max-height:min(220px,40vh);object-fit:contain;border-radius:8px;border:1px solid var(--line);margin:10px 0 2px;background:#f6f7fb}
 #tour .tf{display:flex;align-items:center;gap:8px;margin-top:14px}
 #tour .tf .n{font-size:12px;color:var(--mut);margin-right:auto}
+#tour .tfoot{position:sticky;bottom:-12px;background:#fff;padding-bottom:12px;margin-bottom:-12px}
 #tour .tskip{margin-top:8px;text-align:right}
 #tour .tskip a{font-size:12px;color:var(--mut);cursor:pointer;text-decoration:underline}
 #gate form{background:#fff;border:1px solid var(--line);border-radius:12px;padding:26px 28px;width:320px;text-align:center}
@@ -260,7 +261,7 @@ tr.gap td{background:#fff8e6}
   <a href="#settings" data-p="settings">Settings</a>
 </nav>
 <div class="demo" id="demoBar" hidden>
-  <b>DEMO DATA</b> &mdash; made up, so the board can be seen before the tags go on. Nothing you click here is saved.
+  <span id="demoTxt"><b>DEMO DATA</b> &mdash; made up, so the board can be seen before the tags go on. Nothing you click here is saved.</span>
   <button id="demoOff">Show real data</button>
 </div>
 
@@ -628,7 +629,7 @@ function setLive(on, label){
 }
 // who is asking: the signed-in manager
 function me(){ return demo ? 'Supervisor' : (meP && meP.name) || 'Supervisor'; }
-$('#signOut').onclick = () => { if (demo) { location.search = ''; return; } signOut(); };
+$('#signOut').onclick = () => { if (demo && !tourDemo && !tour) { location.search = ''; return; } signOut(); };
 
 // a picture from the private store, fetched once and kept as a local URL
 function fetchPhoto(key, path){
@@ -1253,13 +1254,12 @@ $('#rules').onchange = () => {
   const v = Object.assign({}, cfg, { doubleTap: $('#cfDbl').checked, yellowMin: +$('#cfY').value, redMin: +$('#cfR').value });
   send({ kind: 'patch', table: 'cfg', match: 'id=eq.1', row: { data: v } }, () => { cfg = v; });
 };
-$('#demoOff').onclick = () => { location.search = ''; };
+$('#demoOff').onclick = () => { if (tourDemo) leaveDemo(); else location.search = ''; };
 
 /* ---- the tour ------------------------------------------------------------------
    First sign-in, or Settings → Show the tour. The board flips to the demo day, so
    there is something on every page and nothing clicked is saved, and a card walks
    the pages with one thing lit up at a time. Ends back on the live data. */
-const TOUR_KEY = () => 'ct_tour_' + ((meP && meP.id) || 'x');
 let tour = null;
 const TOUR = [
   { title: 'Welcome to the board', text: 'This is a practice copy: a made-up day with made-up names, so every page has something on it. ' +
@@ -1293,7 +1293,7 @@ const TOUR = [
   { title: 'What the agent sees', img: PICS.phone,
     text: 'Sign in, pick a duty, hold the phone to the cabinet tag. The count sheet shows the shelf numbers, before and after tiles, Empty and Problem. ' +
       'Send, load the cabinet, tap the tag again. Each job has its own sound: one note provisions, two supplies, three rising for a photo; a warble in front means you asked for something. ' +
-      'You can see this again any time from Settings.' },
+      'When you press Done the made-up day stays up so you can click around; the red bar takes you to the real board. This tour is in Settings any time.' },
 ];
 function tourStart(){
   if (tour) return;
@@ -1312,13 +1312,14 @@ function tourShow(){
   render();
   if (st.before) st.before();
   el.querySelector('.tcard').innerHTML = '<h3>' + st.title + '</h3><div>' + st.text + '</div>' + (st.img ? '<img src="' + st.img + '" alt="">' : '') +
-    '<div class="tf"><span class="n" id="tourN">' + (tour.i + 1) + ' of ' + TOUR.length + '</span>' +
+    '<div class="tfoot"><div class="tf"><span class="n" id="tourN">' + (tour.i + 1) + ' of ' + TOUR.length + '</span>' +
     (tour.i ? '<button class="act alt sm" id="tourBack">Back</button>' : '') +
-    '<button class="act sm" id="tourNext">' + (tour.i === TOUR.length - 1 ? 'Done \u2014 show the real board' : 'Next') + '</button></div>' +
-    '<div class="tskip"><a id="tourSkip">Skip the tour</a></div>';
+    '<button class="act sm" id="tourNext">' + (tour.i === TOUR.length - 1 ? 'Done' : 'Next') + '</button></div>' +
+    '<div class="tskip"><a id="tourSkip">Skip the tour</a></div></div>';
   $('#tourNext').onclick = () => { if (tour.i === TOUR.length - 1) tourEnd(); else { tour.i++; tourShow(); } };
   if ($('#tourBack')) $('#tourBack').onclick = () => { tour.i--; tourShow(); };
   $('#tourSkip').onclick = tourEnd;
+  const im = el.querySelector('.tcard img'); if (im) im.onload = () => tourPlace(st);
   requestAnimationFrame(() => tourPlace(st));
 }
 function tourPlace(st){
@@ -1328,7 +1329,7 @@ function tourPlace(st){
   const W = innerWidth, H = innerHeight, cw = Math.min(400, W - 32);
   el.classList.toggle('full', !t);
   if (!t) {
-    card.style.left = ((W - cw) / 2) + 'px'; card.style.top = Math.max(16, (H - card.offsetHeight) / 2) + 'px';
+    card.style.left = ((W - cw) / 2) + 'px'; card.style.top = Math.max(16, Math.min((H - card.offsetHeight) / 2, H - card.offsetHeight - 16)) + 'px';
     return;
   }
   t.scrollIntoView({ block: 'nearest' });
@@ -1344,13 +1345,20 @@ function tourPlace(st){
   card.style.left = left + 'px'; card.style.top = top + 'px';
 }
 window.addEventListener('resize', () => { if (tour) tourPlace(TOUR[tour.i]); });
+let tourDemo = null;      // the live day to go back to, while the made-up one is up after a tour
 function tourEnd(){
-  try { localStorage.setItem(TOUR_KEY(), '1'); } catch(_) {}
   const t0 = tour; tour = null;
   const el = $('#tour'); if (el) el.remove();
+  location.hash = '#cabinets'; showPage(); render();          // back to the map to explore
+  if (t0.wasDemo) return;
+  tourDemo = { day0: t0.day0 };
+  $('#demoTxt').innerHTML = '<b>MADE-UP DAY</b> &mdash; click around, nothing here is saved. When you are done:';
+  $('#demoOff').textContent = 'Show the real board';
+}
+function leaveDemo(){
+  const t0 = tourDemo; tourDemo = null;
   openCab = ''; $('#drawer').classList.add('hide');
   location.hash = '#cabinets'; showPage();
-  if (t0.wasDemo) { render(); return; }
   demo = false; $('#demoBar').hidden = true;
   recs = []; reqs = {}; dutyNow = {}; dutyLog = []; svc = {}; reports = {}; svcLog = []; users = []; photos = {};
   if (DAY !== t0.day0) setDay(t0.day0); else { render(); lastPoll = 0; poll(true); }
@@ -1404,8 +1412,8 @@ showPage();
 function start(){
   $('#meName').textContent = me();
   render(); poll(true);
-  let seen = false; try { seen = !!localStorage.getItem(TOUR_KEY()); } catch(_) {}
-  if (!seen || /(\?|&)tour=1/.test(location.search)) setTimeout(tourStart, 700);
+  const first = !!meP.first; delete meP.first; saveSess();     // never again on a reload
+  if (first || /(\?|&)tour=1/.test(location.search)) setTimeout(tourStart, 700);
   setInterval(() => poll(), 20000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(true); });
 }
