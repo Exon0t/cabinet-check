@@ -146,6 +146,16 @@ tr.gap td{background:#fff8e6}
 .set{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:12.5px}
 .set select{border:1.5px solid var(--line);border-radius:7px;padding:3px 6px;background:#fff;margin-left:auto}
 .set input{width:17px;height:17px;margin-left:auto}
+.cfgT{width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:6px}
+.cfgT th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.8px;color:var(--mut);padding:4px 6px;font-weight:600}
+.cfgT th.c,.cfgT td.c{text-align:center}
+.cfgT td{padding:7px 6px;border-top:1px solid var(--line);vertical-align:middle}
+.cfgT td small{display:block;color:var(--mut);font-size:11px}
+.cfgT input[type=checkbox]{width:16px;height:16px}
+.cfgT tr.off td{color:var(--mut)}
+.addc{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:8px 0 14px;padding:10px;background:#f6f7fb;border-radius:9px}
+.addc input[type=text]{border:1.5px solid var(--line);border-radius:7px;padding:5px 8px;font-size:12.5px;flex:1;min-width:120px}
+.addc label{font-size:12px;display:flex;align-items:center;gap:4px}
 
 /* one cabinet, opened from the map or the table */
 #drawer{position:fixed;top:0;right:0;bottom:0;width:430px;max-width:100%;background:#fff;border-left:1px solid var(--line);
@@ -386,9 +396,38 @@ const SUPPLIES = [
   {k:'bottle', label:'Bottles',       lo:5,  hi:5},
   {k:'bag',    label:'Inflight Bags', lo:0,  hi:3},
 ];
-const DUTIES = [{k:'provisions', label:'Provisions'}, {k:'supplies', label:'Supplies'}, {k:'photo', label:'Photo check'}];
-const dutyList = k => String(k || 'provisions').split('+').filter(x => DUTIES.some(d => d.k === x));
-const dutyLabel = k => dutyList(k).map(x => DUTIES.find(d => d.k === x).label).join(' + ') || DUTIES[0].label;
+// The checks. Which are on, which owe a photo, which owe a second tap, and any the
+// Settings page added, all live in cfg so the phones follow the same list.
+const BASE_DUTIES = [
+  {k:'provisions', label:'Provisions',  sub:'Bottom two shelves: count, load, tap again', photo:false, dbl:true},
+  {k:'supplies',   label:'Supplies',    sub:'Top two shelves: a photo, then the count',    photo:true,  dbl:false},
+  {k:'photo',      label:'Photo check', sub:'One photo of the whole cabinet, at the tag',  photo:true,  dbl:false, fixedPhoto:true},
+];
+function allDuties(){
+  const set = cfg.duties || {};
+  const base = BASE_DUTIES.map(d => {
+    const o = Object.assign({}, d, set[d.k] || {});
+    o.on = !set[d.k] || set[d.k].on !== false;
+    if (d.fixedPhoto) o.photo = true;
+    if (d.k === 'provisions' && !set[d.k]) o.dbl = cfg.doubleTap !== false;
+    return o;
+  });
+  const custom = (cfg.custom || []).filter(c => c && c.k && c.label)
+    .map(c => Object.assign({ on: true, photo: false, dbl: false, sub: '' }, c, { custom: true }));
+  return base.concat(custom);
+}
+const duties = () => allDuties().filter(d => d.on);
+const dutyDef = k => allDuties().find(d => d.k === k);
+const dutyList = k => String(k || 'provisions').split('+').filter(x => !!dutyDef(x));
+const dutyLabel = k => dutyList(k).map(x => dutyDef(x).label).join(' + ') || BASE_DUTIES[0].label;
+// every way of combining the checks that are on, up to three at once, for the move lists
+function moves(){
+  const ks = duties().map(d => d.k), out = [];
+  ks.forEach(a => out.push(a));
+  ks.forEach((a, i) => ks.slice(i + 1).forEach(b => out.push(a + '+' + b)));
+  ks.forEach((a, i) => ks.slice(i + 1).forEach((b, j) => ks.slice(i + j + 2).forEach(c => out.push(a + '+' + b + '+' + c))));
+  return out;
+}
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -796,16 +835,7 @@ function render(){
     '<div class="foot">Each person’s count is on the People page.</div>' +
     '<div class="foot">Lots of by-hand entries usually means a tag has stopped reading, not that someone skipped the walk. Check that cabinet’s tag.</div>';
 
-  $('#rules').innerHTML =
-    '<label class="set"><span><b>Second tap after loading</b><br><span style="color:#5b6377;font-size:11.5px">' +
-      (cfg.doubleTap ? 'On: a provisions count that needs something stays open until the tag is tapped again.'
-                     : 'Off: a count is finished when it is sent. Nothing is left open.') + '</span></span>' +
-    '<input type="checkbox" id="cfDbl"' + (cfg.doubleTap ? ' checked' : '') + '></label>' +
-    '<label class="set">A load turns yellow after<select id="cfY">' + [15,20,30,40].map(v => '<option' + (v === cfg.yellowMin ? ' selected' : '') + ' value="' + v + '">' + v + ' min</option>').join('') + '</select></label>' +
-    '<label class="set">and red, not compliant, after<select id="cfR">' + [45,60,90].map(v => '<option' + (v === cfg.redMin ? ' selected' : '') + ' value="' + v + '">' + v + ' min</option>').join('') + '</select></label>' +
-    '<div class="foot">Turning it off does not touch loads already open; those still close with a tap, or from the phone by hand. ' +
-    'Phones pick a change up straight away, no update needed. A cabinet counted as full owes no second tap. ' +
-    'A photo has to be taken within 40 seconds of the tag being read.</div>';
+  renderRules();
 
   $('#explain').innerHTML =
     '<b>Covered</b> counts a cabinet as done if anyone logged it at any point in the day. ' +
@@ -849,7 +879,7 @@ function renderCrew(){
   const noProv = names.length > 0 && !count('provisions').length;
   el.className = 'crew' + (noProv ? ' bad' : '');
   el.innerHTML = '<h3>On shift now</h3>' + (names.length
-    ? DUTIES.map(d => { const l = count(d.k);
+    ? duties().map(d => { const l = count(d.k);
         return '<span class="' + (l.length ? '' : 'z') + '" title="' + esc(l.join(', ') || 'nobody') + '"><b>' + l.length + '</b>' + d.label + '</span>'; }).join('') +
       '<i>' + names.length + ' signed in this ' + shiftOf(Date.now()) + ' shift</i>' +
       (noProv ? '<em>Nobody is on Provisions.</em>' : '')
@@ -897,7 +927,7 @@ function drawCab(){
          (sv && !sv.draft ? '<button class="act grn sm" data-sv="fixed">Fixed</button>' : '<button class="act alt sm" data-sv="dismiss">Not a problem</button>') + '</div></div>';
   } else h += '<h4>Service</h4><button class="act alt sm" id="svStart">Take ' + g + ' out of service, or leave a note</button>';
   h += '<h4>Ask for a check on ' + g + '</h4><div class="ask">' +
-       DUTIES.map(d => '<button data-ask="' + d.k + '"' + (liveTypes.includes(d.k) ? ' disabled' : '') + '>' + d.label + '</button>').join('') + '</div>' +
+       duties().map(d => '<button data-ask="' + d.k + '"' + (liveTypes.includes(d.k) ? ' disabled' : '') + '>' + esc(d.label) + '</button>').join('') + '</div>' +
        '<div class="foot">Whoever taps ' + g + ' next gets it on their screen, whatever they are on. It stays asked for until it is done or the shift ends.</div>';
   if (rq.length) {
     h += '<h4>Asked for</h4>';
@@ -1011,7 +1041,6 @@ function fullThenLow(w){
   return { full: mine.length, hits };
 }
 const GAP_MS = 20 * 60000;
-const MOVES = ['provisions', 'supplies', 'photo', 'provisions+supplies', 'provisions+photo', 'supplies+photo', 'provisions+supplies+photo'];
 const secs = ms => { const s = Math.round(ms / 1000); return Math.floor(s / 60) + ':' + pad(s % 60); };
 function walks(l){
   const out = [];
@@ -1075,8 +1104,8 @@ function renderPeople(list, now){
   const sw = dutyLog.filter(x => x.who === person);
   h += '<div class="plog"><div class="ph"><h3>' + esc(person) + '</h3><span>' + l.length + ' visits, ' +
        hhmm(l[0].t) + ' to ' + hhmm(l[l.length-1].t) + '</span>' +
-       '<span class="sp">Move to</span><select id="pMove">' + MOVES.map(k => '<option value="' + k + '"' + (k === cur ? ' selected' : '') + '>' + dutyLabel(k) + '</option>').join('') +
-       (MOVES.includes(cur) ? '' : '<option selected value="' + esc(cur) + '">' + dutyLabel(cur) + '</option>') + '</select>' +
+       '<span class="sp">Move to</span><select id="pMove">' + moves().map(k => '<option value="' + k + '"' + (k === cur ? ' selected' : '') + '>' + dutyLabel(k) + '</option>').join('') +
+       (moves().includes(cur) ? '' : '<option selected value="' + esc(cur) + '">' + dutyLabel(cur) + '</option>') + '</select>' +
        '<label style="display:flex;align-items:center;gap:5px;font-size:12px" title="They cannot change it on the phone until you untick this">' +
        '<input type="checkbox" id="pLock"' + (lockedP(person) ? ' checked' : '') + '>Lock</label>' +
        '<button class="act alt" id="pCsv">CSV for ' + esc(person) + '</button></div>' +
@@ -1134,7 +1163,7 @@ function renderUsers(){
         '<td>' + esc(u.vnum || '') + '</td><td class="l" style="font-size:11.5px">' + esc(u.email || '–') + '</td><td>' + stTag(u) + '</td>' +
         '<td>' + (d.duty ? '<span class="dt">' + dutyLabel(d.duty) + '</span>' : '–') + '</td>' +
         '<td><select class="uMove" style="border:1.5px solid var(--line);border-radius:7px;padding:3px 6px;background:#fff">' +
-          MOVES.concat(MOVES.includes(cur) ? [] : [cur]).map(k => '<option value="' + esc(k) + '"' + (k === cur ? ' selected' : '') + '>' + dutyLabel(k) + '</option>').join('') + '</select></td>' +
+          moves().concat(moves().includes(cur) ? [] : [cur]).map(k => '<option value="' + esc(k) + '"' + (k === cur ? ' selected' : '') + '>' + dutyLabel(k) + '</option>').join('') + '</select></td>' +
         '<td><input type="checkbox" class="uLock" style="width:17px;height:17px"' + (d.lock ? ' checked' : '') + '></td>' +
         '<td style="font-size:11.5px">' + (u.last_login ? dayOf(new Date(u.last_login).getTime()) + ' ' + hhmm(new Date(u.last_login).getTime()) : 'never') + '</td>' +
         '<td class="l">' +
@@ -1255,10 +1284,55 @@ $('#users').onchange = e => {
   const tr = e.target.closest('tr[data-uid]'); if (!tr) return;
   moveTo(tr.dataset.w, tr.querySelector('.uMove').value, tr.querySelector('.uLock').checked, tr.dataset.uid);
 };
-$('#rules').onchange = () => {
+/* ---- settings: the checks -------------------------------------------------------
+   One row per check. On or off, photo required, tap again when done. Custom checks
+   can be added with a name and what to do. Random photo checks pick one visit in N. */
+function renderRules(){
+  const el = $('#rules');
+  if (el.contains(document.activeElement) && document.activeElement.tagName === 'INPUT' && document.activeElement.type === 'text') return;  // mid-typing
+  const rp = cfg.randomPhoto || { on: false, every: 10 };
+  el.innerHTML =
+    '<table class="cfgT"><tr><th>Check</th><th class="c">On</th><th class="c">Photo required</th><th class="c">Tap again when done</th><th></th></tr>' +
+    allDuties().map(d => '<tr data-k="' + esc(d.k) + '"' + (d.on ? '' : ' class="off"') + '><td><b>' + esc(d.label) + '</b><small>' + esc(d.sub || '') + '</small></td>' +
+      '<td class="c"><input type="checkbox" class="cOn"' + (d.on ? ' checked' : '') + '></td>' +
+      '<td class="c"><input type="checkbox" class="cPh"' + (d.photo ? ' checked' : '') + (d.fixedPhoto ? ' disabled' : '') + '></td>' +
+      '<td class="c"><input type="checkbox" class="cDbl"' + (d.dbl ? ' checked' : '') + '></td>' +
+      '<td>' + (d.custom ? '<button class="act alt sm" data-rm="' + esc(d.k) + '">Remove</button>' : '') + '</td></tr>').join('') + '</table>' +
+    '<div class="addc"><input type="text" id="cfName" placeholder="New check, e.g. Trash check" maxlength="24">' +
+      '<input type="text" id="cfSub" placeholder="What to do, shown on the phone" maxlength="80">' +
+      '<label><input type="checkbox" id="cfNPh">photo</label><label><input type="checkbox" id="cfNDbl">tap again</label>' +
+      '<button class="act sm" id="cfAdd">Add</button></div>' +
+    '<label class="set"><span><b>Random photo checks</b><br><span style="color:#5b6377;font-size:11.5px">One visit in so many gets a photo added to its sheet, picked by the phone, so nobody knows which cabinet it will be.</span></span>' +
+      '<input type="checkbox" id="cfRnd"' + (rp.on ? ' checked' : '') + '></label>' +
+    '<label class="set">one visit in<select id="cfRndN">' + [3,5,10,20,50].map(v => '<option' + (v === (+rp.every || 10) ? ' selected' : '') + ' value="' + v + '">' + v + '</option>').join('') + '</select></label>' +
+    '<label class="set">A load turns yellow after<select id="cfY">' + [15,20,30,40].map(v => '<option' + (v === cfg.yellowMin ? ' selected' : '') + ' value="' + v + '">' + v + ' min</option>').join('') + '</select></label>' +
+    '<label class="set">and red, not compliant, after<select id="cfR">' + [45,60,90].map(v => '<option' + (v === cfg.redMin ? ' selected' : '') + ' value="' + v + '">' + v + ' min</option>').join('') + '</select></label>' +
+    '<div class="foot">Phones follow a change on their next poll, within a minute. "Tap again when done" leaves a visit open until the tag is tapped a second time; ' +
+    'on provisions and supplies only when something was needed. A required photo has to be taken within 40 seconds of the tag read. ' +
+    'Switching a check off hides it from the sign-in pick; people already on it finish their shift.</div>';
+}
+function saveRules(){
   // merged over what is there: the posts site keeps its own rule in this same row
-  const v = Object.assign({}, cfg, { doubleTap: $('#cfDbl').checked, yellowMin: +$('#cfY').value, redMin: +$('#cfR').value });
-  send({ kind: 'patch', table: 'cfg', match: 'id=eq.1', row: { data: v } }, () => { cfg = v; });
+  const v = Object.assign({}, cfg, { duties: {}, custom: [] });
+  document.querySelectorAll('#rules tr[data-k]').forEach(tr => {
+    const k = tr.dataset.k, d = dutyDef(k); if (!d) return;
+    const row = { on: tr.querySelector('.cOn').checked, photo: tr.querySelector('.cPh').checked, dbl: tr.querySelector('.cDbl').checked };
+    if (d.custom) v.custom.push(Object.assign({ k, label: d.label, sub: d.sub || '' }, row)); else v.duties[k] = row;
+  });
+  v.doubleTap = !!(v.duties.provisions && v.duties.provisions.dbl);      // older phones read this one
+  v.randomPhoto = { on: $('#cfRnd').checked, every: +$('#cfRndN').value || 10 };
+  v.yellowMin = +$('#cfY').value; v.redMin = +$('#cfR').value;
+  send({ kind: 'patch', table: 'cfg', match: 'id=eq.1', row: { data: v } }, () => { cfg = v; render(); });
+}
+$('#rules').onchange = e => { if (e.target.id !== 'cfName' && e.target.id !== 'cfSub' && e.target.id !== 'cfNPh' && e.target.id !== 'cfNDbl') saveRules(); };
+$('#rules').onclick = e => {
+  const rm = e.target.closest('[data-rm]');
+  if (rm) { cfg = Object.assign({}, cfg, { custom: (cfg.custom || []).filter(c => c.k !== rm.dataset.rm) }); render(); saveRules(); return; }
+  if (e.target.id !== 'cfAdd') return;
+  const label = $('#cfName').value.trim(), sub = $('#cfSub').value.trim();
+  if (!label) { $('#cfName').focus(); return; }
+  const c = { k: 'c' + Date.now().toString(36), label, sub, on: true, photo: $('#cfNPh').checked, dbl: $('#cfNDbl').checked };
+  cfg = Object.assign({}, cfg, { custom: (cfg.custom || []).concat([c]) }); $('#cfName').blur(); render(); saveRules();
 };
 $('#demoOff').onclick = () => { if (tourDemo) leaveDemo(); else location.search = ''; };
 
@@ -1298,7 +1372,8 @@ const TOUR = [
     text: 'Accounts. Add a person, or paste a whole list, and a temporary password shows once; they pick their own on first sign-in. ' +
       'Approve people who signed themselves up, unlock after five wrong tries, make someone a manager. Only @unitedgroundexpress.com addresses.' },
   { page: 'settings', at: '#rules', title: 'Rules the phones follow',
-    text: 'The second tap after loading, on or off. The minutes before an open load turns yellow and red. Change it here and every phone has it within a minute.' },
+    text: 'Every check on one table: on or off, photo required, tap again when done. Add a check of your own with a name and what to do, and it shows up on the phones\' sign-in pick and in "Ask for a check". ' +
+      'Random photo checks add a photo to one visit in so many. Below that, the minutes before an open load turns yellow and red. Phones follow a change within a minute.' },
   { title: 'What the agent sees', img: PICS.phone,
     text: 'Sign in, pick a duty, hold the phone to the cabinet tag. The count sheet shows the shelf numbers, before and after tiles, Empty and Problem. ' +
       'Send, load the cabinet, tap the tag again. Each job has its own sound: one note provisions, two supplies, three rising for a photo; a warble in front means you asked for something. ' +

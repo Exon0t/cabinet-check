@@ -128,6 +128,7 @@ th.am{color:var(--am)}th.pm{color:var(--pm)}th.ovn{color:var(--ovn)}
 .duty b{display:block;font-size:18px;color:var(--navy)}
 .duty span{font-size:12.5px;color:var(--mut)}
 .duty.on{border-color:var(--navy);background:#eef1fb}
+.duty.dim{opacity:.38}
 .inp{width:100%;font:inherit;font-size:17px;padding:13px;border:1.5px solid var(--line);border-radius:10px;margin-bottom:10px}
 #start{z-index:70;align-items:stretch}
 #start .pane{max-height:none;height:100%;border-radius:0;padding-top:calc(env(safe-area-inset-top) + 22px)}
@@ -217,7 +218,7 @@ textarea.inp{min-height:74px;font-size:15px;resize:vertical}
 
 // Goes up by one with every change to this file. A phone swaps its copy for a
 // published one only when the published number is higher.
-const BUILD = 14;
+const BUILD = 15;
 
 /* ---------------------------------------------------------------------------
    The guard-tour idea. Nobody can follow a runner to every cabinet, so the
@@ -263,18 +264,40 @@ const ITEMS = [
 const parOf = (it, g) => higher(g) ? it.hi : it.lo;
 // What a person is on the cabinets for. Picked at sign-in, because duties move
 // around too much to be assigned from a desk every morning.
-const DUTIES = [
-  {k:'provisions', label:'Provisions',  sub:'Bottom two shelves: count what it needs, load it, tap again'},
-  {k:'supplies',   label:'Supplies',    sub:'Top two shelves: a photo of the cabinet, then what it needs'},
-  {k:'photo',      label:'Photo check', sub:'One photo of the whole cabinet, taken at the cabinet'},
+const BASE_DUTIES = [
+  {k:'provisions', label:'Provisions',  sub:'Bottom two shelves: count what it needs, load it, tap again', photo:false, dbl:true},
+  {k:'supplies',   label:'Supplies',    sub:'Top two shelves: a photo of the cabinet, then what it needs', photo:true,  dbl:false},
+  {k:'photo',      label:'Photo check', sub:'One photo of the whole cabinet, taken at the cabinet',        photo:true,  dbl:false, fixedPhoto:true},
 ];
+// The board's Settings page decides which of these are on, which owe a photo of the
+// whole cabinet, which owe a second tap when the work is done, and can add checks of
+// its own (a name, what to do, photo or not, tap again or not). All of it is in cfg,
+// so the phones pick a change up on the next poll. The defaults above are Anthony's:
+// supplies photograph, provisions do not (no time on a load).
+function allDuties(){
+  const set = cfg.duties || {};
+  const base = BASE_DUTIES.map(d => {
+    const o = Object.assign({}, d, set[d.k] || {});
+    o.on = !set[d.k] || set[d.k].on !== false;
+    if (d.fixedPhoto) o.photo = true;
+    if (d.k === 'provisions' && !set[d.k]) o.dbl = cfg.doubleTap !== false;   // the older single switch
+    return o;
+  });
+  const custom = (cfg.custom || []).filter(c => c && c.k && c.label)
+    .map(c => Object.assign({ on: true, photo: false, dbl: false, sub: '' }, c, { custom: true }));
+  return base.concat(custom);
+}
+const duties = () => allDuties().filter(d => d.on);
+const dutyDef = k => allDuties().find(d => d.k === k);
 // a person can be on more than one: 'provisions+supplies'
-const dutyList = k => String(k || 'provisions').split('+').filter(x => DUTIES.some(d => d.k === x));
-// which jobs owe a picture of the whole cabinet: photo checks, and supplies, because a
-// picture of the top shelves is trusted more than a count typed in a hurry. Never
-// provisions: a runner on a load has no time for it.
-const wantsPhoto = steps => steps.includes('photo') || steps.includes('supplies');
-const dutyLabel = k => dutyList(k).map(x => DUTIES.find(d => d.k === x).label).join(' + ') || DUTIES[0].label;
+const dutyList = k => String(k || 'provisions').split('+').filter(x => !!dutyDef(x));
+// which jobs on this sheet owe a picture of the whole cabinet
+const wantsPhoto = steps => steps.some(st => { const d = dutyDef(st); return !!(d && d.photo); });
+const dutyLabel = k => dutyList(k).map(x => dutyDef(x).label).join(' + ') || BASE_DUTIES[0].label;
+// which a second tap after the work: provisions and supplies only when something was needed
+const wantsDbl = r => r.steps.some(st => { const d = dutyDef(st);
+  return !!(d && d.dbl) && (st === 'provisions' ? r.n > 0 : st === 'supplies' ? r.sn > 0 : true); });
+const frac = str => { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0) / 4294967296; };
 // Top two shelves, from the shelf diagrams: stock to these numbers. Lower gates have
 // no inflight bags, so that row only shows from B46 up.
 const SUPPLIES = [
@@ -295,6 +318,7 @@ const SOUND = {
   provisions: [[440, .17]],
   supplies:   [[660, .11], [660, .11]],
   photo:      [[784, .09], [988, .09], [1245, .15]],
+  custom:     [[523, .1], [415, .1], [523, .12]],
   asked:      [[1400, .08], [900, .08], [1400, .08], [900, .08]],
   filled:     [[523, .12], [784, .3]],
   no:         [[180, .38]],
@@ -325,7 +349,7 @@ function tone(seq){
 }
 function soundFor(steps, asked){
   let seq = asked ? SOUND.asked.map((x, i, a) => i === a.length - 1 ? [x[0], x[1], .25] : x) : [];
-  steps.forEach(st => { const m = SOUND[st].map(x => x.slice()); m[m.length - 1][2] = .25; seq = seq.concat(m); });
+  steps.forEach(st => { const m = (SOUND[st] || SOUND.custom).map(x => x.slice()); m[m.length - 1][2] = .25; seq = seq.concat(m); });
   tone(seq);
 }
 // a browser will not play anything until the screen has been touched once
@@ -531,7 +555,12 @@ async function poll(force){
     const nr = {}; (rq || []).forEach(x => { const d = Object.assign({}, x.data, { id: x.id }); if (x.done) d.done = x.done; nr[x.id] = d; });
     for (const k in reqs) if (reqs[k].done && nr[k] && !nr[k].done) nr[k].done = reqs[k].done;   // answered here, not sent yet
     reqs = nr; try { localStorage.setItem('ct_req', JSON.stringify(reqs)); } catch(_) {}
-    if (cf && cf[0]) { Object.assign(cfg, cf[0].data || {}); try { localStorage.setItem('ct_cfg', JSON.stringify(cfg)); } catch(_) {} }
+    if (cf && cf[0]) {
+      const before = duties().map(d => d.k).join();
+      Object.assign(cfg, cf[0].data || {}); try { localStorage.setItem('ct_cfg', JSON.stringify(cfg)); } catch(_) {}
+      // the pick is open and the list of checks just changed under it: draw it again
+      if (duties().map(d => d.k).join() !== before && $('#start .duty')) showDuty();
+    }
     svc = {}; (sv || []).forEach(x => { if (x.data && x.data.gate) svc[x.data.gate] = x.data; });
     try { localStorage.setItem('ct_svc', JSON.stringify(svc)); } catch(_) {}
     const nrp = {}; (rp || []).forEach(x => { if (x.data && x.data.id) nrp[x.data.id] = x.data; });
@@ -817,21 +846,29 @@ function showWait(){
         '<button class="alt" id="wOut">Sign out</button>');
   $('#wOut').onclick = () => signOut();
 }
+// the checks that are on, plus whatever a lock names even if it has since been switched off
+function dutyChoices(){
+  const list = duties();
+  if (dutyLocked()) dutyList(duty.duty).forEach(k => { if (!list.some(d => d.k === k)) list.push(dutyDef(k)); });
+  return list;
+}
 function showDuty(){
   let h = '<div class="ph"><b style="font-size:26px">' + (ready() ? 'Hi ' + esc(who) : 'Still ' + esc(who) + '?') + '</b>' +
     (ready() ? '<button class="x" id="stX">Close</button>' : '<button class="x" id="stOut" style="color:#b71c1c;font-weight:700">Not me \u2014 sign out</button>') + '</div>' +
     '<div class="pmeta">' + esc(me.email || me.vnum || '') + (admin ? ' &middot; manager' : '') + '</div>' +
     '<div class="q" style="margin-bottom:8px">What are you on today?</div>' +
-    (dutyLocked() ? '<div class="card warn">Set by ' + esc(duty.by) + '. Ask a supervisor if it needs to change.</div>'
+    (dutyLocked() ? '<div class="card warn">Set by ' + esc(duty.by) + '.</div>'
                   : '<div class="note" style="padding-top:0">Pick every one you are doing. One tap on a cabinet then asks for all of them. ' +
                     'Each one has its own sound: press it to hear it.</div>') +
     // most people do the same job every day: last shift's pick is ticked, so it is one press on Start
-    DUTIES.map(d => '<button class="duty' + (duty && duty.duty && dutyList(duty.duty).includes(d.k) ? ' on' : '') + '" data-d="' + d.k + '"><b>' +
-      d.label + '</b><span>' + d.sub + '</span></button>').join('') +
+    dutyChoices().map(d => { const on = !!(duty && duty.duty && dutyList(duty.duty).includes(d.k));
+      return '<button class="duty' + (on ? ' on' : dutyLocked() ? ' dim' : '') + '" data-d="' + d.k + '"><b>' +
+        esc(d.label) + '</b><span>' + esc(d.sub) + '</span></button>'; }).join('') +
     '<button class="big" id="stGo" style="margin-top:6px">' + (dutyLocked() ? 'OK' : 'Start') + '</button>' +
     (ready() ? '<button class="alt" id="stOut2">Sign out</button>' : '') +
-    '<div class="note">Picked the wrong one, or moved mid shift? Tap your name at the top to switch. ' +
-    'Switches are saved with the time.</div><div class="note" style="text-align:center">Cabinet Tap, screens version ' + BUILD + '</div>';
+    (dutyLocked() ? '<div class="note" style="text-align:center;font-weight:700;color:#6d4c00">If you are supposed to be on something else, ask dispatch to change it.</div>'
+                  : '<div class="note">Picked the wrong one, or moved mid shift? Tap your name at the top to switch. Switches are saved with the time.</div>') +
+    '<div class="note" style="text-align:center">Cabinet Tap, screens version ' + BUILD + '</div>';
   sheet(h);
   if ($('#stX')) $('#stX').onclick = () => $('#start').remove();
   const out = () => {
@@ -842,11 +879,11 @@ function showDuty(){
   if ($('#stOut')) $('#stOut').onclick = out;
   if ($('#stOut2')) $('#stOut2').onclick = out;
   $('#start').querySelectorAll('.duty').forEach(b => b.onclick = () => {
-    if (dutyLocked()) { tone(SOUND[b.dataset.d]); return; }
-    if (b.classList.toggle('on')) tone(SOUND[b.dataset.d]);
+    if (dutyLocked()) { tone(SOUND[b.dataset.d] || SOUND.custom); return; }
+    if (b.classList.toggle('on')) tone(SOUND[b.dataset.d] || SOUND.custom);
   });
   $('#stGo').onclick = () => {
-    const picked = DUTIES.filter(d => $('#start .duty[data-d=' + d.k + ']').classList.contains('on')).map(d => d.k).join('+');
+    const picked = dutyChoices().filter(d => { const el = $('#start .duty[data-d=' + d.k + ']'); return el && el.classList.contains('on'); }).map(d => d.k).join('+');
     if (!picked) { toast('Pick what you are on today'); return; }
     if (dutyLocked()) { $('#start').remove(); render(); return; }
     setDuty(picked);
@@ -898,7 +935,7 @@ function onGate(g, via, serial, t){
   if (!ready()) { pendingTap = { g, via, serial, t }; showStart(); return; }
   // a manager on the Service tab is there to fix things, not to count
   if (admin && !$('#tab-svc').classList.contains('hide')) { openService(g, via); return; }
-  const o = allOpen().filter(r => r.gate === g && (r.by === who || dutyList(duty.duty).includes('provisions'))).pop();
+  const o = allOpen().filter(r => r.gate === g && (r.by === who || dutyList(duty.duty).some(st => (r.steps || ['provisions']).includes(st)))).pop();
   if (o && !(cur && cur.gate === g)) {
     if (t - (o.s || o.t) < RETAP_MS) { tone(SOUND.no); toast(g + ' is counted. Tap it again after you load it.'); return; }
     closeVisit(o, via, t);
@@ -1009,15 +1046,19 @@ function openCount(g, via, tag, t){
     return;
   }
   if (cur) sendCount();                    // tapped the next cabinet first: send this one as it stands
-  const rq = reqsFor(g), steps = dutyList(duty.duty);
+  const rq = reqsFor(g), steps = dutyList(duty.duty), id = t.toString(36) + '-' + Math.random().toString(36).slice(2, 6);
   rq.forEach(r => { if (!steps.includes(r.type)) steps.push(r.type); });
-  cur = { id: t.toString(36) + '-' + Math.random().toString(36).slice(2, 6), day: dayOf(t), gate: g, t,
+  // a random photo check: one visit in N, decided by the visit's own id, so nobody can
+  // tell in advance which cabinet it will be
+  const rp = cfg.randomPhoto || {}, rnd = !!rp.on && !wantsPhoto(steps) && frac(id) < 1 / Math.max(1, +rp.every || 10);
+  if (rnd) steps.push('photo');
+  cur = { id, rnd: rnd ? 1 : 0, day: dayOf(t), gate: g, t,
           via, tag: tag || null, by: who, uid: me.id, shift: shiftOf(t), duty: duty.duty, steps,
           reqs: rq.map(r => r.id), need: {}, sup: {}, flag: null, flags: [], fimg: null, img: null, pt0: t };
   if (via === 'hand' && handInfo) { cur.handWhy = handInfo.why; cur.himg = handInfo.img; }
   ITEMS.forEach(i => cur.need[i.k] = 0);
   if (navigator.vibrate) navigator.vibrate(via === 'tag' ? [40, 40, 40] : 30);
-  soundFor(steps, steps.some(st => !dutyList(duty.duty).includes(st)));
+  soundFor(steps, steps.some(st => !dutyList(duty.duty).includes(st)));   // a warble: something extra on this one
   drawCount();
 }
 const photoLeft = () => PHOTO_SECS - Math.floor((Date.now() - cur.pt0) / 1000);
@@ -1052,11 +1093,13 @@ function drawCount(){
   if (steps.includes('provisions') || steps.includes('supplies'))
     h += '<button class="look" id="cLook">What full looks like</button>';
   if (wantsPhoto(steps)) {
-    const asked = steps.includes('photo') && !dutyList(cur.duty).includes('photo'), rq = asked ? reqsFor(g).find(r => r.type === 'photo') : null;
+    const asked = steps.includes('photo') && !cur.rnd && !dutyList(cur.duty).includes('photo'), rq = asked ? reqsFor(g).find(r => r.type === 'photo') : null;
     if (steps.length > 1 || asked)
-      h += '<div class="sec' + (asked ? ' rq' : '') + '">' + (steps.includes('photo') ? 'Photo check' : 'Photo') +
+      h += '<div class="sec' + (asked || cur.rnd ? ' rq' : '') + '">' + (cur.rnd ? 'Random photo check' : steps.includes('photo') ? 'Photo check' : 'Photo') +
            (asked ? ' &mdash; asked for by ' + esc((rq && rq.by) || 'a supervisor') : '') + '</div>';
-    h += '<div class="q">' + (steps.includes('photo') ? 'One photo of the whole cabinet, doors open' : 'First, one photo of the whole cabinet, doors open, top shelves in the shot') + '</div>';
+    h += '<div class="q">' + (cur.rnd ? 'This one got a random photo check: one photo of the whole cabinet, doors open'
+                             : steps.includes('supplies') && !steps.includes('photo') ? 'First, one photo of the whole cabinet, doors open, top shelves in the shot'
+                             : 'One photo of the whole cabinet, doors open') + '</div>';
     if (cur.img)
       h += '<img class="thumb" src="' + cur.img + '" alt=""><div class="clock" style="color:#1b7f3a">Photo taken ' + cur.pdt + ' s after the tap</div>';
     else if (photoLeft() > 0)
@@ -1092,6 +1135,10 @@ function drawCount(){
              '<div class="v">' + v + '</div>' +
              '<button data-sk="' + i.k + '" data-d="1">+</button></div></div>';
       });
+    } else {
+      const d = dutyDef(st);                                   // a check the board added: say what to do
+      if (d) h += '<div class="q">' + esc(d.sub || d.label) + '</div>' +
+                  (d.dbl ? '<div class="note" style="padding-top:0">Tap the tag again when it is done.</div>' : '');
     }
   });
   if (steps.includes('supplies'))
@@ -1102,7 +1149,7 @@ function drawCount(){
   const n = needTotal(cur) + supTotal(cur), owed = wantsPhoto(steps) && !cur.img && !cur.flag;
   h += '<button class="send' + (n || owed ? '' : ' zero') + '" id="cSend"' + (owed ? ' style="opacity:.45"' : '') + '>' +
        (owed ? 'Photo first, then send' : n ? 'Send &mdash; ' + n + ' needed'
-             : steps.length === 1 && steps[0] === 'photo' ? 'Send photo' : 'Full &mdash; nothing needed') + '</button></div></div>';
+             : !steps.includes('provisions') && !steps.includes('supplies') ? (cur.img ? 'Send photo' : 'Send') : 'Full &mdash; nothing needed') + '</button></div></div>';
   document.body.insertAdjacentHTML('beforeend', h);
   $('#ov .pane').scrollTop = was;
 
@@ -1240,7 +1287,7 @@ function sendCount(){
     reports[r.id] = rp; insert('reports', { id: r.id, gate: r.gate, t: r.s, data: rp });
   }
   // the load is still owed: the visit stays open until the tag is tapped again
-  r.dbl = cfg.doubleTap && r.steps.includes('provisions') && r.n > 0 ? 1 : 0;
+  r.dbl = wantsDbl(r) ? 1 : 0;
   r.reqs.forEach(id => {
     const q = reqs[id]; if (!q || (q.type === 'photo' && !img)) return;
     q.done = { by: r.by, t: r.s, tap: r.id, day: r.day };
