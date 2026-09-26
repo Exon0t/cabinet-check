@@ -156,6 +156,16 @@ tr.gap td{background:#fff8e6}
 .addc{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:8px 0 14px;padding:10px;background:#f6f7fb;border-radius:9px}
 .addc input[type=text]{border:1.5px solid var(--line);border-radius:7px;padding:5px 8px;font-size:12.5px;flex:1;min-width:120px}
 .addc label{font-size:12px;display:flex;align-items:center;gap:4px}
+.cfgT a.tog{font-size:11.5px;color:var(--navy);text-decoration:underline;cursor:pointer;display:inline-block;margin-top:3px}
+.cfgT tr.items td{padding:0 6px 10px 22px;border-top:0}
+.itT{width:100%;border-collapse:collapse;font-size:12px;background:#f6f7fb;border-radius:8px}
+.itT th{font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--mut);text-align:left;padding:5px 6px}
+.itT td{padding:4px 6px;border-top:1px solid #e3e6f0}
+.itT input[type=text]{border:1.5px solid var(--line);border-radius:6px;padding:3px 6px;font-size:12px;width:100%;background:#fff}
+.itT input[type=number]{border:1.5px solid var(--line);border-radius:6px;padding:3px 4px;font-size:12px;width:56px;background:#fff}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px}
+.chips span{border:1.5px solid var(--line);border-radius:999px;padding:3px 6px 3px 10px;font-size:12px;background:#fff;display:flex;align-items:center;gap:4px}
+.chips span button{border:0;background:none;color:var(--mut);cursor:pointer;font-size:14px;line-height:1;padding:0 2px}
 
 /* one cabinet, opened from the map or the table */
 #drawer{position:fixed;top:0;right:0;bottom:0;width:430px;max-width:100%;background:#fff;border-left:1px solid var(--line);
@@ -380,13 +390,13 @@ const CABS = (() => {
 // Every cabinet is stocked the same way now (the old lower-gate layout). If a group of
 // gates ever differs again, this is the one line to change, and hi/lo in the lists below.
 const higher = g => false;
-const ITEMS = [
+const BASE_ITEMS = [
   {k:'blanket',  label:'Blankets',      lo:2, hi:2},
   {k:'lav',      label:'Lav Kits',      lo:2, hi:2},
   {k:'inflight', label:'Inflight Kits', lo:2, hi:3},
   {k:'earbud',   label:'Earbud Kits',   lo:2, hi:1},
 ];
-const SUPPLIES = [
+const BASE_SUPPLIES = [
   {k:'towel',  label:'Paper Towels',  lo:12, hi:12},
   {k:'tp',     label:'Toilet Paper',  lo:18, hi:18},
   {k:'soap',   label:'Soap',          lo:6,  hi:6},
@@ -471,8 +481,16 @@ function dur(ms){
 }
 const median = a => { if (!a.length) return null; const b = a.slice().sort((x,y)=>x-y), m = b.length>>1;
   return b.length % 2 ? b[m] : (b[m-1]+b[m])/2; };
-const needTotal = r => ITEMS.reduce((a,i) => a + ((r.need||{})[i.k]||0), 0);
-const supTotal = r => SUPPLIES.reduce((a,i) => a + ((r.sup||{})[i.k]||0), 0);
+// what each check counts: the Settings page's lists when set, else the shelf diagrams
+const BASE_FLAGS = ["Won't open", "Won't close", 'Screen is off', 'Knob stuck', 'Knob spinning', 'Dent stops it closing',
+               'Needs a key', 'Trash / bags inside', 'Missing shelf'];
+const flagsOf = () => (cfg.flags && cfg.flags.length ? cfg.flags : BASE_FLAGS);
+const itemsOf = step => (cfg.items && Array.isArray(cfg.items[step])) ? cfg.items[step]
+                      : step === 'provisions' ? BASE_ITEMS : step === 'supplies' ? BASE_SUPPLIES : [];
+const supItems = () => allDuties().filter(d => d.k !== 'provisions').reduce((a, d) => a.concat(itemsOf(d.k)), []);
+const itemFind = (list, k) => list.find(i => i.k === k) || { k, label: k, lo: 20, hi: 20 };
+const needTotal = r => Object.keys(r.need || {}).reduce((a, k) => a + (r.need[k] || 0), 0);
+const supTotal = r => Object.keys(r.sup || {}).reduce((a, k) => a + (r.sup[k] || 0), 0);
 const stepsOf = r => r.steps || ['provisions'];
 const dutyOf = r => r.duty || 'provisions';
 
@@ -533,11 +551,11 @@ function demoDay(dayKey){
                     // some visits typed in by hand: that is what a tag which has stopped reading
                     // looks like, and spotting it is half the point of the board
                     via: hash(g + 'via' + ri) > 0.9 ? 'hand' : 'tag', need: {}, sup: {}, n: 0, flag: null };
-      if (r.duty === 'provisions') ITEMS.forEach(it => {
+      if (r.duty === 'provisions') BASE_ITEMS.forEach(it => {
         const s2 = hash(g + it.k + ri);
         rec.need[it.k] = s2 > 0.72 ? (s2 > 0.93 ? (higher(g) ? it.hi : it.lo) : 1) : 0;
       });
-      if (r.duty === 'supplies') SUPPLIES.forEach(it => { const par = higher(g) ? it.hi : it.lo, s2 = hash(g + it.k + ri);
+      if (r.duty === 'supplies') BASE_SUPPLIES.forEach(it => { const par = higher(g) ? it.hi : it.lo, s2 = hash(g + it.k + ri);
         if (par && s2 > 0.7) rec.sup[it.k] = Math.max(1, Math.round(par * (s2 - 0.7) * 3)); });
       if (r.duty === 'photo') { rec.photo = 1; rec.pdt = 8 + Math.floor(seed * 100) % 27; photos[rec.id] = { img: PICS.after }; }
       rec.n = needTotal(rec); rec.sn = supTotal(rec);
@@ -716,8 +734,8 @@ function loadCell(r, now){
                                                             : 'open ' + dur(l.ms)) + '</span>';
 }
 function needText(r){
-  const p = ITEMS.filter(i => (r.need||{})[i.k]).map(i => r.need[i.k] + ' ' + i.label)
-    .concat(SUPPLIES.filter(i => (r.sup||{})[i.k]).map(i => r.sup[i.k] + ' ' + i.label));
+  const p = Object.keys(r.need || {}).filter(k => r.need[k]).map(k => r.need[k] + ' ' + esc(itemFind(itemsOf('provisions'), k).label))
+    .concat(Object.keys(r.sup || {}).filter(k => r.sup[k]).map(k => r.sup[k] + ' ' + esc(itemFind(supItems(), k).label)));
   if (r.photo) p.push('photo' + (r.pdt != null ? ' ' + r.pdt + ' s after the tap' : ''));
   return p.length ? p.join(' &middot; ') : '<span style="color:#1b7f3a">full</span>';
 }
@@ -816,14 +834,14 @@ function render(){
   // needed
   const sh = ['AM','PM','OVN'];
   let ih = '<tr><th class="l">Item</th>' + sh.map(s => '<th>' + s + '</th>').join('') + '<th>Total</th></tr>';
-  ITEMS.forEach(it => {
+  itemsOf('provisions').forEach(it => {
     const per = sh.map(s => list.filter(r => r.shift === s).reduce((a,r) => a + ((r.need||{})[it.k]||0), 0));
-    ih += '<tr><td class="l"><b>' + it.label + '</b></td>' + per.map(v => '<td>' + (v || '–') + '</td>').join('') +
+    ih += '<tr><td class="l"><b>' + esc(it.label) + '</b></td>' + per.map(v => '<td>' + (v || '–') + '</td>').join('') +
           '<td><b>' + per.reduce((a,b)=>a+b,0) + '</b></td></tr>';
   });
-  SUPPLIES.forEach(it => {
+  supItems().forEach(it => {
     const per = sh.map(s => list.filter(r => r.shift === s).reduce((a,r) => a + ((r.sup||{})[it.k]||0), 0));
-    ih += '<tr><td class="l">' + it.label + '</td>' + per.map(v => '<td>' + (v || '–') + '</td>').join('') +
+    ih += '<tr><td class="l">' + esc(it.label) + '</td>' + per.map(v => '<td>' + (v || '–') + '</td>').join('') +
           '<td><b>' + per.reduce((a,b)=>a+b,0) + '</b></td></tr>';
   });
   $('#tItems').innerHTML = ih;
@@ -1234,12 +1252,12 @@ function card(big, label, sub, cls){
 function csv(who){
   const q = s => { s = String(s == null ? '' : s); return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s; };
   const rows = [['day','cabinet','tapped','sent','shift','person','duty','via','problem','filled','minutes_to_fill','filled_via','photo','before_photo','after_photo',
-                 ...ITEMS.map(i=>i.label), ...SUPPLIES.map(i=>i.label)].join(',')];
+                 ...itemsOf('provisions').map(i=>i.label), ...supItems().map(i=>i.label)].join(',')];
   view().filter(r => !who || (r.by || '(no name)') === who).forEach(r => rows.push([DAY, r.gate, new Date(r.t).toISOString(), r.s ? new Date(r.s).toISOString() : '',
     r.shift, q(r.by), dutyOf(r), r.via, q(r.flag), r.f ? new Date(r.f).toISOString() : (r.dbl ? 'open' : ''),
     r.f ? Math.round((r.f - (r.s || r.t)) / 60000) : '', r.fvia || '', r.photo ? 'yes' : '',
     r.bpt ? new Date(r.bpt).toISOString() : '', r.apt ? new Date(r.apt).toISOString() : '',
-    ...ITEMS.map(i => (r.need||{})[i.k] || 0), ...SUPPLIES.map(i => (r.sup||{})[i.k] || 0)].join(',')));
+    ...itemsOf('provisions').map(i => (r.need||{})[i.k] || 0), ...supItems().map(i => (r.sup||{})[i.k] || 0)].join(',')));
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([rows.join('\n')], {type:'text/csv'}));
   a.download = 'cabinet-compliance-' + DAY + (who ? '-' + who.replace(/[^A-Za-z0-9]+/g, '-') : '') + '.csv';
@@ -1287,21 +1305,36 @@ $('#users').onchange = e => {
 /* ---- settings: the checks -------------------------------------------------------
    One row per check. On or off, photo required, tap again when done. Custom checks
    can be added with a name and what to do. Random photo checks pick one visit in N. */
+const cfgOpen = new Set();          // which checks have their item list open on the page
 function renderRules(){
   const el = $('#rules');
   if (el.contains(document.activeElement) && document.activeElement.tagName === 'INPUT' && document.activeElement.type === 'text') return;  // mid-typing
   const rp = cfg.randomPhoto || { on: false, every: 10 };
   el.innerHTML =
     '<table class="cfgT"><tr><th>Check</th><th class="c">On</th><th class="c">Photo required</th><th class="c">Tap again when done</th><th></th></tr>' +
-    allDuties().map(d => '<tr data-k="' + esc(d.k) + '"' + (d.on ? '' : ' class="off"') + '><td><b>' + esc(d.label) + '</b><small>' + esc(d.sub || '') + '</small></td>' +
+    allDuties().map(d => { const items = itemsOf(d.k), open = cfgOpen.has(d.k);
+      return '<tr data-k="' + esc(d.k) + '"' + (d.on ? '' : ' class="off"') + '><td><b>' + esc(d.label) + '</b><small>' + esc(d.sub || '') + '</small>' +
+      (d.fixedPhoto ? '' : '<a class="tog" data-tog="' + esc(d.k) + '">' + (open ? 'Hide the list' : items.length ? items.length + ' things to count' : 'Nothing to count: add things') + '</a>') + '</td>' +
       '<td class="c"><input type="checkbox" class="cOn"' + (d.on ? ' checked' : '') + '></td>' +
       '<td class="c"><input type="checkbox" class="cPh"' + (d.photo ? ' checked' : '') + (d.fixedPhoto ? ' disabled' : '') + '></td>' +
       '<td class="c"><input type="checkbox" class="cDbl"' + (d.dbl ? ' checked' : '') + '></td>' +
-      '<td>' + (d.custom ? '<button class="act alt sm" data-rm="' + esc(d.k) + '">Remove</button>' : '') + '</td></tr>').join('') + '</table>' +
+      '<td>' + (d.custom ? '<button class="act alt sm" data-rm="' + esc(d.k) + '">Remove</button>' : '') + '</td></tr>' +
+      (open ? '<tr class="items" data-for="' + esc(d.k) + '"><td colspan="5"><table class="itT"><tr><th>Item</th><th>Full is</th><th>Note on the phone</th><th></th></tr>' +
+        items.map(i => '<tr data-ik="' + esc(i.k) + '"><td><input type="text" class="iL" value="' + esc(i.label) + '" maxlength="24"></td>' +
+          '<td><input type="number" class="iN" min="0" max="99" value="' + (+i.lo || 0) + '"></td>' +
+          '<td><input type="text" class="iS" value="' + esc(i.sub || '') + '" maxlength="40" placeholder="optional"></td>' +
+          '<td><button class="act alt sm" data-rmi="' + esc(d.k) + '|' + esc(i.k) + '">Remove</button></td></tr>').join('') +
+        '<tr class="nw"><td><input type="text" class="nw iL" placeholder="New item" maxlength="24"></td><td><input type="number" class="nw iN" min="0" max="99" value="1"></td>' +
+        '<td><input type="text" class="nw iS" placeholder="optional" maxlength="40"></td><td><button class="act sm" data-addi="' + esc(d.k) + '">Add</button></td></tr>' +
+        '</table></td></tr>' : ''); }).join('') + '</table>' +
     '<div class="addc"><input type="text" id="cfName" placeholder="New check, e.g. Trash check" maxlength="24">' +
       '<input type="text" id="cfSub" placeholder="What to do, shown on the phone" maxlength="80">' +
       '<label><input type="checkbox" id="cfNPh">photo</label><label><input type="checkbox" id="cfNDbl">tap again</label>' +
       '<button class="act sm" id="cfAdd">Add</button></div>' +
+    '<div style="font-weight:700;font-size:12.5px;margin-top:4px">Problem choices</div>' +
+    '<div class="foot" style="margin-top:2px">What an agent can pick when they press Problem. A photo is always required with it.</div>' +
+    '<div class="chips">' + flagsOf().map((f, i) => '<span>' + esc(f) + '<button data-rmf="' + i + '" title="Remove">&times;</button></span>').join('') + '</div>' +
+    '<div class="addc"><input type="text" id="cfFlag" placeholder="New problem choice, e.g. Light out" maxlength="30"><button class="act sm" id="cfFlagAdd">Add</button></div>' +
     '<label class="set"><span><b>Random photo checks</b><br><span style="color:#5b6377;font-size:11.5px">One visit in so many gets a photo added to its sheet, picked by the phone, so nobody knows which cabinet it will be.</span></span>' +
       '<input type="checkbox" id="cfRnd"' + (rp.on ? ' checked' : '') + '></label>' +
     '<label class="set">one visit in<select id="cfRndN">' + [3,5,10,20,50].map(v => '<option' + (v === (+rp.every || 10) ? ' selected' : '') + ' value="' + v + '">' + v + '</option>').join('') + '</select></label>' +
@@ -1319,13 +1352,48 @@ function saveRules(){
     const row = { on: tr.querySelector('.cOn').checked, photo: tr.querySelector('.cPh').checked, dbl: tr.querySelector('.cDbl').checked };
     if (d.custom) v.custom.push(Object.assign({ k, label: d.label, sub: d.sub || '' }, row)); else v.duties[k] = row;
   });
+  // the item lists that are open on the page are read back from it; the rest stay as they are
+  v.items = Object.assign({}, cfg.items || {});
+  document.querySelectorAll('#rules tr.items[data-for]').forEach(tr => {
+    const k = tr.dataset.for, was = itemsOf(k);
+    v.items[k] = Array.from(tr.querySelectorAll('tr[data-ik]')).map(r => {
+      const old = was.find(i => i.k === r.dataset.ik) || {}, lo = Math.max(0, Math.min(99, +r.querySelector('.iN').value || 0));
+      const it = { k: r.dataset.ik, label: r.querySelector('.iL').value.trim() || old.label || r.dataset.ik, lo, hi: old.hi != null && old.lo !== lo ? lo : (old.hi != null ? old.hi : lo) };
+      const sub = r.querySelector('.iS').value.trim(); if (sub) it.sub = sub;
+      return it;
+    });
+  });
+  v.flags = Array.from(document.querySelectorAll('#rules .chips span')).map(x => x.firstChild.textContent.trim()).filter(Boolean);
   v.doubleTap = !!(v.duties.provisions && v.duties.provisions.dbl);      // older phones read this one
   v.randomPhoto = { on: $('#cfRnd').checked, every: +$('#cfRndN').value || 10 };
   v.yellowMin = +$('#cfY').value; v.redMin = +$('#cfR').value;
   send({ kind: 'patch', table: 'cfg', match: 'id=eq.1', row: { data: v } }, () => { cfg = v; render(); });
 }
-$('#rules').onchange = e => { if (e.target.id !== 'cfName' && e.target.id !== 'cfSub' && e.target.id !== 'cfNPh' && e.target.id !== 'cfNDbl') saveRules(); };
+$('#rules').onchange = e => { if (!['cfName', 'cfSub', 'cfNPh', 'cfNDbl', 'cfFlag'].includes(e.target.id) && !e.target.classList.contains('nw')) saveRules(); };
 $('#rules').onclick = e => {
+  const tog = e.target.closest('[data-tog]');
+  if (tog) { const k = tog.dataset.tog; if (cfgOpen.has(k)) cfgOpen.delete(k); else cfgOpen.add(k); renderRules(); return; }
+  const addi = e.target.closest('[data-addi]');
+  if (addi) {
+    const k = addi.dataset.addi, tr = $('#rules tr.items[data-for="' + k + '"]'), name = tr.querySelector('.nw.iL').value.trim();
+    if (!name) { tr.querySelector('.nw.iL').focus(); return; }
+    const lo = Math.max(0, Math.min(99, +tr.querySelector('.nw.iN').value || 0)), sub = tr.querySelector('.nw.iS').value.trim();
+    const it = { k: 'i' + Date.now().toString(36), label: name, lo, hi: lo }; if (sub) it.sub = sub;
+    cfg = Object.assign({}, cfg, { items: Object.assign({}, cfg.items || {}, { [k]: itemsOf(k).concat([it]) }) });
+    tr.querySelector('.nw.iL').blur(); render(); saveRules(); return;
+  }
+  const rmi = e.target.closest('[data-rmi]');
+  if (rmi) {
+    const [k, ik] = rmi.dataset.rmi.split('|');
+    cfg = Object.assign({}, cfg, { items: Object.assign({}, cfg.items || {}, { [k]: itemsOf(k).filter(i => i.k !== ik) }) });
+    render(); saveRules(); return;
+  }
+  const rmf = e.target.closest('[data-rmf]');
+  if (rmf) { cfg = Object.assign({}, cfg, { flags: flagsOf().filter((f, i) => i !== +rmf.dataset.rmf) }); render(); saveRules(); return; }
+  if (e.target.id === 'cfFlagAdd') {
+    const f = $('#cfFlag').value.trim(); if (!f) { $('#cfFlag').focus(); return; }
+    cfg = Object.assign({}, cfg, { flags: flagsOf().concat([f]) }); $('#cfFlag').blur(); render(); saveRules(); return;
+  }
   const rm = e.target.closest('[data-rm]');
   if (rm) { cfg = Object.assign({}, cfg, { custom: (cfg.custom || []).filter(c => c.k !== rm.dataset.rm) }); render(); saveRules(); return; }
   if (e.target.id !== 'cfAdd') return;
@@ -1372,7 +1440,7 @@ const TOUR = [
     text: 'Accounts. Add a person, or paste a whole list, and a temporary password shows once; they pick their own on first sign-in. ' +
       'Approve people who signed themselves up, unlock after five wrong tries, make someone a manager. Only @unitedgroundexpress.com addresses.' },
   { page: 'settings', at: '#rules', title: 'Rules the phones follow',
-    text: 'Every check on one table: on or off, photo required, tap again when done. Add a check of your own with a name and what to do, and it shows up on the phones\' sign-in pick and in "Ask for a check". ' +
+    text: 'Every check on one table: on or off, photo required, tap again when done, and under each one the things it counts with their full numbers. Add a check of your own with a name and what to do, and it shows up on the phones\' sign-in pick and in "Ask for a check". The problem choices agents pick from are here too. ' +
       'Random photo checks add a photo to one visit in so many. Below that, the minutes before an open load turns yellow and red. Phones follow a change within a minute.' },
   { title: 'What the agent sees', img: PICS.phone,
     text: 'Sign in, pick a duty, hold the phone to the cabinet tag. The count sheet shows the shelf numbers, before and after tiles, Empty and Problem. ' +
