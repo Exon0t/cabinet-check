@@ -217,7 +217,7 @@ textarea.inp{min-height:74px;font-size:15px;resize:vertical}
 
 // Goes up by one with every change to this file. A phone swaps its copy for a
 // published one only when the published number is higher.
-const BUILD = 13;
+const BUILD = 14;
 
 /* ---------------------------------------------------------------------------
    The guard-tour idea. Nobody can follow a runner to every cabinet, so the
@@ -265,11 +265,15 @@ const parOf = (it, g) => higher(g) ? it.hi : it.lo;
 // around too much to be assigned from a desk every morning.
 const DUTIES = [
   {k:'provisions', label:'Provisions',  sub:'Bottom two shelves: count what it needs, load it, tap again'},
-  {k:'supplies',   label:'Supplies',    sub:'Top two shelves: mark what needs swapping for full'},
+  {k:'supplies',   label:'Supplies',    sub:'Top two shelves: a photo of the cabinet, then what it needs'},
   {k:'photo',      label:'Photo check', sub:'One photo of the whole cabinet, taken at the cabinet'},
 ];
 // a person can be on more than one: 'provisions+supplies'
 const dutyList = k => String(k || 'provisions').split('+').filter(x => DUTIES.some(d => d.k === x));
+// which jobs owe a picture of the whole cabinet: photo checks, and supplies, because a
+// picture of the top shelves is trusted more than a count typed in a hurry. Never
+// provisions: a runner on a load has no time for it.
+const wantsPhoto = steps => steps.includes('photo') || steps.includes('supplies');
 const dutyLabel = k => dutyList(k).map(x => DUTIES.find(d => d.k === x).label).join(' + ') || DUTIES[0].label;
 // Top two shelves, from the shelf diagrams: stock to these numbers. Lower gates have
 // no inflight bags, so that row only shows from B46 up.
@@ -969,7 +973,6 @@ function closeVisit(o, via, t){
     document.body.insertAdjacentHTML('beforeend',
       '<div class="ov" id="ov" data-f="' + r.id + '"><div class="pane"><div class="donebig"><b>' + r.gate + ' filled</b>' +
       '<span>Loaded ' + dur(t - (r.s || r.t)) + ' after the count &middot; ' + needText(r) + '</span></div>' +
-      (mine_ && !r.aphoto ? baTiles(r, 'a') : '') +
       '<button class="big" id="fOk">Done</button>' +
       '<button class="alt" id="fShort">Couldn\u2019t fill it all</button></div></div>');
     $('#fOk').onclick = () => { saveAfter(r); closeOv(); };
@@ -992,7 +995,6 @@ function openActions(id){
     '<div class="ov" id="ov"><div class="pane"><div class="ph"><b>' + r.gate + '</b><button class="x" id="oX">Close</button></div>' +
     '<div class="pmeta" style="margin-bottom:12px">Counted ' + hhmm(r.t) + ' &middot; ' + needText(r) +
     '<br>Tap the cabinet tag again once it is loaded. If the tag will not read, mark it here; it shows as by hand.</div>' +
-    (r.uid === me.id ? '<div class="q">Picture of it loaded &mdash; if you can</div>' + baTiles(r, 'a') : '') +
     '<button class="alt" id="oHand">Mark ' + r.gate + ' filled without the tag</button></div></div>');
   $('#oX').onclick = () => { saveAfter(r); closeOv(); };
   $('#oHand').onclick = () => askHand(r.gate, () => closeVisit(r, 'hand', Date.now()));
@@ -1002,7 +1004,7 @@ function openActions(id){
 function openCount(g, via, tag, t){
   if (cur && cur.gate === g && t - cur.t < 5 * 60000) {
     // tapped the same cabinet again: they are standing at it, so the photo clock restarts
-    if (cur.steps.includes('photo') && !cur.img) { cur.pt0 = t; drawCount(); toast('Photo clock restarted', true); }
+    if (wantsPhoto(cur.steps) && !cur.img) { cur.pt0 = t; drawCount(); toast('Photo clock restarted', true); }
     else toast(g + ' is already open');
     return;
   }
@@ -1049,7 +1051,24 @@ function drawCount(){
     h += '<div class="svn use"><b>Still usable.</b> ' + esc(sv.note || '') + '<small>' + esc(sv.by || '') + ', ' + dayOf(sv.t) + '</small></div>';
   if (steps.includes('provisions') || steps.includes('supplies'))
     h += '<button class="look" id="cLook">What full looks like</button>';
+  if (wantsPhoto(steps)) {
+    const asked = steps.includes('photo') && !dutyList(cur.duty).includes('photo'), rq = asked ? reqsFor(g).find(r => r.type === 'photo') : null;
+    if (steps.length > 1 || asked)
+      h += '<div class="sec' + (asked ? ' rq' : '') + '">' + (steps.includes('photo') ? 'Photo check' : 'Photo') +
+           (asked ? ' &mdash; asked for by ' + esc((rq && rq.by) || 'a supervisor') : '') + '</div>';
+    h += '<div class="q">' + (steps.includes('photo') ? 'One photo of the whole cabinet, doors open' : 'First, one photo of the whole cabinet, doors open, top shelves in the shot') + '</div>';
+    if (cur.img)
+      h += '<img class="thumb" src="' + cur.img + '" alt=""><div class="clock" style="color:#1b7f3a">Photo taken ' + cur.pdt + ' s after the tap</div>';
+    else if (photoLeft() > 0)
+      h += '<label class="shot" id="cShot">Take photo<input type="file" accept="image/*" capture="environment" id="cFile"></label>' +
+           '<div class="clock" id="cClock">' + photoLeft() + ' s left to take the photo</div>';
+    else
+      h += '<button class="shot dead" id="cShot">Time ran out</button><div class="clock dead" id="cClock">' +
+           (cur.via === 'hand' ? 'Press the button to start the clock again.'
+                               : 'Tap the cabinet tag again to take the photo.') + '</div>';
+  }
   steps.forEach(st => {
+    if (st === 'photo') return;
     const asked = !dutyList(cur.duty).includes(st), rq = asked ? reqsFor(g).find(r => r.type === st) : null;
     if (steps.length > 1)
       h += '<div class="sec' + (asked ? ' rq' : '') + '">' + dutyLabel(st) +
@@ -1073,26 +1092,14 @@ function drawCount(){
              '<div class="v">' + v + '</div>' +
              '<button data-sk="' + i.k + '" data-d="1">+</button></div></div>';
       });
-    } else {
-      h += '<div class="q">One photo of the whole cabinet, doors open</div>';
-      if (cur.img)
-        h += '<img class="thumb" src="' + cur.img + '" alt=""><div class="clock" style="color:#1b7f3a">Photo taken ' + cur.pdt + ' s after the tap</div>';
-      else if (photoLeft() > 0)
-        h += '<label class="shot" id="cShot">Take photo<input type="file" accept="image/*" capture="environment" id="cFile"></label>' +
-             '<div class="clock" id="cClock">' + photoLeft() + ' s left to take the photo</div>';
-      else
-        h += '<button class="shot dead" id="cShot">Time ran out</button><div class="clock dead" id="cClock">' +
-             (cur.via === 'hand' ? 'Press the button to start the clock again.'
-                                 : 'Tap the cabinet tag again to take the photo.') + '</div>';
     }
   });
-  if (steps.includes('provisions') || steps.includes('supplies')) {
-    h += '<div class="q" style="margin-top:12px">Before and after &mdash; if you can</div>' + baTiles(cur);
-  }
+  if (steps.includes('supplies'))
+    h += '<div class="q" style="margin-top:12px">Once the top shelves are loaded &mdash; if you can</div>' + baTiles(cur, 'a');
   h += '<div class="row2">' + (steps.includes('provisions') || steps.includes('supplies') ? '<button id="cEmpty">Empty &mdash; needs all</button>' : '') +
        '<button class="fl" id="cFlag">Problem</button></div>' +
        (cur.flag ? '<div class="flagged">' + esc(cur.flag) + '</div><div style="height:8px"></div>' : '');
-  const n = needTotal(cur) + supTotal(cur), owed = steps.includes('photo') && !cur.img && !cur.flag;
+  const n = needTotal(cur) + supTotal(cur), owed = wantsPhoto(steps) && !cur.img && !cur.flag;
   h += '<button class="send' + (n || owed ? '' : ' zero') + '" id="cSend"' + (owed ? ' style="opacity:.45"' : '') + '>' +
        (owed ? 'Photo first, then send' : n ? 'Send &mdash; ' + n + ' needed'
              : steps.length === 1 && steps[0] === 'photo' ? 'Send photo' : 'Full &mdash; nothing needed') + '</button></div></div>';
@@ -1222,7 +1229,7 @@ function sendCount(){
   r.sn = supTotal(r);
   const img = r.img; delete r.img; delete r.pt0;
   if (img) { r.photo = 1; photo(r.day + '/' + r.id + '.jpg', img); }
-  else if (r.steps.includes('photo') && !r.flag) r.flag = 'No photo taken';
+  else if (wantsPhoto(r.steps) && !r.flag) r.flag = 'No photo taken';
   const himg = r.himg; delete r.himg;
   if (himg) { r.hphoto = 1; reportTag(r.id + 'h', r.gate, r.handWhy, r.day, r.t, himg); }
   const fimg = r.fimg; delete r.fimg;

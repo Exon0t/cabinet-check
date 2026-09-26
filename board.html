@@ -406,13 +406,16 @@ function baPair(r, big){
     return '<div><div class="lb">' + label + '</div>' +
       (has ? (ph && ph.img ? '<img class="fr" src="' + ph.img + '" alt="' + g + ' ' + label.toLowerCase() + ' at ' + hms(at) + '">'
                            : '<div class="fr none">' + (ph ? 'photo missing' : 'loading…') + '</div>')
-           : '<div class="fr none">No ' + label.toLowerCase() + ' photo</div>') +
+           : '<div class="fr none">' + (dutyOf(r) === 'provisions' ? 'Provisions: no photo taken' : 'No ' + label.toLowerCase() + ' photo') + '</div>') +
       (has ? '<div class="tm">' + hms(at) + '</div>' : '<div class="tm none">' + sub + '</div>') +
       (big ? '<div class="who">' + esc(r.by || '') + (has && k === 'a' && r.bpt ? ' &middot; ' + dur(at - r.bpt) + ' after the before' : '') + '</div>' : '') +
       '</div>';
   };
-  return '<div class="ba">' +
-    side('b', 'Before', r.bphoto, r.bpt, 'tagged ' + hms(r.t)) +
+  // a supplies visit's required photo, taken at the tag, is its before
+  if (!r.bphoto && r.photo) { photos[r.id + '_b'] = photos[r.id]; }
+  const prov = dutyOf(r) === 'provisions';
+  return '<div class="ba' + (prov ? ' prov' : '') + '">' +
+    side('b', 'Before', r.bphoto || r.photo, r.bpt || (r.t + (r.pdt || 0) * 1000), 'tagged ' + hms(r.t)) +
     side('a', 'After', r.aphoto, r.apt, r.f ? 'tapped again ' + hms(r.f) : r.dbl ? 'not tapped again yet' : 'sent ' + hms(r.s || r.t)) + '</div>';
 }
 function shiftOf(t){ const d = new Date(t), h = d.getHours() + d.getMinutes()/60;
@@ -505,9 +508,9 @@ function demoDay(dayKey){
         if (hash(g + 'open' + ri) < 0.93 && f < Date.now()) { rec.f = f; rec.fvia = hash(g + 'fv' + ri) > 0.92 ? 'hand' : 'tag'; rec.fby = r.by; }
       }
       if (hash(g + 'flag' + ri) > 0.985) rec.flag = ["Won't open", 'Dead battery', 'Trash / bags inside'][ri % 3];
-      if (r.duty !== 'photo' && hash(g + 'ba' + ri) > 0.35) {         // most runners take the before
-        rec.bphoto = 1; rec.bpt = rec.t + 15000 + Math.floor(seed * 20000); photos[rec.id + '_b'] = { img: PICS.before };
-        if (rec.f && hash(g + 'aa' + ri) > 0.3) { rec.aphoto = 1; rec.apt = rec.f + 20000; photos[rec.id + '_a'] = { img: PICS.after }; }
+      if (r.duty === 'supplies') {                               // supplies owe a photo at the tag; most add the after
+        rec.photo = 1; rec.pdt = 12 + Math.floor(seed * 100) % 25; photos[rec.id] = { img: PICS.before };
+        if (hash(g + 'aa' + ri) > 0.3) { rec.aphoto = 1; rec.apt = rec.s + Math.floor((4 + seed * 6) * 60000); photos[rec.id + '_a'] = { img: PICS.after }; }
       }
       out.push(rec);
     });
@@ -907,9 +910,12 @@ function drawCab(){
     });
   }
   if (list.length) {
-    const lv = list[0];
-    h += '<h4>Before and after &mdash; last visit ' + hhmm(lv.t) + ', ' + esc(lv.by || '') + '</h4>' + baPair(lv, true);
+    // the newest visit that has a picture; provisions visits carry none, so without
+    // this the pair would usually be two empty frames under a runner's name
+    const lv = list.find(r => r.photo || r.bphoto || r.aphoto) || list[0];
+    h += '<h4>Before and after &mdash; ' + (lv === list[0] ? 'last visit ' : 'last pictures ') + hhmm(lv.t) + ', ' + esc(lv.by || '') + '</h4>' + baPair(lv, true);
   }
+  const lv0 = list.find(r => r.photo || r.bphoto || r.aphoto) || list[0];
   h += '<h4>' + DAY + ' &mdash; ' + list.length + ' visit' + (list.length === 1 ? '' : 's') + '</h4>';
   if (!list.length) h += '<div class="none">Nobody has logged this cabinet on this day.</div>';
   list.forEach(r => {
@@ -923,7 +929,7 @@ function drawCab(){
                                            : '<div class="cap">loading the tag photo…</div>') : '') +
          (r.photo ? (photos[r.id] ? '<img src="' + photos[r.id].img + '" alt="' + g + ' at ' + hhmm(r.t) + '">'
                                   : '<div class="cap" data-ph="' + r.id + '">loading the photo…</div>') : '') +
-         (r !== list[0] && (r.bphoto || r.aphoto) ? baPair(r, false) : '') + '</div>';
+         (r !== lv0 && (r.bphoto || r.aphoto || r.photo) ? baPair(r, false) : '') + '</div>';
   });
   const d = $('#drawer');
   const top = d.scrollTop;
@@ -1273,9 +1279,12 @@ const TOUR = [
   { page: 'cabinets', at: '#strip', title: 'What needs you now',
     text: 'Loads open too long, problems reported, checks waiting for someone. Nothing pops up on this board; it stays in this strip until it is dealt with.' },
   { page: 'cabinets', at: '#drawer .ba', title: 'Before and after',
-    before: () => { const r = recs.slice().reverse().find(x => x.bphoto && x.aphoto) || recs[recs.length - 1]; openCab = r ? r.gate : 'B24'; drawCab(); $('#drawer').scrollTop = 0; },
-    text: 'Click a cabinet and this is on top. When an agent taps a cabinet they can take a picture of how they found it and, once it is loaded, how they left it. ' +
-      'The time is under each one. If they skip the second tap it still shows: the after frame says "not tapped again". Below it, every visit that day.' },
+    before: () => {                                   // a cabinet whose latest visit has both pictures
+      const last = {}; recs.forEach(x => last[x.gate] = x);
+      const r = Object.values(last).find(x => (x.photo || x.bphoto) && x.aphoto) || recs[recs.length - 1];
+      openCab = r ? r.gate : 'B24'; drawCab(); $('#drawer').scrollTop = 0; },
+    text: 'Click a cabinet and this is on top. Supplies must take a photo of the whole cabinet at the tag, within 40 seconds, and can add one after loading the top shelves. ' +
+      'The time is under each one. Provisions take no pictures (no time on a load), so their frames show the count and the second tap instead. Below it, every visit that day.' },
   { page: 'cabinets', at: '#drawer .ask', title: 'Ask for a check on one cabinet',
     text: 'Provisions, supplies or a photo. Whoever taps this cabinet next gets it on their screen, whatever they are on. ' +
       'A photo check gives them 40 seconds from the tag read, so the picture is taken at the cabinet. It stays asked for until it is done or the shift ends.' },
