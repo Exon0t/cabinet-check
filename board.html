@@ -391,26 +391,22 @@ const CABS = (() => {
 // gates ever differs again, this is the one line to change, and hi/lo in the lists below.
 const higher = g => false;
 const BASE_ITEMS = [
-  {k:'blanket',  label:'Blankets',      lo:2, hi:2},
-  {k:'lav',      label:'Lav Kits',      lo:2, hi:2},
-  {k:'inflight', label:'Inflight Kits', lo:2, hi:3},
-  {k:'earbud',   label:'Earbud Kits',   lo:2, hi:1},
+  {k:'inflight', label:'Inflight Bags', lo:3, hi:3, sub:'shelf 2'},
+  {k:'earbud',   label:'Ear Buds',      lo:2, hi:2, sub:'shelf 2'},
+  {k:'blanket',  label:'Blankets',      lo:3, hi:3, sub:'shelf 3'},
+  {k:'lav',      label:'Lav Bags',      lo:3, hi:3, sub:'bottom shelf'},
 ];
 const BASE_SUPPLIES = [
   {k:'towel',  label:'Paper Towels',  lo:12, hi:12},
-  {k:'tp',     label:'Toilet Paper',  lo:18, hi:18},
-  {k:'soap',   label:'Soap',          lo:6,  hi:6},
-  {k:'glove',  label:'Gloves',        lo:4,  hi:4, sub:'one box each of M, S, L, XL'},
-  {k:'facial', label:'Facials',       lo:4,  hi:6},
+  {k:'tp',     label:'Toilet Paper',  lo:6,  hi:6},
+  {k:'facial', label:'Tissues',       lo:7,  hi:7},
   {k:'wypall', label:'WypAlls',       lo:1,  hi:1},
-  {k:'bottle', label:'Bottles',       lo:5,  hi:5},
-  {k:'bag',    label:'Inflight Bags', lo:0,  hi:3},
 ];
 // The checks. Which are on, which owe a photo, which owe a second tap, and any the
 // Settings page added, all live in cfg so the phones follow the same list.
 const BASE_DUTIES = [
-  {k:'provisions', label:'Provisions',  sub:'Bottom two shelves: count, load, tap again', photo:false, dbl:true},
-  {k:'supplies',   label:'Supplies',    sub:'Top two shelves: a photo, then the count',    photo:true,  dbl:false},
+  {k:'provisions', label:'Provisions',  sub:'Shelves 2, 3 and bottom: count, load, tap again', photo:false, dbl:true},
+  {k:'supplies',   label:'Supplies',    sub:'Top shelf: a photo, then the count',    photo:true,  dbl:false},
   {k:'photo',      label:'Photo check', sub:'One photo of the whole cabinet, at the tag',  photo:true,  dbl:false, fixedPhoto:true},
 ];
 function allDuties(){
@@ -1157,6 +1153,7 @@ function renderPeople(list, now){
 /* ---- users and tags ---------------------------------------------------------------- */
 let uMsg = '';       // what the last account action said, shown above the table
 function renderUsers(){
+  const keep = keepUserForm();
   const roleTag = u => u.role === 'manager' ? '<span class="utag mgr">manager</span>' : '';
   const stTag = u => !u.active ? '<span class="utag off">switched off</span>' : u.locked_at ? '<span class="utag lock">locked</span>'
                     : !u.approved ? '<span class="utag wait">waiting for approval</span>' : u.must_change ? '<span class="utag tmp">temporary password</span>' : '';
@@ -1173,7 +1170,7 @@ function renderUsers(){
     '<div class="uform" style="grid-template-columns:1fr auto"><div><textarea id="uBulk" placeholder="V123456, First Last, first.last' + UGE + '"></textarea></div>' +
     '<div><button class="act" id="uBulkGo">Add them all</button></div></div></details>' +
     (uMsg ? '<div class="made" id="uMade">' + uMsg + '</div>' : '');
-  if (!users.length) { $('#users').innerHTML = h + '<div class="none">' + (demo ? 'Demo.' : 'Loading accounts…') + '</div>'; return; }
+  if (!users.length) { $('#users').innerHTML = h + '<div class="none">' + (demo ? 'Demo.' : 'Loading accounts…') + '</div>'; keep(); return; }
   h += '<table><tr><th class="l">Name</th><th>V number</th><th class="l">E-mail</th><th>Status</th><th>On</th><th>Set to</th><th>Lock</th><th>Last sign-in</th><th class="l">Actions</th></tr>' +
     users.slice().sort((a, b) => (b.active && !b.approved) - (a.active && !a.approved) || a.name.localeCompare(b.name)).map(u => {
       const d = dutyNow[u.id] || {}, cur = d.duty || 'provisions';
@@ -1197,6 +1194,24 @@ function renderUsers(){
     '<div class="foot"><b>Reset</b> gives a temporary password you hand to the person; they pick their own at the next sign-in. <b>Unlock</b> clears the five-wrong-tries lock. ' +
     '<b>Switch off</b> is for someone who has left: they cannot sign in and anything open on their phone stops saving. ' + (waiting ? '<b>' + waiting + ' waiting for approval.</b>' : '') + '</div>';
   $('#users').innerHTML = h;
+  keep();
+}
+// The live poll redraws this page every 20 s. What is being typed into the add-person form,
+// the cursor, and the open "whole list" box survive the redraw; the table underneath still refreshes.
+function keepUserForm(){
+  const ids = ['uName', 'uV', 'uEmail', 'uRole', 'uBulk'], vals = {};
+  ids.forEach(id => { const el = $('#' + id); if (el) vals[id] = el.value; });
+  const a = document.activeElement, fid = a && ids.includes(a.id) ? a.id : '';
+  const sel = fid && a.selectionStart != null ? [a.selectionStart, a.selectionEnd] : null;
+  const more = $('#users details'), open = !!(more && more.open);
+  return () => {
+    ids.forEach(id => { const el = $('#' + id); if (el && vals[id] != null) el.value = vals[id]; });
+    const d = $('#users details'); if (d && open) d.open = true;
+    if (!fid) return;
+    const el = $('#' + fid); if (!el) return;
+    el.focus({ preventScroll: true });
+    if (sel) try { el.setSelectionRange(sel[0], sel[1]); } catch (e) {}
+  };
 }
 async function userAction(op, u, extra){
   if (demo) { uMsg = 'Demo: nothing is saved.'; renderUsers(); return; }
@@ -1212,6 +1227,7 @@ async function userAction(op, u, extra){
     }
     else uMsg = 'Done.';
     if (op === 'create') { $('#uName').value = ''; $('#uV').value = ''; $('#uEmail').value = ''; }
+    if (op === 'bulk') $('#uBulk').value = '';
   } catch(e) { uMsg = '<span style="color:#b71c1c">' + esc(e.message || 'That did not work.') + '</span>'; }
   renderUsers();
   poll(true);
@@ -1425,7 +1441,7 @@ const TOUR = [
       const last = {}; recs.forEach(x => last[x.gate] = x);
       const r = Object.values(last).find(x => (x.photo || x.bphoto) && x.aphoto) || recs[recs.length - 1];
       openCab = r ? r.gate : 'B24'; drawCab(); $('#drawer').scrollTop = 0; },
-    text: 'Click a cabinet and this is on top. Supplies must take a photo of the whole cabinet at the tag, within 40 seconds, and can add one after loading the top shelves. ' +
+    text: 'Click a cabinet and this is on top. Supplies must take a photo of the whole cabinet at the tag, within 40 seconds, and can add one after loading the top shelf. ' +
       'The time is under each one. Provisions take no pictures (no time on a load), so their frames show the count and the second tap instead. Below it, every visit that day.' },
   { page: 'cabinets', at: '#drawer .ask', title: 'Ask for a check on one cabinet',
     text: 'Provisions, supplies or a photo. Whoever taps this cabinet next gets it on their screen, whatever they are on. ' +
