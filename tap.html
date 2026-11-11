@@ -218,7 +218,7 @@ textarea.inp{min-height:74px;font-size:15px;resize:vertical}
 
 // Goes up by one with every change to this file. A phone swaps its copy for a
 // published one only when the published number is higher.
-const BUILD = 18;
+const BUILD = 19;
 
 /* ---------------------------------------------------------------------------
    The guard-tour idea. Nobody can follow a runner to every cabinet, so the
@@ -1065,18 +1065,22 @@ function openCount(g, via, tag, t){
   soundFor(steps, steps.some(st => !dutyList(duty.duty).includes(st)));   // a warble: something extra on this one
   drawCount();
 }
-const photoLeft = () => PHOTO_SECS - Math.floor((Date.now() - cur.pt0) / 1000);
+// A check with nothing to count (provisions and supplies as photo-only) wants its one photo
+// AFTER the cabinet is filled, so there is no 40 second clock on it: the tag read already
+// proved they were there. The time from tap to photo is kept (pdt) and shown on the board.
+const afterOnly = r => !!r && !r.rnd && !r.steps.includes('photo') && wantsPhoto(r.steps) && !r.steps.some(st => itemsOf(st).length > 0);
+const photoLeft = () => afterOnly(cur) ? 99999 : PHOTO_SECS - Math.floor((Date.now() - cur.pt0) / 1000);
 // The app's own camera (APK 0.4 and up) asks this before it opens: which cabinet, what the
 // photo is for, whether to draw the cabinet and shelf lines, and seconds left on the clock.
 let camFor = '';
 document.addEventListener('click', e => { const i = e.target.closest && e.target.closest('input[type=file]'); if (i) camFor = i.id; }, true);
 window.__camInfo = () => {
   const whole = camFor === 'cFile' || camFor === 'aFile' || camFor === 'bFile';
-  const what = camFor === 'cFile' ? (cur && cur.rnd ? 'Random photo check' : 'Whole cabinet, doors open')
+  const what = camFor === 'cFile' ? (cur && cur.rnd ? 'Random photo check' : afterOnly(cur) ? 'After the fill: whole cabinet, doors open' : 'Whole cabinet, doors open')
              : camFor === 'aFile' ? 'After: top shelf loaded' : camFor === 'bFile' ? 'Before'
              : camFor === 'fFile' ? 'Photo of the problem' : camFor === 'hFile' ? 'Where the tag goes' : 'Photo';
   return JSON.stringify({ gate: (cur && cur.gate) || '', what, guide: whole,
-                          left: camFor === 'cFile' && cur && cur.pt0 ? Math.max(0, photoLeft()) : -1 });
+                          left: camFor === 'cFile' && cur && cur.pt0 && !afterOnly(cur) ? Math.max(0, photoLeft()) : -1 });
 };
 function readPhoto(file){
   return new Promise((res, rej) => {
@@ -1114,13 +1118,14 @@ function drawCount(){
       h += '<div class="sec' + (asked || cur.rnd ? ' rq' : '') + '">' + (cur.rnd ? 'Random photo check' : steps.includes('photo') ? 'Photo check' : 'Photo') +
            (asked ? ' &mdash; asked for by ' + esc((rq && rq.by) || 'a supervisor') : '') + '</div>';
     h += '<div class="q">' + (cur.rnd ? 'This one got a random photo check: one photo of the whole cabinet, doors open'
-                             : steps.includes('supplies') && !steps.includes('photo') ? 'First, one photo of the whole cabinet, doors open wide'
+                             : afterOnly(cur) ? 'Fill the cabinet, then one photo of the whole cabinet, doors open'
+                             : steps.includes('supplies') && !steps.includes('photo') && itemsOf('supplies').length ? 'First, one photo of the whole cabinet, doors open wide'
                              : 'One photo of the whole cabinet, doors open') + '</div>';
     if (cur.img)
-      h += '<img class="thumb" src="' + cur.img + '" alt=""><div class="clock" style="color:#1b7f3a">Photo taken ' + cur.pdt + ' s after the tap</div>';
+      h += '<img class="thumb" src="' + cur.img + '" alt=""><div class="clock" style="color:#1b7f3a">Photo taken ' + (afterOnly(cur) ? dur(cur.pdt * 1000) : cur.pdt + ' s') + ' after the tap</div>';
     else if (photoLeft() > 0)
       h += '<label class="shot" id="cShot">Take photo<input type="file" accept="image/*" capture="environment" id="cFile"></label>' +
-           '<div class="clock" id="cClock">' + photoLeft() + ' s left to take the photo</div>';
+           '<div class="clock' + (afterOnly(cur) ? ' after' : '') + '" id="cClock">' + (afterOnly(cur) ? 'No clock on this one: take it once the cabinet is full' : photoLeft() + ' s left to take the photo') + '</div>';
     else
       h += '<button class="shot dead" id="cShot">Time ran out</button><div class="clock dead" id="cClock">' +
            (cur.via === 'hand' ? 'Press the button to start the clock again.'
@@ -1133,8 +1138,9 @@ function drawCount(){
       h += '<div class="sec' + (asked ? ' rq' : '') + '">' + dutyLabel(st) +
            (asked ? ' &mdash; asked for by ' + esc((rq && rq.by) || 'a supervisor') : '') + '</div>';
     const list = itemsOf(st).filter(i => parOf(i, g)), attr = st === 'provisions' ? 'data-k' : 'data-sk', store = st === 'provisions' ? cur.need : cur.sup;
-    if (st === 'provisions') h += '<div class="q">Shelves 2, 3 and bottom: how many does it need?</div>';
-    else if (st === 'supplies') h += '<div class="q">Top shelf: how many does it need?</div>';
+    // a check with nothing to count (the board emptied its list) is the photo alone: no question to ask
+    if (st === 'provisions') h += list.length ? '<div class="q">Shelves 2, 3 and bottom: how many does it need?</div>' : '';
+    else if (st === 'supplies') h += list.length ? '<div class="q">Top shelf: how many does it need?</div>' : '';
     else {
       const d = dutyDef(st);                                   // a check the board added: say what to do
       if (d) h += '<div class="q">' + esc(d.sub || d.label) + '</div>' +
@@ -1149,7 +1155,7 @@ function drawCount(){
            '<button ' + attr + '="' + esc(i.k) + '" data-d="1">+</button></div></div>';
     });
   });
-  if (steps.includes('supplies'))
+  if (steps.includes('supplies') && !afterOnly(cur))      // photo-only supplies: the one photo IS the after
     h += '<div class="q" style="margin-top:12px">Once the top shelf is loaded &mdash; if you can</div>' + baTiles(cur, 'a');
   const counts = steps.some(st => itemsOf(st).length > 0);
   h += '<div class="row2">' + (counts ? '<button id="cEmpty">Empty &mdash; needs all</button>' : '') +
@@ -1221,7 +1227,7 @@ function wireBa(root, r, redraw){
 // the photo countdown, ticking on whatever count sheet is open
 setInterval(() => {
   const el = $('#cClock');
-  if (!cur || !el || cur.img || el.classList.contains('dead')) return;
+  if (!cur || !el || cur.img || el.classList.contains('dead') || el.classList.contains('after')) return;
   const left = photoLeft();
   if (left <= 0) drawCount(); else el.textContent = left + ' s left to take the photo';
 }, 500);
@@ -1282,6 +1288,7 @@ function sendCount(){
   r.by = r.by || who || '';
   r.n = needTotal(r);
   r.sn = supTotal(r);
+  if (afterOnly(r)) r.pafter = 1;         // the board labels this photo "after the fill", not "before"
   const img = r.img; delete r.img; delete r.pt0;
   if (img) { r.photo = 1; photo(r.day + '/' + r.id + '.jpg', img); }
   else if (wantsPhoto(r.steps) && !r.flag) r.flag = 'No photo taken';
