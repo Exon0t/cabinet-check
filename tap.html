@@ -218,7 +218,7 @@ textarea.inp{min-height:74px;font-size:15px;resize:vertical}
 
 // Goes up by one with every change to this file. A phone swaps its copy for a
 // published one only when the published number is higher.
-const BUILD = 21;
+const BUILD = 22;
 
 /* ---------------------------------------------------------------------------
    The guard-tour idea. Nobody can follow a runner to every cabinet, so the
@@ -859,7 +859,7 @@ function showSetPassword(recovery){
         '<div class="q">New password</div>' + field('pPass', 'password', 'password') +
         '<div class="q">Same password again</div>' + field('pPass2', 'password', 'password') +
         '<button class="big" id="pGo">Save password</button>' +
-        (recovery ? '' : '<button class="alt" id="pOut">Sign out</button>') +
+        (recovery || isDevice() ? '' : '<button class="alt" id="pOut">Sign out</button>') +
         '<div class="pmeta" id="stMsg" style="min-height:18px;margin-top:8px;font-weight:600"></div>');
   $('#pPass').focus();
   if ($('#pOut')) $('#pOut').onclick = () => signOut();
@@ -884,8 +884,8 @@ function showSetPassword(recovery){
 function showWait(){
   sheet('<div class="hold"><b>Nearly there</b>Hi ' + esc(who) + '. Your account is waiting for a supervisor to approve it.' +
         '<div class="pmeta">This screen updates by itself once that is done. Ask a supervisor if it takes long.</div></div>' +
-        '<button class="alt" id="wOut">Sign out</button>');
-  $('#wOut').onclick = () => signOut();
+        (isDevice() ? '' : '<button class="alt" id="wOut">Sign out</button>'));
+  if ($('#wOut')) $('#wOut').onclick = () => signOut();
 }
 // the checks that are on, plus whatever a lock names even if it has since been switched off
 function dutyChoices(){
@@ -895,7 +895,8 @@ function dutyChoices(){
 }
 function showDuty(){
   let h = '<div class="ph"><b style="font-size:26px">' + (ready() ? 'Hi ' + esc(who) : 'Still ' + esc(who) + '?') + '</b>' +
-    (ready() ? '<button class="x" id="stX">Close</button>' : '<button class="x" id="stOut" style="color:#b71c1c;font-weight:700">Not me \u2014 sign out</button>') + '</div>' +
+    // a PDA never signs out: its account is the phone's, not a person's
+    (ready() || isDevice() ? '<button class="x" id="stX">Close</button>' : '<button class="x" id="stOut" style="color:#b71c1c;font-weight:700">Not me \u2014 sign out</button>') + '</div>' +
     '<div class="pmeta">' + esc(me.email || me.vnum || '') + (admin ? ' &middot; manager' : '') + '</div>' +
     '<div class="q" style="margin-bottom:8px">What are you on today?</div>' +
     (dutyLocked() ? '<div class="card warn">Set by ' + esc(duty.by) + '.</div>'
@@ -906,7 +907,7 @@ function showDuty(){
       return '<button class="duty' + (on ? ' on' : dutyLocked() ? ' dim' : '') + '" data-d="' + d.k + '"><b>' +
         esc(d.label) + '</b><span>' + esc(d.sub) + '</span></button>'; }).join('') +
     '<button class="big" id="stGo" style="margin-top:6px">' + (dutyLocked() ? 'OK' : 'Start') + '</button>' +
-    (ready() ? '<button class="alt" id="stOut2">Sign out</button>' : '') +
+    (ready() && !isDevice() ? '<button class="alt" id="stOut2">Sign out</button>' : '') +
     (dutyLocked() ? '<div class="note" style="text-align:center;font-weight:700;color:#6d4c00">If you are supposed to be on something else, ask dispatch to change it.</div>'
                   : '<div class="note">Picked the wrong one, or moved mid shift? Tap your name at the top to switch. Switches are saved with the time.</div>') +
     '<div class="note" style="text-align:center">Cabinet Tap, screens version ' + BUILD + '</div>';
